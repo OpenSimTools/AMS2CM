@@ -17,10 +17,28 @@ If there are no files in `Mods/Enabled`, all previously installed mods and bootf
 ## Tested Mods
 
 Cars:
-- `AMS2_INDYCAR_2023_V1.0.1`
 - `Alpine Pack v1.4.5`
+- `AMS2_INDYCAR_2023_V1.0.1`
+- `Dodge Viper SRT10 10 AMS2 (V1.45)`
+- `Ferrari 250 GTO v1.4.5`
+- `Ferrari 430 Scuderia AMS2 (2 cars 1.45)`
+- `Ferrari 458 Italia AMS2 (V1.45.1)`
+- `Ford GT 2006_AMS2 (V2.45 2 cars)`
+- `Ford Shelby GT500 2020 AMS2 (2 cars 2.45)`
+- `Jaguar XE SV Project8 (street 2.45)`
+- `Lamborghini SCV12 v1.4.5.2`
+- `Lexus LFA 10 AMS2 (2 cars 2.45)`
+- `Mazda RX7 Rocket Bunny Road AMS2 (1.45)`
+- `Nissan Silvia S15 Rocket Bunny (V1.45)`
+- `Porsche 911 GT3 2018 AMS2 (V2.45) 4 Cars`
+- `Porsche 935 2019 v1.4.5`
+- `Porsche 992 cup v1.4.5`
+- `Porsche 992 GT3 2022 AMS2 (V.1.45)`
 
 Tracks:
+- `azure`
+- `Cali_Highway1` + `Cali_Highway2` (NOT WORKING)
+- `Mojave_Track_Pack` (NOT WORKING)
 - `Sugo`
 
 Liveries:
