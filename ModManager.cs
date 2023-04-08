@@ -195,16 +195,17 @@ public class ModManager
         foreach (var (modName, files) in filesToInstall)
         {
             if (modName.StartsWith(ExcludeModPostProcessingPrefix))
+            {
+                Console.WriteLine($"- {modName} (skipped)");
                 continue;
+            }
+            Console.WriteLine($"- {modName}");
 
             crdFileEntries.AddRange(CrdFileEntries(files));
             trdFileEntries.AddRange(TrdFileEntries(files));
 
             var modExtractionPath = Path.Combine(_tempPath, modName);
-            var recordBlock = FindRecordBlock(modExtractionPath);
-            if (recordBlock is null)
-                continue;
-            recordBlocks.Add(recordBlock);
+            recordBlocks.AddRange(FindRecordBlocks(modExtractionPath));
         }
 
         AppendCrdFileEntries(crdFileEntries);
@@ -247,8 +248,9 @@ public class ModManager
         f.Close();
     }
 
-    private string? FindRecordBlock(string modName)
+    private IEnumerable<string> FindRecordBlocks(string modName)
     {
+        var recordBlocks = new List<string>();
         var modRoot = Path.Combine(_tempPath, modName);
         foreach (var fileAtModRoot in Directory.EnumerateFiles(modRoot))
         {
@@ -264,17 +266,21 @@ public class ModManager
                 if (recordIndent < 0)
                     continue;
                 if (string.IsNullOrWhiteSpace(line))
-                    break;
+                {
+                    recordIndent = -1;
+                    recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
+                    recordLines.Clear();
+                    continue;
+                }
                 var lineNoIndent = line.Substring(recordIndent);
                 recordLines.Add(lineNoIndent);
             }
 
             if (recordIndent >= 0)
-                return string.Join(Environment.NewLine, recordLines);
+                recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
         }
 
-        Console.WriteLine("No record block found");
-        return null;
+        return recordBlocks;
     }
     
     private void InsertRecordBlocks(IEnumerable<string> recordBlocks)

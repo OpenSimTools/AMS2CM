@@ -18,6 +18,7 @@ If there are no files in `Mods/Enabled`, all previously installed mods and bootf
 
 Cars:
 - `AMS2_INDYCAR_2023_V1.0.1`
+- `Alpine Pack v1.4.5`
 
 Tracks:
 - `Sugo`
