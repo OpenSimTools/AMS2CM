@@ -16,31 +16,35 @@ If there are no files in `Mods/Enabled`, all previously installed mods and bootf
 
 ## Tested Mods
 
-Cars:
-- `Alpine Pack v1.4.5`
-- `AMS2_INDYCAR_2023_V1.0.1`
-- `Dodge Viper SRT10 10 AMS2 (V1.45)`
-- `Ferrari 250 GTO v1.4.5`
-- `Ferrari 430 Scuderia AMS2 (2 cars 1.45)`
-- `Ferrari 458 Italia AMS2 (V1.45.1)`
-- `Ford GT 2006_AMS2 (V2.45 2 cars)`
-- `Ford Shelby GT500 2020 AMS2 (2 cars 2.45)`
-- `Jaguar XE SV Project8 (street 2.45)`
-- `Lamborghini SCV12 v1.4.5.2`
-- `Lexus LFA 10 AMS2 (2 cars 2.45)`
-- `Mazda RX7 Rocket Bunny Road AMS2 (1.45)`
-- `Nissan Silvia S15 Rocket Bunny (V1.45)`
-- `Porsche 911 GT3 2018 AMS2 (V2.45) 4 Cars`
-- `Porsche 935 2019 v1.4.5`
-- `Porsche 992 cup v1.4.5`
-- `Porsche 992 GT3 2022 AMS2 (V.1.45)`
+### Cars
 
-Tracks:
-- `azure`
-- `Cali_Highway1` + `Cali_Highway2`
-- `Mojave_Track_Pack`
-- `Sugo`
+- [Alpine A110 Pack](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
+- [Dallara IR18 2023](https://www.racedepartment.com/downloads/dallara-ir18-2023-mod-road-version.59081/) 1.0.1
+- [Dodge Viper SRT-10 2010](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
+- [Ferrari 250 GTO](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
+- [Ferrari 430 Scuderia](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
+- [Ferrari 458 Italia](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45.1
+- [Ferrari FXX-K](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
+- [Ford GT 2006](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 2.45
+- [Ford Shelby GT500 2020](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 2.45
+- [Jaguar XE SV Project8 2019](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 2.45
+- [Lamborghini Essenza SC12](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5.2
+- [Lexus LFA 10](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 2.45
+- [Mazda RX7 Rocket Bunny Road](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
+- [Nissan Silvia S15 Rocket Bunny](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
+- [Porsche 911 GT3 2018](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 2.45
+- [Porsche 935 2019](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
+- [Porsche 992 GT3 Cup](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
+- [Porsche 992 GT3 2022](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
 
-Liveries:
-- `[AMS2]F1_1988_Season`
-- `AMS2_F12022`
+### Tracks
+
+- [Azure Coast](https://projectcarsmoddingteam.weebly.com/ams2-tracks.html)
+- [California Highway](https://projectcarsmoddingteam.weebly.com/ams2-tracks.html)
+- [Mojave](https://projectcarsmoddingteam.weebly.com/ams2-tracks.html)
+- [Sugo](https://projectcarsmoddingteam.weebly.com/ams2-tracks.html)
+
+### Skins
+
+- [F1 1988](https://www.racedepartment.com/downloads/ams2-f1-1988-season.54981/) 1.0
+- [F1 2022](https://www.racedepartment.com/downloads/f1-2022-skinpack-for-the-f-ultimate-gen-2.50129/) FINAL
