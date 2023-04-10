@@ -117,14 +117,14 @@ public class ModManager
             using var archiveFile = new ArchiveFile(filePath);
             archiveFile.Extract(extractionDir);
 
-            var modRootDir = FindModRootDir(extractionDir);
-            if (modRootDir is null)
-                continue;
-            Console.WriteLine($"Contents found at {modRootDir}");
-
-            var installedModFiles = MoveAllWithBackup(modRootDir, _ams2InstallationDirectory);
-            var relativeModFiles = installedModFiles.Select(fp => Path.GetRelativePath(modRootDir, fp)).ToList();
-            installedFiles.Add(modName, relativeModFiles);
+            var relativeModFiles = FindModRootDirs(extractionDir).SelectMany(rootDir =>
+            {
+                var rootSubPath = Path.GetRelativePath(extractionDir, rootDir);
+                Console.WriteLine($"- {rootSubPath}");
+                return MoveAllWithBackup(rootDir, _ams2InstallationDirectory)
+                    .Select(fp => Path.GetRelativePath(rootDir, fp));
+            });
+            installedFiles.Add(modName, relativeModFiles.ToList());
         }
 
         return installedFiles;
@@ -169,19 +169,25 @@ public class ModManager
             (filePath, false);
     }
 
-    private static string? FindModRootDir(string path)
+    private static IEnumerable<string> FindModRootDirs(string path)
     {
-        foreach (var dirPath in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+        return FindRootContaining(path, DirsAtRootLowerCase);
+    }
+
+    private static IEnumerable<string> FindRootContaining(string path, string[] contained)
+    {
+        var roots = new List<string>();
+        foreach (var subdir in Directory.GetDirectories(path))
         {
-            var dirName = Path.GetFileName(dirPath).ToLowerInvariant();
-            if (DirsAtRootLowerCase.Contains(dirName))
+            var localName = Path.GetFileName(subdir).ToLowerInvariant();
+            if (contained.Contains(localName))
             {
-                return Path.GetDirectoryName(dirPath);
+                return new List<string> {path};
             }
+            roots.AddRange(FindRootContaining(subdir, contained));
         }
 
-        Console.WriteLine("No content found");
-        return null;
+        return roots;
     }
 
     private void PerformPostProcessing(ModFileList filesToInstall)

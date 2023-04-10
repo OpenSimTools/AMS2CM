@@ -37,8 +37,8 @@ Cars:
 
 Tracks:
 - `azure`
-- `Cali_Highway1` + `Cali_Highway2` (NOT WORKING)
-- `Mojave_Track_Pack` (NOT WORKING)
+- `Cali_Highway1` + `Cali_Highway2`
+- `Mojave_Track_Pack`
 - `Sugo`
 
 Liveries:
