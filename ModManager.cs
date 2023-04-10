@@ -117,14 +117,14 @@ public class ModManager
             using var archiveFile = new ArchiveFile(filePath);
             archiveFile.Extract(extractionDir);
 
-            var modRootDir = FindModRootDir(extractionDir);
-            if (modRootDir is null)
-                continue;
-            Console.WriteLine($"Contents found at {modRootDir}");
-
-            var installedModFiles = MoveAllWithBackup(modRootDir, _ams2InstallationDirectory);
-            var relativeModFiles = installedModFiles.Select(fp => Path.GetRelativePath(modRootDir, fp)).ToList();
-            installedFiles.Add(modName, relativeModFiles);
+            var relativeModFiles = FindModRootDirs(extractionDir).SelectMany(rootDir =>
+            {
+                var rootSubPath = Path.GetRelativePath(extractionDir, rootDir);
+                Console.WriteLine($"- {rootSubPath}");
+                return MoveAllWithBackup(rootDir, _ams2InstallationDirectory)
+                    .Select(fp => Path.GetRelativePath(rootDir, fp));
+            });
+            installedFiles.Add(modName, relativeModFiles.ToList());
         }
 
         return installedFiles;
@@ -169,19 +169,25 @@ public class ModManager
             (filePath, false);
     }
 
-    private static string? FindModRootDir(string path)
+    private static IEnumerable<string> FindModRootDirs(string path)
     {
-        foreach (var dirPath in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+        return FindRootContaining(path, DirsAtRootLowerCase);
+    }
+
+    private static IEnumerable<string> FindRootContaining(string path, string[] contained)
+    {
+        var roots = new List<string>();
+        foreach (var subdir in Directory.GetDirectories(path))
         {
-            var dirName = Path.GetFileName(dirPath).ToLowerInvariant();
-            if (DirsAtRootLowerCase.Contains(dirName))
+            var localName = Path.GetFileName(subdir).ToLowerInvariant();
+            if (contained.Contains(localName))
             {
-                return Path.GetDirectoryName(dirPath);
+                return new List<string> {path};
             }
+            roots.AddRange(FindRootContaining(subdir, contained));
         }
 
-        Console.WriteLine("No content found");
-        return null;
+        return roots;
     }
 
     private void PerformPostProcessing(ModFileList filesToInstall)
@@ -195,16 +201,17 @@ public class ModManager
         foreach (var (modName, files) in filesToInstall)
         {
             if (modName.StartsWith(ExcludeModPostProcessingPrefix))
+            {
+                Console.WriteLine($"- {modName} (skipped)");
                 continue;
+            }
+            Console.WriteLine($"- {modName}");
 
             crdFileEntries.AddRange(CrdFileEntries(files));
             trdFileEntries.AddRange(TrdFileEntries(files));
 
             var modExtractionPath = Path.Combine(_tempPath, modName);
-            var recordBlock = FindRecordBlock(modExtractionPath);
-            if (recordBlock is null)
-                continue;
-            recordBlocks.Add(recordBlock);
+            recordBlocks.AddRange(FindRecordBlocks(modExtractionPath));
         }
 
         AppendCrdFileEntries(crdFileEntries);
@@ -247,8 +254,9 @@ public class ModManager
         f.Close();
     }
 
-    private string? FindRecordBlock(string modName)
+    private IEnumerable<string> FindRecordBlocks(string modName)
     {
+        var recordBlocks = new List<string>();
         var modRoot = Path.Combine(_tempPath, modName);
         foreach (var fileAtModRoot in Directory.EnumerateFiles(modRoot))
         {
@@ -264,17 +272,21 @@ public class ModManager
                 if (recordIndent < 0)
                     continue;
                 if (string.IsNullOrWhiteSpace(line))
-                    break;
+                {
+                    recordIndent = -1;
+                    recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
+                    recordLines.Clear();
+                    continue;
+                }
                 var lineNoIndent = line.Substring(recordIndent);
                 recordLines.Add(lineNoIndent);
             }
 
             if (recordIndent >= 0)
-                return string.Join(Environment.NewLine, recordLines);
+                recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
         }
 
-        Console.WriteLine("No record block found");
-        return null;
+        return recordBlocks;
     }
     
     private void InsertRecordBlocks(IEnumerable<string> recordBlocks)
