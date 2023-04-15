@@ -1,4 +1,4 @@
-﻿# Automobilista 2 Content Manager
+# Automobilista 2 Content Manager
 
 Simple tool to keep Automobilista 2 mods in sync automatically. It is currently very basic and doesn't have a graphical user interface.
 
@@ -12,14 +12,26 @@ https://github.com/OpenSimTools/AMS2CM/actions/workflows/ci.yaml?query=event%3Ap
 
 Create a `Mods/Enabled` directory in your AMS2 installation directory and place in there all mod archives - don't extract them! For car and track mods, download and place the [bootfiles for the right AMS2 version](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) in the same directory. Finally run `AMS2CM.exe` to install all mods.
 
+This will:
+- restore the original state (before the previous run)
+- extract all mods into a temporary directory
+- move all relevant files to the game directory
+- fill `vehiclelist.lst` with `crd` files
+- fill `tracklist.lst` with `trd` files
+- fill `driveline.rg` with record blocks extracted from the installation instructions
+
 If there are no files in `Mods/Enabled`, all previously installed mods and bootfiles will be uninstalled. This is especially useful before upgrading to a new version of the game.
+
+### Limitations
+
+- It will try and register all `crd` and `trd` files. For mods where this is not correct, the unwanted files will have to be manually blacklisted and will not work unless explicitly implemented (i.e. Dallara IR18 2023). A future version will make blacklisting configurable.
 
 ## Tested Mods
 
 ### Cars
 
 - [Alpine A110 Pack](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
-- [Dallara IR18 2023](https://www.racedepartment.com/downloads/dallara-ir18-2023-mod-road-version.59081/) 1.0.1
+- [Dallara IR18 2023](https://www.racedepartment.com/downloads/dallara-ir18-2023-mod-road-version.59081/) 1.0.1 (without custom team)
 - [Dodge Viper SRT-10 2010](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
 - [Ferrari 250 GTO](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
 - [Ferrari 430 Scuderia](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
