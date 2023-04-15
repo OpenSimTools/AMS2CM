@@ -93,13 +93,23 @@ public class ModManager
 
     private void RestoreOriginalState()
     {
-        Console.WriteLine($"Restoring original state");
-        foreach (var filePath in ReadPreviouslyInstalledFiles())
+        var previouslyInstalledFiles = ReadPreviouslyInstalledFiles();
+        if (!previouslyInstalledFiles.Any())
         {
-            var dstFilePath = Path.Combine(_ams2InstallationDirectory, filePath);
-            if (File.Exists(dstFilePath))
-                File.Delete(dstFilePath);
-            RestoreFile(dstFilePath);
+            Console.WriteLine("No previously installed mods found. Skipping uninstall phase.");
+            return;
+        }
+        Console.WriteLine($"Uninstalling mods:");
+        foreach (var (modName, filePaths) in previouslyInstalledFiles)
+        {
+            Console.WriteLine($"- {modName}");
+            foreach (var filePath in filePaths)
+            {
+                var dstFilePath = Path.Combine(_ams2InstallationDirectory, filePath);
+                if (File.Exists(dstFilePath))
+                    File.Delete(dstFilePath);
+                RestoreFile(dstFilePath);
+            }
         }
     }
 
@@ -107,11 +117,18 @@ public class ModManager
     {
         var installedFiles = new ModFileList();
         var modArchives = Directory.EnumerateFiles(_enabledModsPath);
+        if (!modArchives.Any())
+        {
+            Console.WriteLine($"No mod archives found in {_enabledModsPath}");
+            return installedFiles;
+        }
+
+        Console.WriteLine("Installing mods:");
         foreach (var filePath in modArchives)
         {
             var modName = Path.GetFileNameWithoutExtension(filePath);
 
-            Console.WriteLine($"Installing mod {modName}");
+            Console.WriteLine($"- {modName}");
 
             var extractionDir = Path.Combine(_tempPath, modName);
             using var archiveFile = new ArchiveFile(filePath);
@@ -119,8 +136,8 @@ public class ModManager
 
             var relativeModFiles = FindModRootDirs(extractionDir).SelectMany(rootDir =>
             {
-                var rootSubPath = Path.GetRelativePath(extractionDir, rootDir);
-                Console.WriteLine($"- {rootSubPath}");
+                //var rootSubPath = Path.GetRelativePath(extractionDir, rootDir);
+                //Console.WriteLine($"  - {rootSubPath}");
                 return MoveAllWithBackup(rootDir, _ams2InstallationDirectory)
                     .Select(fp => Path.GetRelativePath(rootDir, fp));
             });
@@ -141,7 +158,7 @@ public class ModManager
             var localName = Path.GetFileName(srcSubPath);
             if (ExcludeCopySuffix.Any(suffix => localName.EndsWith(suffix)))
             {
-                Console.WriteLine($"Skipping {localName}");
+                Console.WriteLine($"    Skipping {localName}");
                 continue;
             }
 
@@ -192,7 +209,12 @@ public class ModManager
 
     private void PerformPostProcessing(ModFileList filesToInstall)
     {
-        Console.WriteLine("Post processing");
+        if (!filesToInstall.Any())
+        {
+            return;
+        }
+
+        Console.WriteLine("Post-processing:");
 
         var crdFileEntries = new List<string>();
         var trdFileEntries = new List<string>();
@@ -305,12 +327,11 @@ public class ModManager
         File.WriteAllText(_driveLineFilePath, newContents);
     }
 
-    private IEnumerable<string> ReadPreviouslyInstalledFiles() {
+    private ModFileList ReadPreviouslyInstalledFiles() {
         if (!File.Exists(_installedListFilePath))
-            return Array.Empty<string>();
+            return new ModFileList();
         return JsonConvert
-            .DeserializeObject<ModFileList>(File.ReadAllText(_installedListFilePath))
-            .Values.SelectMany(_ => _);
+            .DeserializeObject<ModFileList>(File.ReadAllText(_installedListFilePath));
     }
 
     private void WriteInstalledFiles(ModFileList installedFiles)
