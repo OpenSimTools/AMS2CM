@@ -1,4 +1,5 @@
-﻿using Core.Mods;
+﻿using System.Diagnostics;
+using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
 
@@ -14,6 +15,7 @@ public record InstallPaths(
 public class ModManager
 {
     private const string Ams2SteamId = "1066890";
+    private const string Ams2ProcessName = "AMS2AVX";
     private static readonly string Ams2InstallationDir = Path.Combine("steamapps", "common", "Automobilista 2");
     private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
 
@@ -51,46 +53,62 @@ public class ModManager
 
     public void InstallEnabledMods()
     {
+        CheckGameNotRunning();
         RestoreOriginalState();
-
-        if (!File.Exists(Path.Combine(_installPaths.GamePath, FileRemovedByBootfiles)))
-        {
-            Console.WriteLine("Bootfiles installed by another tool have been detected. Please uninstall them.");
-            return;
-        }
-
-        if (!Directory.Exists(_installPaths.ModArchivesPath))
-        {
-            return;
-        }
-
         InstallAllModFiles();
+        Cleanup();
+    }
 
-        // Cleanup
+    private void Cleanup()
+    {
         if (Directory.Exists(_installPaths.TempPath))
         {
             Directory.Delete(_installPaths.TempPath, recursive: true);
         }
     }
-    
+
     private void RestoreOriginalState()
     {
         var previouslyInstalledFiles = ReadPreviouslyInstalledFiles();
-        if (!previouslyInstalledFiles.Any())
+        if (previouslyInstalledFiles.Any())
         {
-            Console.WriteLine("No previously installed mods found. Skipping uninstall phase.");
-            return;
+            Console.WriteLine($"Uninstalling mods:");
+            foreach (var (modName, filePaths) in previouslyInstalledFiles)
+            {
+                Console.WriteLine($"- {modName}");
+                JsgmeFileInstaller.RestoreOriginalState(_installPaths.GamePath, filePaths);
+            }
         }
-        Console.WriteLine($"Uninstalling mods:");
-        foreach (var (modName, filePaths) in previouslyInstalledFiles)
+        else
         {
-            Console.WriteLine($"- {modName}");
-            JsgmeFileInstaller.RestoreOriginalState(_installPaths.GamePath, filePaths);
+            CheckNoBootfilesInstalled();
+            Console.WriteLine("No previously installed mods found. Skipping uninstall phase.");
+        }
+    }
+
+    private static void CheckGameNotRunning()
+    {
+        if (Process.GetProcesses().Any(_ => _.ProcessName == Ams2ProcessName))
+        {
+            throw new Exception("The game is running.");
+        }
+    }
+
+    private void CheckNoBootfilesInstalled()
+    {
+        if (!File.Exists(Path.Combine(_installPaths.GamePath, FileRemovedByBootfiles)))
+        {
+            throw new Exception("Bootfiles installed by another tool have been detected. Please uninstall all mods.");
         }
     }
 
     private void InstallAllModFiles()
     {
+        if (!Directory.Exists(_installPaths.ModArchivesPath))
+        {
+            Console.WriteLine($"No mod archives found in {_installPaths.ModArchivesPath}");
+            return;
+        }
         var modConfigs = new List<IMod.ConfigEntries>();
         var modArchives = Directory.EnumerateFiles(_installPaths.ModArchivesPath).ToList();
         var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
