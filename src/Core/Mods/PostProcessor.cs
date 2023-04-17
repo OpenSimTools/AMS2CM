@@ -17,20 +17,20 @@ public static class PostProcessor
 
     private static void AppendEntryList(string path, IEnumerable<string> entries)
     {
-        var entriesBlock = string.Join(null, entries.Select(f => $"{Environment.NewLine}{f}"));
+        var entriesBlock = string.Join(Environment.NewLine, entries);
         if (!entriesBlock.Any())
         {
             return;
         }
 
         var f = File.AppendText(path);
-        f.Write(entriesBlock);
+        f.Write(WrapInComments(entriesBlock));
         f.Close();
     }
 
     public static void AppendDrivelineRecords(string gamePath, IEnumerable<string> recordBlocks)
     {
-        var recordsBlock = string.Join(null, recordBlocks.Select(rb => $"{rb}{Environment.NewLine}{Environment.NewLine}"));
+        var recordsBlock = string.Join($"{Environment.NewLine}{Environment.NewLine}", recordBlocks);
         if (!recordsBlock.Any())
         {
             return;
@@ -43,7 +43,12 @@ public static class PostProcessor
         {
             throw new Exception("Could not find insertion point in driveline file");
         }
-        var newContents = contents.Insert(endIndex, recordsBlock);
+        var newContents = contents.Insert(endIndex, WrapInComments(recordsBlock));
         File.WriteAllText(driveLineFilePath, newContents);
+    }
+
+    private static string WrapInComments(string content)
+    {
+        return $"{Environment.NewLine}### BEGIN AMS2CM{Environment.NewLine}{content}{Environment.NewLine}### END AMS2CM{Environment.NewLine}";
     }
 }
