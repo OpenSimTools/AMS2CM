@@ -7,11 +7,11 @@
         <Nullable>enable</Nullable>
         <Company>OpenSimTools</Company>
         <Authors>OpenSimTools Contributors</Authors>
+        <AssemblyName>AMS2CM.CLI</AssemblyName>
     </PropertyGroup>
-
+    
     <ItemGroup>
-      <PackageReference Include="Gameloop.Vdf" Version="0.6.2" />
-      <PackageReference Include="Gameloop.Vdf.JsonConverter" Version="0.2.1" />
-      <PackageReference Include="SevenZipExtractor" Version="1.0.17" />
+      <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
+
 </Project>

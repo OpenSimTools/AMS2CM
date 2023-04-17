@@ -1,4 +1,4 @@
-﻿namespace AMS2CM;
+﻿namespace Core;
 
 public static class StringExtensions
 {

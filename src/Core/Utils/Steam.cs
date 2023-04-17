@@ -2,7 +2,7 @@
 using Gameloop.Vdf.JsonConverter;
 using Microsoft.Win32;
 
-namespace AMS2CM;
+namespace Core;
 
 
 public static class Steam
