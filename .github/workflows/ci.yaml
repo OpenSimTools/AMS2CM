@@ -20,5 +20,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: AMS2CM
-          path: bin/Debug/net6.0-windows/publish/**
+          path: |
+            src/CLI/bin/Debug/net6.0-windows/publish/**
+            LICENSE
           if-no-files-found: error
