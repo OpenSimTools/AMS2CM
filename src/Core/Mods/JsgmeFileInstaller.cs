@@ -1,6 +1,4 @@
-﻿using SevenZipExtractor;
-
-namespace Core;
+﻿namespace Core.Mods;
 
 public static class JsgmeFileInstaller
 {

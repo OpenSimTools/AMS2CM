@@ -1,4 +1,4 @@
-﻿using Core;
+﻿using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
 
@@ -22,8 +22,6 @@ public class ModManager
     private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
 
     private readonly InstallPaths _installPaths;
-    private readonly IPostProcessor _postProcessor;
-
 
     public static ModManager Init()
     {
@@ -48,7 +46,6 @@ public class ModManager
     private ModManager(InstallPaths installPaths)
     {
         _installPaths = installPaths;
-        _postProcessor = new Ams2PostProcessor(installPaths.TempPath, installPaths.GamePath);
     }
 
     public void InstallEnabledMods()
@@ -60,10 +57,7 @@ public class ModManager
             return;
         }
 
-        // Install enabled mods
-        var installedMods = InstallAllModFiles();
-        WriteInstalledFiles(installedMods);
-        _postProcessor.PerformPostProcessing(installedMods);
+        InstallAllModFiles();
 
         // Cleanup
         if (Directory.Exists(_installPaths.TempPath))
@@ -88,34 +82,58 @@ public class ModManager
         }
     }
 
-    private List<IMod> InstallAllModFiles()
+    private void InstallAllModFiles()
     {
-        var installedMods = new List<IMod>();
+        var modConfigs = new List<IMod.ConfigEntries>();
         var modArchives = Directory.EnumerateFiles(_installPaths.ModArchivesPath).ToList();
+        var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
         if (!modArchives.Any())
         {
             Console.WriteLine($"No mod archives found in {_installPaths.ModArchivesPath}");
-            return installedMods;
         }
-
-        Console.WriteLine("Installing mods:");
-        foreach (var filePath in modArchives)
+        else
         {
-            var packageName = Path.GetFileNameWithoutExtension(filePath);
+            Console.WriteLine("Installing mods:");
+            foreach (var filePath in modArchives)
+            {
+                var packageName = Path.GetFileNameWithoutExtension(filePath);
 
-            Console.WriteLine($"- {packageName}");
+                Console.WriteLine($"- {packageName}");
 
-            var extractionDir = Path.Combine(_installPaths.TempPath, packageName);
-            using var archiveFile = new ArchiveFile(filePath);
-            archiveFile.Extract(extractionDir);
+                var extractionDir = Path.Combine(_installPaths.TempPath, packageName);
+                using var archiveFile = new ArchiveFile(filePath);
+                archiveFile.Extract(extractionDir);
             
-            var mod = new ManualInstallMod(packageName, extractionDir);
-            installedMods.Add(mod);
-            mod.Install(_installPaths.GamePath);
+                var mod = new ManualInstallMod(packageName, extractionDir);
+                try
+                {
+                    mod.Install(_installPaths.GamePath);
+                    modConfigs.Add(mod.Config);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"  Error: {e.Message}");
+                }
+                // Add even partially installed files
+                installedFilesByMod.Add(mod.PackageName, mod.InstalledFiles);
+            }
         }
 
-        return installedMods;
+        WriteInstalledFiles(installedFilesByMod);
+
+        if (!modConfigs.Any())
+        {
+            return;
+        }
+        Console.WriteLine("Post-processing:");
+        Console.WriteLine("- Appending crd file entries");
+        PostProcessor.AppendCrdFileEntries(_installPaths.GamePath, modConfigs.SelectMany(_ => _.CrdFileEntries));
+        Console.WriteLine("- Appending trd file entries");
+        PostProcessor.AppendTrdFileEntries(_installPaths.GamePath, modConfigs.SelectMany(_ => _.TrdFileEntries));
+        Console.WriteLine("- Appending driveline records");
+        PostProcessor.AppendDrivelineRecords(_installPaths.GamePath, modConfigs.SelectMany(_ => _.DrivelineRecords));
     }
+
 
     private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles() {
         if (!File.Exists(_installPaths.InstalledFilesPath))
@@ -127,9 +145,8 @@ public class ModManager
             .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(_installPaths.InstalledFilesPath));
     }
 
-    private void WriteInstalledFiles(IEnumerable<IMod> installedMods)
+    private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
-        var installedFilesByMod = installedMods.ToDictionary(mod => mod.PackageName, mod => mod.InstalledFiles);
-        File.WriteAllText(_installPaths.InstalledFilesPath, JsonConvert.SerializeObject(installedFilesByMod, JsonSerializerSettings));
+        File.WriteAllText(_installPaths.InstalledFilesPath, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
     }
 }

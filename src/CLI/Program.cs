@@ -6,7 +6,7 @@ try
 }
 catch (Exception e)
 {
-    Console.WriteLine(e.Message);
+    Console.WriteLine($"Error: {e.Message}");
 }
 Console.WriteLine("Press any key to exit.");
 Console.ReadKey();
