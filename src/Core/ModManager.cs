@@ -15,6 +15,7 @@ public class ModManager
 {
     private const string Ams2SteamId = "1066890";
     private static readonly string Ams2InstallationDir = Path.Combine("steamapps", "common", "Automobilista 2");
+    private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
 
     private const string ModsSubdir = "Mods";
     private const string EnabledModsSubdir = "Enabled";
@@ -51,6 +52,12 @@ public class ModManager
     public void InstallEnabledMods()
     {
         RestoreOriginalState();
+
+        if (!File.Exists(Path.Combine(_installPaths.GamePath, FileRemovedByBootfiles)))
+        {
+            Console.WriteLine("Bootfiles installed by another tool have been detected. Please uninstall them.");
+            return;
+        }
 
         if (!Directory.Exists(_installPaths.ModArchivesPath))
         {
