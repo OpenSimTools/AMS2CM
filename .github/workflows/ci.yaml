@@ -17,11 +17,11 @@ jobs:
       - run: dotnet publish
       - uses: actions/upload-artifact@v3
         with:
-          name: Executable
+          name: AMS2CM
           path: src/CLI/bin/Debug/net6.0-windows/publish/**
           if-no-files-found: error
       - uses: actions/upload-artifact@v3
         with:
-          name: License
+          name: AMS2CM
           path: LICENSE
           if-no-files-found: error
