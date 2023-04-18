@@ -14,13 +14,14 @@ jobs:
       - uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '6.0.x'
-      - if: ${{ github.ref == 'refs/heads/main' }}
-        run: dotnet publish
-      - if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/upload-artifact@v3
+      - run: dotnet publish
+      - uses: actions/upload-artifact@v3
         with:
-          name: AMS2CM
-          path: |
-            src/CLI/bin/Debug/net6.0-windows/publish/**
-            LICENSE
+          name: Executable
+          path: src/CLI/bin/Debug/net6.0-windows/publish/**
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v3
+        with:
+          name: License
+          path: LICENSE
           if-no-files-found: error
