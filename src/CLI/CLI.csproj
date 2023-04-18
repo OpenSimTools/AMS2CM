@@ -7,7 +7,8 @@
         <Nullable>enable</Nullable>
         <Company>OpenSimTools</Company>
         <Authors>OpenSimTools Contributors</Authors>
-        <AssemblyName>AMS2CM.CLI</AssemblyName>
+        <AssemblyName>AMS2CM</AssemblyName>
+        <RootNamespace>AMS2CM.CLI</RootNamespace>
     </PropertyGroup>
     
     <ItemGroup>

@@ -20,7 +20,11 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: AMS2CM
-          path: |
-            src/CLI/bin/Debug/net6.0-windows/publish/**
-            LICENSE
+          path: src/CLI/bin/Debug/net6.0-windows/publish/**
+          if-no-files-found: error
+      - if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: AMS2CM
+          path: LICENSE
           if-no-files-found: error
