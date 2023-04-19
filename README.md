@@ -1,6 +1,10 @@
 # Automobilista 2 Content Manager
 
-Simple tool to keep Automobilista 2 mods in sync automatically. It is currently very basic and doesn't have a graphical user interface.
+**One-click installation of AMS2 mods**. No more reading instructions or editing files!
+
+It is currently a command line tool, but a graphical user interface is coming soon. More features will be coming in the new few weeks and months.
+
+Any feedback is very welcome.
 
 ## Installation
 
@@ -8,9 +12,17 @@ Simple tool to keep Automobilista 2 mods in sync automatically. It is currently 
 https://github.com/OpenSimTools/AMS2CM/actions/workflows/ci.yaml?query=event%3Apush).
 - Extract the archive to a directory of your choice.
 
+## Prerequisites
+- .NET 6 Desktop Runtime (download from [Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)).
+- Make sure that the game is in its original state, without any mod installed (neither by JSGME nor manually).
+
 ## Usage
 
-Create a `Mods/Enabled` directory in your AMS2 installation directory and place in there all mod archives - don't extract them! For car and track mods, download and place the [bootfiles for the right AMS2 version](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) in the same directory. Finally run `AMS2CM.exe` to install all mods.
+Create a `Mods/Enabled` directory in your AMS2 installation directory and place in there all mod archives - don't
+extract them! For car and track mods, download and place the bootfiles for the right AMS2 version in the same directory
+(they can be found in the [Reiza Forum](https://forum.reizastudios.com/threads/permanent-link-to-bootfiles.30553/) or
+on [Project Cars Modding Team's website](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html));
+be careful to keep the original name starting with the double underscore. Finally run `AMS2CM.exe` to install all mods.
 
 This will:
 - restore the original state (before the previous run)
@@ -20,18 +32,31 @@ This will:
 - fill `tracklist.lst` with `trd` files
 - fill `driveline.rg` with record blocks extracted from the installation instructions
 
-If there are no files in `Mods/Enabled`, all previously installed mods and bootfiles will be uninstalled. This is especially useful before upgrading to a new version of the game.
+If there are no files in `Mods/Enabled`, all previously installed mods and bootfiles will be uninstalled. This is
+especially useful before upgrading to a new version of the game.
+
+To update a mod, simply replace the old archive with the new version in the `Mods/Enabled` directory and run AMS2CM
+again.
+
+[![Instruction video for v0.1.1](https://img.youtube.com/vi/4tB210UT_rs/hqdefault.jpg)](https://youtu.be/4tB210UT_rs)
 
 ### Limitations
 
-- It will try and register all `crd` and `trd` files. For mods where this is not correct, the unwanted files will have to be manually blacklisted and will not work unless explicitly implemented (i.e. Dallara IR18 2023). A future version will make blacklisting configurable.
+- Every time AMS2CM is run, it will do a complete reinstall (uninstall followed by install as describe above).
+  Optimisations to update only files that have changed will come in later releases.
+- It will try and register all crd and trd files. For mods where this is not correct, the unwanted files will have to
+  be manually blacklisted and will not work unless explicitly implemented (e.g. the Dallara IR18 2023 had two such
+  files). A future version will make blacklisting configurable. I will also try to work with modders to provide an
+  even smoother experience.
 
 ## Tested Mods
+
+The following mods were tested and work correctly.
 
 ### Cars
 
 - [Alpine A110 Pack](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
-- [Dallara IR18 2023](https://www.racedepartment.com/downloads/dallara-ir18-2023-mod-road-version.59081/) 1.0.1 (without custom team)
+- [Dallara IR18 2023](https://www.racedepartment.com/downloads/dallara-ir18-2023-mod-road-version.59081/) 1.0.1, 1.0.3 (without custom team)
 - [Dodge Viper SRT-10 2010](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
 - [Ferrari 250 GTO](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.4.5
 - [Ferrari 430 Scuderia](https://projectcarsmoddingteam.weebly.com/downloads---automobilista-2.html) 1.45
