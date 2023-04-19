@@ -98,7 +98,7 @@ public class ModManager
     {
         if (!File.Exists(Path.Combine(_installPaths.GamePath, FileRemovedByBootfiles)))
         {
-            throw new Exception("Bootfiles installed by another tool have been detected. Please uninstall all mods.");
+            throw new Exception("Bootfiles installed by another tool (e.g. JSGME) have been detected. Please uninstall all mods.");
         }
     }
 

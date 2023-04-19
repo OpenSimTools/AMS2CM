@@ -14,7 +14,7 @@ https://github.com/OpenSimTools/AMS2CM/actions/workflows/ci.yaml?query=event%3Ap
 
 ## Prerequisites
 - .NET 6 Desktop Runtime (download from [Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)).
-- Make sure that the game is in its original state, without any mod installed.
+- Make sure that the game is in its original state, without any mod installed (neither by JSGME nor manually).
 
 ## Usage
 
