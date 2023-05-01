@@ -87,6 +87,23 @@ public class ModManager
         return unavailableModsState.Concat(availableModsState).ToList();
     }
 
+    public string EnableMod(string packagePath)
+    {
+        return InstallMod(packagePath, workPaths.EnabledModArchivesDir);
+    }
+
+    public string DisableMod(string packagePath)
+    {
+        return InstallMod(packagePath, workPaths.DisabledModArchivesDir);
+    }
+
+    public string InstallMod(string packagePath, string destinationDirectoryPath)
+    {
+        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
+        File.Move(packagePath, destinationFilePath);
+        return destinationFilePath;
+    }
+
     public void InstallEnabledMods()
     {
         // It shoulnd't be needed, but some systems seem to want to load oo2core

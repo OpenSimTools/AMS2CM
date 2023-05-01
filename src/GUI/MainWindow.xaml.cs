@@ -12,15 +12,22 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        this.InitializeComponent();
+        InitializeComponent();
         modManager = CreateModManager();
-        ModListView.ItemsSource = modManager.FetchState().Select(modState => new ModVM {
-            PackageName = modState.PackageName,
-            PackagePath = modState.PackagePath,
-            IsInstalled = modState.IsInstalled,
-            IsEnabled = modState.IsEnabled ?? false,
-            IsInstallable = modState.IsEnabled is not null,
-        });
+        SyncModListView();
+    }
+
+    private void SyncButton_Click(object sender, RoutedEventArgs e)
+    {
+        SyncButton.IsEnabled = false;
+        modManager.InstallEnabledMods();
+        SyncModListView();
+        SyncButton.IsEnabled = true;
+    }
+
+    private void SyncModListView()
+    {
+        ModListView.ItemsSource = modManager.FetchState().Select(modState => new ModVM(modState, modManager));
     }
 
     private static ModManager CreateModManager()

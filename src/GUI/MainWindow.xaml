@@ -40,7 +40,8 @@
                             <CheckBox
                                 Grid.Column="1"
                                 MinWidth="0"
-                                IsChecked="{x:Bind IsEnabled}" IsEnabled="{x:Bind IsInstallable}"/>
+                                IsChecked="{x:Bind IsEnabled}" IsEnabled="{x:Bind IsAvailable}"
+                                x:DefaultBindMode="TwoWay"/>
                             <TextBlock
                                 Grid.Column="2"
                                 VerticalAlignment="Center"
@@ -53,7 +54,8 @@
         <Button Grid.Row="2" Grid.ColumnSpan="3"
             Margin="18,10,14,10"
             HorizontalAlignment="Center" VerticalAlignment="Center"
-            x:Name="SyncButton">Sync</Button>
+            x:Name="SyncButton"
+            Click="SyncButton_Click">Sync</Button>
     </Grid>
 
 </Window>
