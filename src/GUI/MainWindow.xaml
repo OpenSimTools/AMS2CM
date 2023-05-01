@@ -7,7 +7,53 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <Button x:Name="myButton" Click="myButton_Click">Click Me</Button>
-    </StackPanel>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <SymbolIcon
+            Margin="15,10,0,10"
+            Symbol="Download" />
+        <SymbolIcon Grid.Column="1"
+            Margin="15,10,0,10"
+            Symbol="Import" />
+        <ScrollViewer Grid.Row="1" Grid.ColumnSpan="3">
+            <ListView x:Name="ModListView">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:ModVM">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox
+                                MinWidth="0"
+                                IsChecked="{x:Bind IsInstalled}" IsEnabled="False"/>
+                            <CheckBox
+                                Grid.Column="1"
+                                MinWidth="0"
+                                IsChecked="{x:Bind IsEnabled}" IsEnabled="{x:Bind IsInstallable}"/>
+                            <TextBlock
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Text="{x:Bind PackageName}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </ScrollViewer>
+        <Button Grid.Row="2" Grid.ColumnSpan="3"
+            Margin="18,10,14,10"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            x:Name="SyncButton">Sync</Button>
+    </Grid>
+
 </Window>
