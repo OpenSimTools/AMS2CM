@@ -3,6 +3,7 @@ using System.Linq;
 using Core;
 using Core.Games;
 using Microsoft.UI.Xaml;
+using WinUIEx;
 
 namespace AMS2CM.GUI;
 
@@ -14,6 +15,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         modManager = CreateModManager();
+        this.SetWindowSize(600,600);
         SyncModListView();
     }
 
