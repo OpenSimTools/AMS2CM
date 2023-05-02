@@ -29,10 +29,13 @@
         <ScrollViewer Grid.Row="1" Grid.ColumnSpan="3">
             <ListView
                 x:Name="ModListView"
-                SelectionMode="None"
+                SelectionMode="Extended"
                 AllowDrop="True"
                 DragOver="ModListView_DragOver"
-                Drop="ModListView_Drop">
+                Drop="ModListView_Drop"
+                CanDragItems="True"
+                DragItemsStarting="ModListView_DragItemsStarting"
+                DragItemsCompleted="ModListView_DragItemsCompleted">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="local:ModVM">
                         <Grid>

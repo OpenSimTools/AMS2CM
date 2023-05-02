@@ -21,6 +21,8 @@ internal class ModVM
 
     public string PackageName => modState.PackageName;
 
+    public string PackagePath => currentPackagePath;
+
     public bool IsInstalled => modState.IsInstalled;
 
     public bool IsEnabled

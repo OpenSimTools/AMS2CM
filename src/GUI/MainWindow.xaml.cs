@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Core;
@@ -71,5 +72,24 @@ public sealed partial class MainWindow : Window
                 }
             }
         }
+    }
+
+    private async void ModListView_DragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
+    {
+        var storageItems = new List<StorageFile>();
+        foreach (var o in e.Items)
+        {
+            var mvm = (ModVM)o;
+            var si = await StorageFile.GetFileFromPathAsync(mvm.PackagePath);
+            storageItems.Add(si);
+        }
+        e.Data.SetStorageItems(storageItems);
+
+        e.Data.RequestedOperation = DataPackageOperation.Move;
+    }
+
+    private void ModListView_DragItemsCompleted(Microsoft.UI.Xaml.Controls.ListViewBase sender, Microsoft.UI.Xaml.Controls.DragItemsCompletedEventArgs args)
+    {
+        SyncModListView();
     }
 }
