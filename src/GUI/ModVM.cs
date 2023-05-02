@@ -1,15 +1,16 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.ComponentModel;
 using Core;
-using Microsoft.UI.Composition;
 
 namespace AMS2CM.GUI;
 
-internal class ModVM
+internal class ModVM : INotifyPropertyChanged
 {
     private readonly ModState modState;
     private readonly ModManager modManager;
     private bool isEnabled;
     private string currentPackagePath;
+
+    public event PropertyChangedEventHandler PropertyChanged;
 
     public ModVM(ModState modState, ModManager modManager)
     {
@@ -51,6 +52,7 @@ internal class ModVM
             currentPackagePath = modManager.DisableMod(currentPackagePath);
         }
         isEnabled = shouldEnable;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEnabled)));
     }
 
     private void DoNothing()

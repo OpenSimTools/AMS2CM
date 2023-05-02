@@ -36,6 +36,16 @@
                 CanDragItems="True"
                 DragItemsStarting="ModListView_DragItemsStarting"
                 DragItemsCompleted="ModListView_DragItemsCompleted">
+                <ListView.ContextFlyout>
+                    <MenuFlyout x:Name="ModListMenu">
+                        <MenuFlyoutItem Text="To Install" Click="ModListMenuToInstall_Click"/>
+                        <MenuFlyoutItem Text="Delete" Click="ModListMenuDelete_Click">
+                            <MenuFlyoutItem.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Delete" />
+                            </MenuFlyoutItem.KeyboardAccelerators>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </ListView.ContextFlyout>
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="local:ModVM">
                         <Grid>

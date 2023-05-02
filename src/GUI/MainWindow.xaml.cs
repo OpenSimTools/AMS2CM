@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Microsoft.VisualBasic.FileIO;
 using System.Linq;
 using Core;
 using Core.Games;
@@ -90,6 +91,28 @@ public sealed partial class MainWindow : Window
 
     private void ModListView_DragItemsCompleted(Microsoft.UI.Xaml.Controls.ListViewBase sender, Microsoft.UI.Xaml.Controls.DragItemsCompletedEventArgs args)
     {
+        SyncModListView();
+    }
+
+    private void ModListMenuToInstall_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var o in ModListView.SelectedItems)
+        {
+            var mvm = (ModVM)o;
+            mvm.IsEnabled = true;
+        }
+    }
+
+    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var o in ModListView.SelectedItems)
+        {
+            var mvm = (ModVM)o;
+            if (mvm.IsAvailable)
+            {
+                FileSystem.DeleteFile(mvm.PackagePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+            }
+        }
         SyncModListView();
     }
 }
