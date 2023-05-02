@@ -87,21 +87,44 @@ public class ModManager
         return unavailableModsState.Concat(availableModsState).ToList();
     }
 
+    public ModState EnableNewMod(string packagePath)
+    {
+        var destinationDirectoryPath = workPaths.EnabledModArchivesDir;
+        ExistingDirectoryOrCreate(destinationDirectoryPath);
+        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
+        File.Copy(packagePath, destinationFilePath);
+        return new ModState(
+                PackageName: PackageName(destinationFilePath),
+                PackagePath: destinationFilePath,
+                IsEnabled: true,
+                IsInstalled: false
+            );
+    }
+
     public string EnableMod(string packagePath)
     {
-        return InstallMod(packagePath, workPaths.EnabledModArchivesDir);
+        return MoveMod(packagePath, workPaths.EnabledModArchivesDir);
     }
 
     public string DisableMod(string packagePath)
     {
-        return InstallMod(packagePath, workPaths.DisabledModArchivesDir);
+        return MoveMod(packagePath, workPaths.DisabledModArchivesDir);
     }
 
-    public string InstallMod(string packagePath, string destinationDirectoryPath)
+    private string MoveMod(string packagePath, string destinationDirectoryPath)
     {
+        ExistingDirectoryOrCreate(destinationDirectoryPath);
         var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
         File.Move(packagePath, destinationFilePath);
         return destinationFilePath;
+    }
+
+    private static void ExistingDirectoryOrCreate(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+        }
     }
 
     public void InstallEnabledMods()
