@@ -22,6 +22,8 @@ public class ModManager
     private const string ModsSubdir = "Mods";
     private const string EnabledModsSubdir = "Enabled";
 
+    private const string BootfilesPrefix = "__bootfiles";
+
     private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
 
     private readonly InstallPaths _installPaths;
@@ -112,51 +114,97 @@ public class ModManager
         var modConfigs = new List<IMod.ConfigEntries>();
         var modArchives = Directory.EnumerateFiles(_installPaths.ModArchivesPath).ToList();
         var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
-        if (!modArchives.Any())
+        try
         {
-            Console.WriteLine($"No mod archives found in {_installPaths.ModArchivesPath}");
-        }
-        else
-        {
-            Console.WriteLine("Installing mods:");
-            foreach (var filePath in modArchives)
+            if (!modArchives.Any())
             {
-                var packageName = Path.GetFileNameWithoutExtension(filePath);
-
-                Console.WriteLine($"- {packageName}");
-
-                var extractionDir = Path.Combine(_installPaths.TempPath, packageName);
-                using var archiveFile = new ArchiveFile(filePath);
-                archiveFile.Extract(extractionDir);
-            
-                var mod = new ManualInstallMod(packageName, extractionDir);
-                try
+                Console.WriteLine($"No mod archives found in {_installPaths.ModArchivesPath}");
+            }
+            else
+            {
+                Console.WriteLine("Installing mods:");
+                foreach (var archivePath in modArchives)
                 {
-                    mod.Install(_installPaths.GamePath);
-                    modConfigs.Add(mod.Config);
+                    var packageName = Path.GetFileNameWithoutExtension(archivePath);
+                    if (packageName.StartsWith(BootfilesPrefix))
+                    {
+                        Console.WriteLine($"- {packageName} (skipped)");
+                        continue;
+                    }
+
+                    Console.WriteLine($"- {packageName}");
+
+                    var mod = ExtractMod(packageName, archivePath);
+                    try
+                    {
+                        mod.Install(_installPaths.GamePath);
+                        modConfigs.Add(mod.Config);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"  Error: {e.Message}");
+                    }
+                    // Add even partially installed files
+                    installedFilesByMod.Add(mod.PackageName, mod.InstalledFiles);
                 }
-                catch (Exception e)
+
+                if (modConfigs.Where(_ => _.NotEmpty()).Any())
                 {
-                    Console.WriteLine($"  Error: {e.Message}");
+                    var bootfilesMod = BootfilesMod();
+                    bootfilesMod.Install(_installPaths.GamePath);
+                    installedFilesByMod.Add(bootfilesMod.PackageName, bootfilesMod.InstalledFiles);
+
+                    Console.WriteLine("Post-processing:");
+                    Console.WriteLine("- Appending crd file entries");
+                    PostProcessor.AppendCrdFileEntries(_installPaths.GamePath, modConfigs.SelectMany(_ => _.CrdFileEntries));
+                    Console.WriteLine("- Appending trd file entries");
+                    PostProcessor.AppendTrdFileEntries(_installPaths.GamePath, modConfigs.SelectMany(_ => _.TrdFileEntries));
+                    Console.WriteLine("- Appending driveline records");
+                    PostProcessor.AppendDrivelineRecords(_installPaths.GamePath, modConfigs.SelectMany(_ => _.DrivelineRecords));
                 }
-                // Add even partially installed files
-                installedFilesByMod.Add(mod.PackageName, mod.InstalledFiles);
             }
         }
-
-        WriteInstalledFiles(installedFilesByMod);
-
-        if (!modConfigs.Any())
+        finally
         {
-            return;
+            WriteInstalledFiles(installedFilesByMod);
         }
-        Console.WriteLine("Post-processing:");
-        Console.WriteLine("- Appending crd file entries");
-        PostProcessor.AppendCrdFileEntries(_installPaths.GamePath, modConfigs.SelectMany(_ => _.CrdFileEntries));
-        Console.WriteLine("- Appending trd file entries");
-        PostProcessor.AppendTrdFileEntries(_installPaths.GamePath, modConfigs.SelectMany(_ => _.TrdFileEntries));
-        Console.WriteLine("- Appending driveline records");
-        PostProcessor.AppendDrivelineRecords(_installPaths.GamePath, modConfigs.SelectMany(_ => _.DrivelineRecords));
+    }
+
+    private IMod ExtractMod(string packageName, string archivePath)
+    {
+        var extractionDir = Path.Combine(_installPaths.TempPath, packageName);
+        using var archiveFile = new ArchiveFile(archivePath);
+        archiveFile.Extract(extractionDir);
+
+        return new ManualInstallMod(packageName, extractionDir);
+    }
+
+    private IMod BootfilesMod()
+    {
+        var bootfilesArchives = Directory.EnumerateFiles(_installPaths.ModArchivesPath, $"{BootfilesPrefix}*.*");
+        switch (bootfilesArchives.Count())
+        {
+            case 0:
+                Console.WriteLine("Extracting bootfiles from game");
+                return GenerateBootfiles();
+            case 1:
+                var archivePath = bootfilesArchives.First();
+                var packageName = Path.GetFileNameWithoutExtension(archivePath);
+                Console.WriteLine($"Extracting bootfiles from {packageName}");
+                return ExtractMod(packageName, archivePath);
+            default:
+                Console.WriteLine("Multiple bootfiles found:");
+                foreach (var bf in bootfilesArchives)
+                {
+                    Console.WriteLine($"- {bf}");
+                }
+                throw new Exception("Too many bootfiles found");
+        }
+    }
+
+    private IMod GenerateBootfiles()
+    {
+        return new GeneratedBootfiles(_installPaths.GamePath, _installPaths.TempPath);
     }
 
 

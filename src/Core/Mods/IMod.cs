@@ -8,12 +8,15 @@ public interface IMod
     ConfigEntries Config { get; }
 
     void Install(string dstPath);
-    
+
     public record ConfigEntries(
         IReadOnlyCollection<string> CrdFileEntries,
         IReadOnlyCollection<string> TrdFileEntries,
         IReadOnlyCollection<string> DrivelineRecords
-    );
+    )
+    {
+        public bool NotEmpty() => CrdFileEntries.Any() || TrdFileEntries.Any() || DrivelineRecords.Any();
+    };
 
     public enum InstalledState
     {
