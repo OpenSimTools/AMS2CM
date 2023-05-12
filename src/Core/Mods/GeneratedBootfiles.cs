@@ -11,8 +11,6 @@ public class GeneratedBootfiles : ExtractedMod
     private const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
 
     private readonly string _pakPath;
-    private readonly string BmtFilesWildcard =
-        Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
     public GeneratedBootfiles(string gamePath, string generationBasePath)
         : base(VirtualPackageName, Path.Combine(generationBasePath, VirtualPackageName))
@@ -27,23 +25,14 @@ public class GeneratedBootfiles : ExtractedMod
         ExtractPakFileFromGame(PhysicsPersistentPakFileName);
         CreateEmptyPakFile("BOOTSPLASH", ExtractedPakPath(BootFlowPakFileName));
         CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{JsgmeFileInstaller.RemoveFileSuffix}"));
-        DeleteExtractedFiles(BmtFilesWildcard); // Is it really necessary?
-    }
-
-    private void DeleteExtractedFiles(string wildcardRelative)
-    {
-        var wildcardAbsolute = Path.Combine(_extractedPath, wildcardRelative);
-        foreach(var file in Directory.EnumerateFiles(wildcardAbsolute))
-        {
-            File.Delete(file);
-        }
     }
 
     private void ExtractPakFileFromGame(string fileName)
     {
-        BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
         var filePath = Path.Combine(_pakPath, fileName);
-        BPakFile.FromFile(filePath, withExtraInfo: true).UnpackAll(_extractedPath);
+        BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
+        using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true);
+        pakFile.UnpackAll(_extractedPath);
     }
 
     private string ExtractedPakPath(string name) =>

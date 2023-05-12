@@ -162,6 +162,10 @@ public class ModManager
                     Console.WriteLine("- Appending driveline records");
                     PostProcessor.AppendDrivelineRecords(_installPaths.GamePath, modConfigs.SelectMany(_ => _.DrivelineRecords));
                 }
+                else
+                {
+                    Console.WriteLine("Post-processing not required");
+                }
             }
         }
         finally
