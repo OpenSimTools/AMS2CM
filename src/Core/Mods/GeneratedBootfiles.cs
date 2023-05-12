@@ -34,7 +34,7 @@ public class GeneratedBootfiles : ExtractedMod
     {
         var filePath = Path.Combine(_pakPath, fileName);
         BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
-        using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true);
+        using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true, outputWriter: TextWriter.Null);
         pakFile.UnpackAll(_extractedPath);
     }
 
