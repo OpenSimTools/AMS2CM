@@ -11,6 +11,8 @@ public class GeneratedBootfiles : ExtractedMod
     private const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
 
     private readonly string _pakPath;
+    private readonly string BmtFilesWildcard =
+        Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
     public GeneratedBootfiles(string gamePath, string generationBasePath)
         : base(VirtualPackageName, Path.Combine(generationBasePath, VirtualPackageName))
@@ -25,6 +27,7 @@ public class GeneratedBootfiles : ExtractedMod
         ExtractPakFileFromGame(PhysicsPersistentPakFileName);
         CreateEmptyPakFile("BOOTSPLASH", ExtractedPakPath(BootFlowPakFileName));
         CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{JsgmeFileInstaller.RemoveFileSuffix}"));
+        DeleteExtractedFiles(BmtFilesWildcard);
     }
 
     private void ExtractPakFileFromGame(string fileName)
@@ -81,6 +84,14 @@ public class GeneratedBootfiles : ExtractedMod
         var parent = Path.GetDirectoryName(path);
         if (parent is not null)
             Directory.CreateDirectory(parent);
+    }
+
+    private void DeleteExtractedFiles(string wildcardRelative)
+    {
+        foreach (var file in Directory.EnumerateFiles(_extractedPath, wildcardRelative))
+        {
+            File.Delete(file);
+        }
     }
 
     protected override IMod.ConfigEntries GenerateConfig() => EmptyConfig;
