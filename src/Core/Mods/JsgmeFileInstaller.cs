@@ -76,18 +76,42 @@ public static class JsgmeFileInstaller
 
     public static void RestoreOriginalState(string dstPath, IEnumerable<string> files)
     {
-        foreach (var file in files)
+        var installedPaths = files.Select(file => Path.Combine(dstPath, file));
+        foreach (var path in installedPaths)
         {
-            var dstFilePath = Path.Combine(dstPath, file);
-            if (File.Exists(dstFilePath))
+            // Some mods have duplicate entries, so files might have been removed already
+            if (File.Exists(path))
             {
-                File.Delete(dstFilePath);
+                File.Delete(path);
             }
 
-            RestoreFile(dstFilePath);
+            RestoreFile(path);
+        }
+        DeleteEmptyDirectories(dstPath, installedPaths);
+    }
+
+    private static void DeleteEmptyDirectories(string dstRootPath, IEnumerable<string> filePaths) {
+        var dirs = filePaths.SelectMany(dstFilePath => AncestorsUpTo(dstRootPath, dstFilePath)).Distinct().OrderByDescending(name => name.Length);
+        foreach (var dir in dirs)
+        {
+            // Some mods have duplicate entries, so files might have been removed already
+            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+            {
+                Directory.Delete(dir);
+            }
         }
     }
-    
+
+    private static IEnumerable<string> AncestorsUpTo(string root, string path)
+    {
+        var ancestors = new List<string>();
+        for (var dir = Directory.GetParent(path); dir is not null && dir.FullName != root; dir = dir.Parent)
+        {
+            ancestors.Add(dir.FullName);
+        }
+        return ancestors;
+    }
+
     private static void RestoreFile(string path)
     {
         var backupFilePath = BackupFileName(path);
