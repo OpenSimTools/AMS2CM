@@ -3,7 +3,7 @@
 public static class JsgmeFileInstaller
 {
     private const string BackupFileSuffix = ".orig";
-    private const string JsgmeRemoveFileSuffix = "-remove";
+    public const string RemoveFileSuffix = "-remove";
 
     private static readonly string[] ExcludeCopySuffix =
     {
@@ -55,8 +55,8 @@ public static class JsgmeFileInstaller
 
     private static (string, bool) NeedsRemoving(string filePath)
     {
-        return filePath.EndsWith(JsgmeRemoveFileSuffix) ?
-            (filePath.RemoveSuffix(JsgmeRemoveFileSuffix).Trim(), true) :
+        return filePath.EndsWith(RemoveFileSuffix) ?
+            (filePath.RemoveSuffix(RemoveFileSuffix).Trim(), true) :
             (filePath, false);
     }
 

@@ -9,13 +9,17 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '6.0.x'
       - if: ${{ github.ref == 'refs/heads/main' }}
-        run: dotnet publish
+        run: |
+          dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/OpenSimTools/index.json"
+          dotnet publish
       - if: ${{ github.ref == 'refs/heads/main' }}
         uses: actions/upload-artifact@v3
         with:
