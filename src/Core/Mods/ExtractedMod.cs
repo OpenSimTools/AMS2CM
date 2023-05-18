@@ -1,6 +1,6 @@
 ﻿namespace Core.Mods;
 
-public abstract class ExtractedMod : IMod
+internal abstract class ExtractedMod : IMod
 {
     private static readonly string[] DirsAtRootLowerCase =
     {
@@ -19,14 +19,14 @@ public abstract class ExtractedMod : IMod
     protected static readonly IMod.ConfigEntries EmptyConfig =
         new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
 
-    protected readonly string _extractedPath;
-    protected readonly List<string> _installedFiles = new();
+    protected readonly string extractedPath;
+    protected readonly List<string> installedFiles = new();
 
     public ExtractedMod(string packageName, string extractedPath)
     {
         PackageName = packageName;
         Config = EmptyConfig;
-        _extractedPath = extractedPath;
+        this.extractedPath = extractedPath;
     }
 
     public string PackageName
@@ -46,7 +46,7 @@ public abstract class ExtractedMod : IMod
         private set;
     }
 
-    public IReadOnlyCollection<string> InstalledFiles => _installedFiles;
+    public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
     public void Install(string dstPath)
     {
@@ -59,7 +59,7 @@ public abstract class ExtractedMod : IMod
         foreach (var rootPath in FindModRootDirs())
         {
             JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
-                relativeFilePath => _installedFiles.Add(relativeFilePath));
+                relativeFilePath => installedFiles.Add(relativeFilePath));
         }
 
         Config = GenerateConfig();
@@ -69,7 +69,7 @@ public abstract class ExtractedMod : IMod
 
     private IEnumerable<string> FindModRootDirs()
     {
-        return FindRootContaining(_extractedPath, DirsAtRootLowerCase);
+        return FindRootContaining(extractedPath, DirsAtRootLowerCase);
     }
 
     private static List<string> FindRootContaining(string path, string[] contained)

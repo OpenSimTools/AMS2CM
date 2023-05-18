@@ -1,6 +1,6 @@
 ﻿namespace Core.Mods;
 
-public class ManualInstallMod : ExtractedMod
+internal class ManualInstallMod : ExtractedMod
 {
     private static readonly string[] ConfigExcludeFile =
     {
@@ -19,7 +19,7 @@ public class ManualInstallMod : ExtractedMod
 
     private List<string> CrdFileEntries()
     {
-        return _installedFiles
+        return installedFiles
             .Where(p => ConfigExcludeFile.All(excluded => Path.GetFileName(p) != excluded))
             .Where(p => p.EndsWith(".crd"))
             .ToList();
@@ -27,7 +27,7 @@ public class ManualInstallMod : ExtractedMod
     
     private List<string> TrdFileEntries()
     {
-        return _installedFiles
+        return installedFiles
             .Where(p => ConfigExcludeFile.All(excluded => Path.GetFileName(p) != excluded))
             .Where(p => p.EndsWith(".trd"))
             .Select(fp => $"{Path.GetDirectoryName(fp)}{Path.DirectorySeparatorChar}@{Path.GetFileName(fp)}")
@@ -37,7 +37,7 @@ public class ManualInstallMod : ExtractedMod
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();
-        foreach (var fileAtModRoot in Directory.EnumerateFiles(_extractedPath))
+        foreach (var fileAtModRoot in Directory.EnumerateFiles(extractedPath))
         {
             var recordIndent = -1;
             var recordLines = new List<string>();
