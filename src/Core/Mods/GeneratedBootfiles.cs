@@ -94,5 +94,7 @@ internal class GeneratedBootfiles : ExtractedMod
         }
     }
 
+    protected override IEnumerable<string> ExtractedRootDirs() => new[] { extractedPath };
+
     protected override IMod.ConfigEntries GenerateConfig() => EmptyConfig;
 }

@@ -2,6 +2,20 @@
 
 internal class ManualInstallMod : ExtractedMod
 {
+    private static readonly string[] DirsAtRootLowerCase =
+{
+        "cameras",
+        "characters",
+        "effects",
+        "gui",
+        "pakfiles",
+        "render",
+        "text",
+        "tracks",
+        "upgrade",
+        "vehicles"
+    };
+
     private static readonly string[] ConfigExcludeFile =
     {
         // IndyCar 2023
@@ -13,7 +27,28 @@ internal class ManualInstallMod : ExtractedMod
         : base(packageName, extractedPath)
     {
     }
-    
+
+    protected override IEnumerable<string> ExtractedRootDirs()
+    {
+        return FindRootContaining(extractedPath, DirsAtRootLowerCase);
+    }
+
+    private static List<string> FindRootContaining(string path, string[] contained)
+    {
+        var roots = new List<string>();
+        foreach (var subdir in Directory.GetDirectories(path))
+        {
+            var localName = Path.GetFileName(subdir).ToLowerInvariant();
+            if (contained.Contains(localName))
+            {
+                return new List<string> { path };
+            }
+            roots.AddRange(FindRootContaining(subdir, contained));
+        }
+
+        return roots;
+    }
+
     protected override IMod.ConfigEntries GenerateConfig() =>
         new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
 

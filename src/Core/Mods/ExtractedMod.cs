@@ -2,20 +2,6 @@
 
 internal abstract class ExtractedMod : IMod
 {
-    private static readonly string[] DirsAtRootLowerCase =
-    {
-        "cameras",
-        "characters",
-        "effects",
-        "gui",
-        "pakfiles",
-        "render",
-        "text",
-        "tracks",
-        "upgrade",
-        "vehicles"
-    };
-
     protected static readonly IMod.ConfigEntries EmptyConfig =
         new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
 
@@ -56,7 +42,7 @@ internal abstract class ExtractedMod : IMod
         }
         Installed = IMod.InstalledState.PartiallyInstalled;
 
-        foreach (var rootPath in FindModRootDirs())
+        foreach (var rootPath in ExtractedRootDirs())
         {
             JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
                 relativeFilePath => installedFiles.Add(relativeFilePath));
@@ -67,26 +53,7 @@ internal abstract class ExtractedMod : IMod
         Installed = IMod.InstalledState.Installed;
     }
 
-    private IEnumerable<string> FindModRootDirs()
-    {
-        return FindRootContaining(extractedPath, DirsAtRootLowerCase);
-    }
-
-    private static List<string> FindRootContaining(string path, string[] contained)
-    {
-        var roots = new List<string>();
-        foreach (var subdir in Directory.GetDirectories(path))
-        {
-            var localName = Path.GetFileName(subdir).ToLowerInvariant();
-            if (contained.Contains(localName))
-            {
-                return new List<string> { path };
-            }
-            roots.AddRange(FindRootContaining(subdir, contained));
-        }
-
-        return roots;
-    }
+    protected abstract IEnumerable<string> ExtractedRootDirs();
 
     protected abstract IMod.ConfigEntries GenerateConfig();
 }
