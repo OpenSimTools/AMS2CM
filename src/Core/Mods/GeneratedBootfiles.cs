@@ -3,21 +3,21 @@ using PCarsTools.Encryption;
 
 namespace Core.Mods;
 
-public class GeneratedBootfiles : ExtractedMod
+internal class GeneratedBootfiles : ExtractedMod
 {
     private const string VirtualPackageName = "__bootfiles_generated";
     private const string PakfilesDirectory = "Pakfiles";
     private const string BootFlowPakFileName = "BOOTFLOW.bff";
     private const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
 
-    private readonly string _pakPath;
+    private readonly string pakPath;
     private readonly string BmtFilesWildcard =
         Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
     public GeneratedBootfiles(string gamePath, string generationBasePath)
         : base(VirtualPackageName, Path.Combine(generationBasePath, VirtualPackageName))
     {
-        _pakPath = Path.Combine(gamePath, PakfilesDirectory);
+        pakPath = Path.Combine(gamePath, PakfilesDirectory);
         GenerateBootfiles();
     }
 
@@ -32,14 +32,14 @@ public class GeneratedBootfiles : ExtractedMod
 
     private void ExtractPakFileFromGame(string fileName)
     {
-        var filePath = Path.Combine(_pakPath, fileName);
+        var filePath = Path.Combine(pakPath, fileName);
         BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
         using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true, outputWriter: TextWriter.Null);
-        pakFile.UnpackAll(_extractedPath);
+        pakFile.UnpackAll(extractedPath);
     }
 
     private string ExtractedPakPath(string name) =>
-        Path.Combine(_extractedPath, PakfilesDirectory, name);
+        Path.Combine(extractedPath, PakfilesDirectory, name);
 
     private const string fileTag = " KAP";
     private const uint version = 1 << 11 | 1;
@@ -88,11 +88,13 @@ public class GeneratedBootfiles : ExtractedMod
 
     private void DeleteExtractedFiles(string wildcardRelative)
     {
-        foreach (var file in Directory.EnumerateFiles(_extractedPath, wildcardRelative))
+        foreach (var file in Directory.EnumerateFiles(extractedPath, wildcardRelative))
         {
             File.Delete(file);
         }
     }
+
+    protected override IEnumerable<string> ExtractedRootDirs() => new[] { extractedPath };
 
     protected override IMod.ConfigEntries GenerateConfig() => EmptyConfig;
 }

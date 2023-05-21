@@ -1,7 +1,21 @@
 ﻿namespace Core.Mods;
 
-public class ManualInstallMod : ExtractedMod
+internal class ManualInstallMod : ExtractedMod
 {
+    private static readonly string[] DirsAtRootLowerCase =
+{
+        "cameras",
+        "characters",
+        "effects",
+        "gui",
+        "pakfiles",
+        "render",
+        "text",
+        "tracks",
+        "upgrade",
+        "vehicles"
+    };
+
     private static readonly string[] ConfigExcludeFile =
     {
         // IndyCar 2023
@@ -13,13 +27,34 @@ public class ManualInstallMod : ExtractedMod
         : base(packageName, extractedPath)
     {
     }
-    
+
+    protected override IEnumerable<string> ExtractedRootDirs()
+    {
+        return FindRootContaining(extractedPath, DirsAtRootLowerCase);
+    }
+
+    private static List<string> FindRootContaining(string path, string[] contained)
+    {
+        var roots = new List<string>();
+        foreach (var subdir in Directory.GetDirectories(path))
+        {
+            var localName = Path.GetFileName(subdir).ToLowerInvariant();
+            if (contained.Contains(localName))
+            {
+                return new List<string> { path };
+            }
+            roots.AddRange(FindRootContaining(subdir, contained));
+        }
+
+        return roots;
+    }
+
     protected override IMod.ConfigEntries GenerateConfig() =>
         new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
 
     private List<string> CrdFileEntries()
     {
-        return _installedFiles
+        return installedFiles
             .Where(p => ConfigExcludeFile.All(excluded => Path.GetFileName(p) != excluded))
             .Where(p => p.EndsWith(".crd"))
             .ToList();
@@ -27,7 +62,7 @@ public class ManualInstallMod : ExtractedMod
     
     private List<string> TrdFileEntries()
     {
-        return _installedFiles
+        return installedFiles
             .Where(p => ConfigExcludeFile.All(excluded => Path.GetFileName(p) != excluded))
             .Where(p => p.EndsWith(".trd"))
             .Select(fp => $"{Path.GetDirectoryName(fp)}{Path.DirectorySeparatorChar}@{Path.GetFileName(fp)}")
@@ -37,7 +72,7 @@ public class ManualInstallMod : ExtractedMod
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();
-        foreach (var fileAtModRoot in Directory.EnumerateFiles(_extractedPath))
+        foreach (var fileAtModRoot in Directory.EnumerateFiles(extractedPath))
         {
             var recordIndent = -1;
             var recordLines = new List<string>();

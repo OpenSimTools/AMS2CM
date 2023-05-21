@@ -1,6 +1,6 @@
 ﻿namespace Core.Mods;
 
-public static class PostProcessor
+internal static class PostProcessor
 {
 
     public static void AppendCrdFileEntries(string gamePath, IEnumerable<string> crdFileEntries)

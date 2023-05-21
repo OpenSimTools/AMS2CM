@@ -25,11 +25,11 @@ public static class Steam
         if (steamDir == null)
             return null;
         var libraryFoldersPath = Path.Combine(steamDir, "steamapps", "libraryfolders.vdf");
-        var libraryFolders = _readLibraryFolders(libraryFoldersPath);
+        var libraryFolders = ReadLibraryFolders(libraryFoldersPath);
         return libraryFolders.SingleOrDefault(lf => lf.Apps.ContainsKey(appId))?.Path;
     }
 
-    private static IEnumerable<LibraryFolder> _readLibraryFolders(string path)
+    private static IEnumerable<LibraryFolder> ReadLibraryFolders(string path)
     {
         var libraryFolders = File.ReadAllText(path);
         var vdfRoot = VdfConvert.Deserialize(libraryFolders);
