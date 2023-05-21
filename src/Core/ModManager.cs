@@ -14,7 +14,10 @@ internal record InstallPaths(
 
 public class ModManager
 {
-    private const string Ams2SteamId = "1066890";
+    private static readonly IReadOnlyCollection<string> Ams2SteamIds = new[] {
+        "1066890",
+        "1066880" // Beta
+    };
     private const string Ams2ProcessName = "AMS2AVX";
     private static readonly string Ams2InstallationDir = Path.Combine("steamapps", "common", "Automobilista 2");
     private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
@@ -30,7 +33,7 @@ public class ModManager
 
     public static ModManager Init()
     {
-        var ams2LibraryPath = Steam.AppLibraryPath(Ams2SteamId);
+        var ams2LibraryPath = GameLibraryPath(Ams2SteamIds);
         if (ams2LibraryPath is null)
         {
             throw new Exception("Cannot find AMS2 on Steam");
@@ -49,6 +52,17 @@ public class ModManager
         );
 
         return new ModManager(installPaths);
+    }
+
+    private static string? GameLibraryPath(IEnumerable<string> appIds)
+    {
+        foreach (var appId in appIds)
+        {
+            var libraryPath = Steam.AppLibraryPath(appId);
+            if (libraryPath is not null)
+                return libraryPath;
+        }
+        return null;
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
