@@ -14,7 +14,7 @@ internal record InstallPaths(
 
 public class ModManager
 {
-    private static readonly IReadOnlyCollection<string> Ams2SteamIds = new[] {
+    private static readonly IEnumerable<string> Ams2SteamIds = new[] {
         "1066890",
         "1066880" // Beta
     };
@@ -56,9 +56,10 @@ public class ModManager
 
     private static string? GameLibraryPath(IEnumerable<string> appIds)
     {
+        var steam = new Steam();
         foreach (var appId in appIds)
         {
-            var libraryPath = Steam.AppLibraryPath(appId);
+            var libraryPath = steam.AppLibraryPath(appId);
             if (libraryPath is not null)
                 return libraryPath;
         }
