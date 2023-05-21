@@ -10,6 +10,12 @@ public static class JsgmeFileInstaller
         BackupFileSuffix
     };
 
+    /// <summary>
+    /// Install mod directory.
+    /// </summary>
+    /// <param name="srcPath">Directory containing extracted mod archive</param>
+    /// <param name="dstPath">Game directory</param>
+    /// <param name="fileInstalledCallback">Callback to allow partial file installation to be detected</param>
     public static void InstallFiles(string srcPath, string dstPath, Action<string> fileInstalledCallback)
     {
         RecursiveMoveWithBackup(srcPath, dstPath, absoluteSrcFilePath => fileInstalledCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath)));
@@ -74,6 +80,11 @@ public static class JsgmeFileInstaller
         }
     }
 
+    /// <summary>
+    /// Uninstall mod files.
+    /// </summary>
+    /// <param name="dstPath">Game directory</param>
+    /// <param name="files">Perviously installed mod files</param>
     public static void RestoreOriginalState(string dstPath, IEnumerable<string> files)
     {
         var installedPaths = files.Select(file => Path.Combine(dstPath, file));
