@@ -12,6 +12,7 @@ internal class ManualInstallMod : ExtractedMod
         "render",
         "text",
         "tracks",
+        "userdata",
         "upgrade",
         "vehicles"
     };
