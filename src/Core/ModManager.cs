@@ -14,9 +14,16 @@ internal record InstallPaths(
 
 public class ModManager
 {
-    private const string Ams2SteamId = "1066890";
-    private const string Ams2ProcessName = "AMS2AVX";
-    private static readonly string Ams2InstallationDir = Path.Combine("steamapps", "common", "Automobilista 2");
+    public record Config(
+        GameConfig Game
+    );
+
+    public record GameConfig(
+        string SteamId,
+        string Path,
+        string ProcessName
+    );
+
     private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
 
     private const string ModsSubdir = "Mods";
@@ -26,17 +33,12 @@ public class ModManager
 
     private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
 
+    private readonly Config config;
     private readonly InstallPaths installPaths;
 
-    public static ModManager Init()
+    public static ModManager Init(Config config)
     {
-        var ams2LibraryPath = Steam.AppLibraryPath(Ams2SteamId);
-        if (ams2LibraryPath is null)
-        {
-            throw new Exception("Cannot find AMS2 on Steam");
-        }
-
-        var ams2InstallationDirectory = Path.Combine(ams2LibraryPath, Ams2InstallationDir);
+        var ams2InstallationDirectory = GameInstallationDirectory(config.Game);
         // It shoulnd't be needed, but some systems seem to want to load oo2core
         // even when Mermaid and Kraken compression are not used in pak files!
         AddToEnvionmentPath(ams2InstallationDirectory);
@@ -48,7 +50,19 @@ public class ModManager
             InstalledFilesPath: Path.Combine(modsDir, "installed.json")
         );
 
-        return new ModManager(installPaths);
+        return new ModManager(config, installPaths);
+    }
+
+    private static string GameInstallationDirectory(GameConfig gameConfig)
+    {
+        if (Path.IsPathFullyQualified(gameConfig.Path))
+        {
+            return gameConfig.Path;
+        }
+
+        var ams2LibraryPath = Steam.AppLibraryPath(gameConfig.SteamId) ??
+            throw new Exception("Cannot find AMS2 on Steam");
+        return Path.Combine(ams2LibraryPath, gameConfig.Path);
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
@@ -57,8 +71,9 @@ public class ModManager
         Environment.SetEnvironmentVariable("PATH",  $"{env};{additionalPath}");
     }
 
-    private ModManager(InstallPaths installPaths)
+    private ModManager(Config config, InstallPaths installPaths)
     {
+        this.config = config;
         this.installPaths = installPaths;
     }
 
@@ -97,9 +112,9 @@ public class ModManager
         }
     }
 
-    private static void CheckGameNotRunning()
+    private void CheckGameNotRunning()
     {
-        if (Process.GetProcesses().Any(_ => _.ProcessName == Ams2ProcessName))
+        if (Process.GetProcesses().Any(_ => _.ProcessName == config.Game.ProcessName))
         {
             throw new Exception("The game is running.");
         }
