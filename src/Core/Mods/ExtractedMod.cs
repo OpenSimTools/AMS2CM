@@ -1,17 +1,17 @@
 ﻿namespace Core.Mods;
 
-internal abstract class ExtractedMod : IMod
+public abstract class ExtractedMod : IMod
 {
-    protected static readonly IMod.ConfigEntries EmptyConfig =
+    protected static readonly IMod.ConfigEntries EmptyConfigEntries =
         new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
 
     protected readonly string extractedPath;
     protected readonly List<string> installedFiles = new();
 
-    public ExtractedMod(string packageName, string extractedPath)
+    internal ExtractedMod(string packageName, string extractedPath)
     {
         PackageName = packageName;
-        Config = EmptyConfig;
+        Config = EmptyConfigEntries;
         this.extractedPath = extractedPath;
     }
 

@@ -1,17 +1,12 @@
 ﻿using Core;
-using Microsoft.Extensions.Configuration;
+using Core.Games;
 
 try
 {
-    var config = new ConfigurationBuilder()
-        .AddIniFile("AMS2CM.ini")
-        .AddCommandLine(args)
-        .Build();
-    var gameConfig = config
-        .GetSection("Game")
-        .Get<ModManager.GameConfig>() ?? throw new Exception("Failed to read the configuration file");
-    var modManagerConfig = new ModManager.Config(Game: gameConfig);
-    var modManager = ModManager.Init(modManagerConfig);
+    var config = Config.Load(args);
+    var game = new Game(config.Game);
+    var modFactory = new ModFactory(config.ModInstall, game);
+    var modManager = new ModManager(game, modFactory);
     modManager.InstallEnabledMods();
 }
 catch (Exception e)

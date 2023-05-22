@@ -2,8 +2,7 @@
 using Gameloop.Vdf.JsonConverter;
 using Microsoft.Win32;
 
-namespace Core;
-
+namespace Core.Games;
 
 public static class Steam
 {
@@ -11,7 +10,7 @@ public static class Steam
         @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Valve\Steam",
         @"HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam"
     };
-    
+
     public static string? MainInstallationDirectory()
     {
         return RegistryPaths.Select(registryPath =>
