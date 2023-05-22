@@ -19,12 +19,12 @@ jobs:
       - if: ${{ github.ref == 'refs/heads/main' }}
         run: |
           dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/OpenSimTools/index.json"
-          dotnet publish
+          dotnet publish -c Release
       - if: ${{ github.ref == 'refs/heads/main' }}
         uses: actions/upload-artifact@v3
         with:
           name: AMS2CM
-          path: src/CLI/bin/Debug/net6.0-windows/publish/**
+          path: src/CLI/bin/Release/net6.0-windows/publish/**
           if-no-files-found: error
       - if: ${{ github.ref == 'refs/heads/main' }}
         uses: actions/upload-artifact@v3
