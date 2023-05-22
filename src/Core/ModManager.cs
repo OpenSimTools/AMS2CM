@@ -38,13 +38,7 @@ public class ModManager
 
     public static ModManager Init(Config config)
     {
-        var ams2LibraryPath = Steam.AppLibraryPath(config.Game.SteamId);
-        if (ams2LibraryPath is null)
-        {
-            throw new Exception("Cannot find AMS2 on Steam");
-        }
-
-        var ams2InstallationDirectory = Path.Combine(ams2LibraryPath, config.Game.Path);
+        var ams2InstallationDirectory = GameInstallationDirectory(config.Game);
         // It shoulnd't be needed, but some systems seem to want to load oo2core
         // even when Mermaid and Kraken compression are not used in pak files!
         AddToEnvionmentPath(ams2InstallationDirectory);
@@ -57,6 +51,18 @@ public class ModManager
         );
 
         return new ModManager(config, installPaths);
+    }
+
+    private static string GameInstallationDirectory(GameConfig gameConfig)
+    {
+        if (Path.IsPathFullyQualified(gameConfig.Path))
+        {
+            return gameConfig.Path;
+        }
+
+        var ams2LibraryPath = Steam.AppLibraryPath(gameConfig.SteamId) ??
+            throw new Exception("Cannot find AMS2 on Steam");
+        return Path.Combine(ams2LibraryPath, gameConfig.Path);
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
