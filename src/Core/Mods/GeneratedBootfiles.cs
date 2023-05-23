@@ -5,10 +5,10 @@ namespace Core.Mods;
 
 internal class GeneratedBootfiles : ExtractedMod
 {
-    private const string VirtualPackageName = "__bootfiles_generated";
-    private const string PakfilesDirectory = "Pakfiles";
-    private const string BootFlowPakFileName = "BOOTFLOW.bff";
-    private const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
+    internal const string VirtualPackageName = "__bootfiles_generated";
+    internal const string PakfilesDirectory = "Pakfiles";
+    internal const string BootFlowPakFileName = "BOOTFLOW.bff";
+    internal const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
 
     private readonly string pakPath;
     private readonly string BmtFilesWildcard =

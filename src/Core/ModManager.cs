@@ -9,14 +9,19 @@ public class ModManager
 {
     private record WorkPaths(
         string ModArchivesDir,
-        string ExtractionBaseDir,
+        string TempDir,
         string CurrentStateFile
     );
 
-    private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
+    private static readonly string FileRemovedByBootfiles = Path.Combine(
+        GeneratedBootfiles.PakfilesDirectory,
+        GeneratedBootfiles.PhysicsPersistentPakFileName
+    );
 
-    private const string ModsSubdir = "Mods";
-    private const string EnabledModsSubdir = "Enabled";
+    private const string ModsDirName = "Mods";
+    private const string EnabledModsDirName = "Enabled";
+    private const string TempDirName = "Temp";
+    private const string CurrentStateFileName = "installed.json";
 
     private const string BootfilesPrefix = "__bootfiles";
 
@@ -30,23 +35,23 @@ public class ModManager
     {
         this.game = game;
         this.modFactory = modFactory;
-        var modsDir = Path.Combine(game.InstallationDirectory, ModsSubdir);
-        var tempDir = Path.Combine(modsDir, "Temp");
+        var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
         workPaths = new WorkPaths(
-            ModArchivesDir: Path.Combine(modsDir, EnabledModsSubdir),
-            ExtractionBaseDir: Path.Combine(tempDir, Guid.NewGuid().ToString()),
-            CurrentStateFile: Path.Combine(modsDir, "installed.json")
+            ModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
+            TempDir: Path.Combine(modsDir, TempDirName),
+            CurrentStateFile: Path.Combine(modsDir, CurrentStateFileName)
         );
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
     {
-        var env = Environment.GetEnvironmentVariable("PATH");
+        const string pathEnvVar = "PATH";
+        var env = Environment.GetEnvironmentVariable(pathEnvVar);
         if (env is not null && env.Contains(additionalPath))
         {
             return;
         }
-        Environment.SetEnvironmentVariable("PATH", $"{env};{additionalPath}");
+        Environment.SetEnvironmentVariable(pathEnvVar, $"{env};{additionalPath}");
     }
 
     public void InstallEnabledMods()
@@ -57,15 +62,16 @@ public class ModManager
 
         CheckGameNotRunning();
         RestoreOriginalState();
+        Cleanup();
         InstallAllModFiles();
         Cleanup();
     }
 
     private void Cleanup()
     {
-        if (Directory.Exists(workPaths.ExtractionBaseDir))
+        if (Directory.Exists(workPaths.TempDir))
         {
-            Directory.Delete(workPaths.ExtractionBaseDir, recursive: true);
+            Directory.Delete(workPaths.TempDir, recursive: true);
         }
     }
 
@@ -176,7 +182,7 @@ public class ModManager
 
     private IMod ExtractMod(string packageName, string archivePath)
     {
-        var extractionDir = Path.Combine(workPaths.ExtractionBaseDir, packageName);
+        var extractionDir = Path.Combine(workPaths.TempDir, packageName);
         using var archiveFile = new ArchiveFile(archivePath);
         archiveFile.Extract(extractionDir);
 
@@ -190,7 +196,7 @@ public class ModManager
         {
             case 0:
                 Console.WriteLine("Extracting bootfiles from game");
-                return modFactory.GeneratedBootfiles(workPaths.ExtractionBaseDir);
+                return modFactory.GeneratedBootfiles(workPaths.TempDir);
             case 1:
                 var archivePath = bootfilesArchives.First();
                 var packageName = Path.GetFileNameWithoutExtension(archivePath);
