@@ -1,40 +1,29 @@
 ﻿namespace Core.Mods;
 
-internal class ManualInstallMod : ExtractedMod
+public class ManualInstallMod : ExtractedMod
 {
-    private static readonly string[] DirsAtRootLowerCase =
-{
-        "cameras",
-        "characters",
-        "effects",
-        "gui",
-        "pakfiles",
-        "render",
-        "text",
-        "tracks",
-        "userdata",
-        "upgrade",
-        "vehicles"
-    };
-
-    private static readonly string[] ConfigExcludeFile =
+    public interface IConfig
     {
-        // IndyCar 2023
-        "IR-18_2023_My_Team.crd",
-        "IR-18_2023_Dale_Coyne_hr.crd"
-    };
+        IEnumerable<string> DirsAtRoot { get; }
+        IEnumerable<string> ExcludedFromConfig { get; }
+    }
 
-    public ManualInstallMod(string packageName, string extractedPath)
+    private readonly HashSet<string> filesExcludedFromConfig;
+    private readonly List<string> dirsAtRootLowerCase;
+
+    internal ManualInstallMod(string packageName, string extractedPath, IConfig config)
         : base(packageName, extractedPath)
     {
+        filesExcludedFromConfig = config.ExcludedFromConfig.ToHashSet();
+        dirsAtRootLowerCase = config.DirsAtRoot.Select(dir => dir.ToLowerInvariant()).ToList();
     }
 
     protected override IEnumerable<string> ExtractedRootDirs()
     {
-        return FindRootContaining(extractedPath, DirsAtRootLowerCase);
+        return FindRootContaining(extractedPath, dirsAtRootLowerCase);
     }
 
-    private static List<string> FindRootContaining(string path, string[] contained)
+    private static List<string> FindRootContaining(string path, IEnumerable<string> contained)
     {
         var roots = new List<string>();
         foreach (var subdir in Directory.GetDirectories(path))
@@ -53,23 +42,21 @@ internal class ManualInstallMod : ExtractedMod
     protected override IMod.ConfigEntries GenerateConfig() =>
         new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
 
-    private List<string> CrdFileEntries()
-    {
-        return installedFiles
-            .Where(p => ConfigExcludeFile.All(excluded => Path.GetFileName(p) != excluded))
+    private List<string> CrdFileEntries() =>
+        FileEntriesToConfigure()
             .Where(p => p.EndsWith(".crd"))
             .ToList();
-    }
     
-    private List<string> TrdFileEntries()
-    {
-        return installedFiles
-            .Where(p => ConfigExcludeFile.All(excluded => Path.GetFileName(p) != excluded))
+    private List<string> TrdFileEntries() =>
+        FileEntriesToConfigure()
             .Where(p => p.EndsWith(".trd"))
             .Select(fp => $"{Path.GetDirectoryName(fp)}{Path.DirectorySeparatorChar}@{Path.GetFileName(fp)}")
             .ToList();
-    }
-    
+
+    private IEnumerable<string> FileEntriesToConfigure() =>
+        installedFiles.Where(p => filesExcludedFromConfig.All(excluded => Path.GetFileName(p) != excluded));
+
+
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();

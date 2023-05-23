@@ -1,27 +1,16 @@
-﻿using System.Diagnostics;
+﻿using Core.Games;
 using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
 
 namespace Core;
 
-internal record InstallPaths(
-    string ModArchivesPath,
-    string GamePath,
-    string TempPath,
-    string InstalledFilesPath
-);
-
 public class ModManager
 {
-    public record Config(
-        GameConfig Game
-    );
-
-    public record GameConfig(
-        string SteamId,
-        string Path,
-        string ProcessName
+    private record WorkPaths(
+        string ModArchivesDir,
+        string ExtractionBaseDir,
+        string CurrentStateFile
     );
 
     private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
@@ -33,52 +22,39 @@ public class ModManager
 
     private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
 
-    private readonly Config config;
-    private readonly InstallPaths installPaths;
+    private readonly WorkPaths workPaths;
+    private readonly IGame game;
+    private readonly IModFactory modFactory;
 
-    public static ModManager Init(Config config)
+    public ModManager(IGame game, IModFactory modFactory)
     {
-        var ams2InstallationDirectory = GameInstallationDirectory(config.Game);
-        // It shoulnd't be needed, but some systems seem to want to load oo2core
-        // even when Mermaid and Kraken compression are not used in pak files!
-        AddToEnvionmentPath(ams2InstallationDirectory);
-        var modsDir = Path.Combine(ams2InstallationDirectory, ModsSubdir);
-        var installPaths = new InstallPaths(
-            ModArchivesPath: Path.Combine(modsDir, EnabledModsSubdir),
-            GamePath: ams2InstallationDirectory,
-            TempPath: Path.Combine(modsDir, "Temp", Guid.NewGuid().ToString()),
-            InstalledFilesPath: Path.Combine(modsDir, "installed.json")
+        this.game = game;
+        this.modFactory = modFactory;
+        var modsDir = Path.Combine(game.InstallationDirectory, ModsSubdir);
+        var tempDir = Path.Combine(modsDir, "Temp");
+        workPaths = new WorkPaths(
+            ModArchivesDir: Path.Combine(modsDir, EnabledModsSubdir),
+            ExtractionBaseDir: Path.Combine(tempDir, Guid.NewGuid().ToString()),
+            CurrentStateFile: Path.Combine(modsDir, "installed.json")
         );
-
-        return new ModManager(config, installPaths);
-    }
-
-    private static string GameInstallationDirectory(GameConfig gameConfig)
-    {
-        if (Path.IsPathFullyQualified(gameConfig.Path))
-        {
-            return gameConfig.Path;
-        }
-
-        var ams2LibraryPath = Steam.AppLibraryPath(gameConfig.SteamId) ??
-            throw new Exception("Cannot find AMS2 on Steam");
-        return Path.Combine(ams2LibraryPath, gameConfig.Path);
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
     {
         var env = Environment.GetEnvironmentVariable("PATH");
-        Environment.SetEnvironmentVariable("PATH",  $"{env};{additionalPath}");
-    }
-
-    private ModManager(Config config, InstallPaths installPaths)
-    {
-        this.config = config;
-        this.installPaths = installPaths;
+        if (env is not null && env.Contains(additionalPath))
+        {
+            return;
+        }
+        Environment.SetEnvironmentVariable("PATH", $"{env};{additionalPath}");
     }
 
     public void InstallEnabledMods()
     {
+        // It shoulnd't be needed, but some systems seem to want to load oo2core
+        // even when Mermaid and Kraken compression are not used in pak files!
+        AddToEnvionmentPath(game.InstallationDirectory);
+
         CheckGameNotRunning();
         RestoreOriginalState();
         InstallAllModFiles();
@@ -87,9 +63,9 @@ public class ModManager
 
     private void Cleanup()
     {
-        if (Directory.Exists(installPaths.TempPath))
+        if (Directory.Exists(workPaths.ExtractionBaseDir))
         {
-            Directory.Delete(installPaths.TempPath, recursive: true);
+            Directory.Delete(workPaths.ExtractionBaseDir, recursive: true);
         }
     }
 
@@ -102,7 +78,7 @@ public class ModManager
             foreach (var (modName, filePaths) in previouslyInstalledFiles)
             {
                 Console.WriteLine($"- {modName}");
-                JsgmeFileInstaller.RestoreOriginalState(installPaths.GamePath, filePaths);
+                JsgmeFileInstaller.RestoreOriginalState(game.InstallationDirectory, filePaths);
             }
         }
         else
@@ -114,7 +90,7 @@ public class ModManager
 
     private void CheckGameNotRunning()
     {
-        if (Process.GetProcesses().Any(_ => _.ProcessName == config.Game.ProcessName))
+        if (game.IsRunning())
         {
             throw new Exception("The game is running.");
         }
@@ -122,7 +98,7 @@ public class ModManager
 
     private void CheckNoBootfilesInstalled()
     {
-        if (!File.Exists(Path.Combine(installPaths.GamePath, FileRemovedByBootfiles)))
+        if (!File.Exists(Path.Combine(game.InstallationDirectory, FileRemovedByBootfiles)))
         {
             throw new Exception("Bootfiles installed by another tool (e.g. JSGME) have been detected. Please uninstall all mods.");
         }
@@ -130,19 +106,19 @@ public class ModManager
 
     private void InstallAllModFiles()
     {
-        if (!Directory.Exists(installPaths.ModArchivesPath))
+        if (!Directory.Exists(workPaths.ModArchivesDir))
         {
-            Console.WriteLine($"No mod archives found in {installPaths.ModArchivesPath}");
+            Console.WriteLine($"No mod archives found in {workPaths.ModArchivesDir}");
             return;
         }
         var modConfigs = new List<IMod.ConfigEntries>();
-        var modArchives = Directory.EnumerateFiles(installPaths.ModArchivesPath).ToList();
+        var modArchives = Directory.EnumerateFiles(workPaths.ModArchivesDir).ToList();
         var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
         try
         {
             if (!modArchives.Any())
             {
-                Console.WriteLine($"No mod archives found in {installPaths.ModArchivesPath}");
+                Console.WriteLine($"No mod archives found in {workPaths.ModArchivesDir}");
             }
             else
             {
@@ -161,7 +137,7 @@ public class ModManager
                     var mod = ExtractMod(packageName, archivePath);
                     try
                     {
-                        mod.Install(installPaths.GamePath);
+                        mod.Install(game.InstallationDirectory);
                         modConfigs.Add(mod.Config);
                     }
                     catch (Exception e)
@@ -175,16 +151,16 @@ public class ModManager
                 if (modConfigs.Where(_ => _.NotEmpty()).Any())
                 {
                     var bootfilesMod = BootfilesMod();
-                    bootfilesMod.Install(installPaths.GamePath);
+                    bootfilesMod.Install(game.InstallationDirectory);
                     installedFilesByMod.Add(bootfilesMod.PackageName, bootfilesMod.InstalledFiles);
 
                     Console.WriteLine("Post-processing:");
                     Console.WriteLine("- Appending crd file entries");
-                    PostProcessor.AppendCrdFileEntries(installPaths.GamePath, modConfigs.SelectMany(_ => _.CrdFileEntries));
+                    PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
                     Console.WriteLine("- Appending trd file entries");
-                    PostProcessor.AppendTrdFileEntries(installPaths.GamePath, modConfigs.SelectMany(_ => _.TrdFileEntries));
+                    PostProcessor.AppendTrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.TrdFileEntries));
                     Console.WriteLine("- Appending driveline records");
-                    PostProcessor.AppendDrivelineRecords(installPaths.GamePath, modConfigs.SelectMany(_ => _.DrivelineRecords));
+                    PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
                 }
                 else
                 {
@@ -200,21 +176,21 @@ public class ModManager
 
     private IMod ExtractMod(string packageName, string archivePath)
     {
-        var extractionDir = Path.Combine(installPaths.TempPath, packageName);
+        var extractionDir = Path.Combine(workPaths.ExtractionBaseDir, packageName);
         using var archiveFile = new ArchiveFile(archivePath);
         archiveFile.Extract(extractionDir);
 
-        return new ManualInstallMod(packageName, extractionDir);
+        return modFactory.ManualInstallMod(packageName, extractionDir);
     }
 
     private IMod BootfilesMod()
     {
-        var bootfilesArchives = Directory.EnumerateFiles(installPaths.ModArchivesPath, $"{BootfilesPrefix}*.*");
+        var bootfilesArchives = Directory.EnumerateFiles(workPaths.ModArchivesDir, $"{BootfilesPrefix}*.*");
         switch (bootfilesArchives.Count())
         {
             case 0:
                 Console.WriteLine("Extracting bootfiles from game");
-                return GenerateBootfiles();
+                return modFactory.GeneratedBootfiles(workPaths.ExtractionBaseDir);
             case 1:
                 var archivePath = bootfilesArchives.First();
                 var packageName = Path.GetFileNameWithoutExtension(archivePath);
@@ -230,24 +206,18 @@ public class ModManager
         }
     }
 
-    private IMod GenerateBootfiles()
-    {
-        return new GeneratedBootfiles(installPaths.GamePath, installPaths.TempPath);
-    }
-
-
     private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles() {
-        if (!File.Exists(installPaths.InstalledFilesPath))
+        if (!File.Exists(workPaths.CurrentStateFile))
         {
             return new Dictionary<string, IReadOnlyCollection<string>>();
         }
 
         return JsonConvert
-            .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(installPaths.InstalledFilesPath));
+            .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(workPaths.CurrentStateFile));
     }
 
     private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
-        File.WriteAllText(installPaths.InstalledFilesPath, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
+        File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
     }
 }
