@@ -13,10 +13,15 @@ public class ModManager
         string CurrentStateFile
     );
 
-    private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
+    private static readonly string FileRemovedByBootfiles = Path.Combine(
+        GeneratedBootfiles.PakfilesDirectory,
+        GeneratedBootfiles.PhysicsPersistentPakFileName
+    );
 
-    private const string ModsSubdir = "Mods";
-    private const string EnabledModsSubdir = "Enabled";
+    private const string ModsDirName = "Mods";
+    private const string EnabledModsDirName = "Enabled";
+    private const string TempDirName = "Temp";
+    private const string CurrentStateFileName = "installed.json";
 
     private const string BootfilesPrefix = "__bootfiles";
 
@@ -30,22 +35,23 @@ public class ModManager
     {
         this.game = game;
         this.modFactory = modFactory;
-        var modsDir = Path.Combine(game.InstallationDirectory, ModsSubdir);
+        var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
         workPaths = new WorkPaths(
-            ModArchivesDir: Path.Combine(modsDir, EnabledModsSubdir),
-            TempDir: Path.Combine(modsDir, "Temp"),
-            CurrentStateFile: Path.Combine(modsDir, "installed.json")
+            ModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
+            TempDir: Path.Combine(modsDir, TempDirName),
+            CurrentStateFile: Path.Combine(modsDir, CurrentStateFileName)
         );
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
     {
-        var env = Environment.GetEnvironmentVariable("PATH");
+        const string pathEnvVar = "PATH";
+        var env = Environment.GetEnvironmentVariable(pathEnvVar);
         if (env is not null && env.Contains(additionalPath))
         {
             return;
         }
-        Environment.SetEnvironmentVariable("PATH", $"{env};{additionalPath}");
+        Environment.SetEnvironmentVariable(pathEnvVar, $"{env};{additionalPath}");
     }
 
     public void InstallEnabledMods()
