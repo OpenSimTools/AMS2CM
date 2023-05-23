@@ -26,8 +26,14 @@ public class Game : IGame
 
     public Game(IConfig config)
     {
+        var maybeInsallationDirectory = FindInstallationDirectory(config);
+        if (maybeInsallationDirectory is null || !Directory.Exists(maybeInsallationDirectory))
+        {
+            throw new Exception("Cannot find game directory");
+        }
+
         this.config = config;
-        InstallationDirectory = FindInstallationDirectory(config);
+        InstallationDirectory = maybeInsallationDirectory;
     }
 
     public string InstallationDirectory
@@ -38,16 +44,13 @@ public class Game : IGame
 
     public bool IsRunning() => Process.GetProcesses().Any(_ => _.ProcessName == config.ProcessName);
 
-    private static string FindInstallationDirectory(IConfig config)
+    private static string? FindInstallationDirectory(IConfig config)
     {
         if (Path.IsPathFullyQualified(config.Path))
         {
             return config.Path;
         }
-
-        var gameLibraryPath = Steam.AppLibraryPath(config.SteamId) ??
-            throw new Exception("Cannot find game on Steam");
-
-        return Path.Combine(gameLibraryPath, config.Path);
+        var gameLibraryPath = Steam.AppLibraryPath(config.SteamId);
+        return gameLibraryPath is null ? null : Path.Combine(gameLibraryPath, config.Path);
     }
 }
