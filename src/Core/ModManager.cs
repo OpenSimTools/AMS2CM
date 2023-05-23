@@ -1,19 +1,18 @@
-﻿using System.Diagnostics;
-using Core.Games;
+﻿using Core.Games;
 using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
 
 namespace Core;
 
-internal record InstallPaths(
-    string ModArchivesPath,
-    string TempPath,
-    string InstalledFilesPath
-);
-
 public class ModManager
 {
+    private record WorkPaths(
+        string ModArchivesDir,
+        string ExtractionBaseDir,
+        string CurrentStateFile
+    );
+
     private static readonly string FileRemovedByBootfiles = Path.Combine("Pakfiles", "PHYSICSPERSISTENT.bff");
 
     private const string ModsSubdir = "Mods";
@@ -23,7 +22,7 @@ public class ModManager
 
     private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
 
-    private readonly InstallPaths installPaths;
+    private readonly WorkPaths workPaths;
     private readonly IGame game;
     private readonly IModFactory modFactory;
 
@@ -32,10 +31,11 @@ public class ModManager
         this.game = game;
         this.modFactory = modFactory;
         var modsDir = Path.Combine(game.InstallationDirectory, ModsSubdir);
-        installPaths = new InstallPaths(
-            ModArchivesPath: Path.Combine(modsDir, EnabledModsSubdir),
-            TempPath: Path.Combine(modsDir, "Temp", Guid.NewGuid().ToString()),
-            InstalledFilesPath: Path.Combine(modsDir, "installed.json")
+        var tempDir = Path.Combine(modsDir, "Temp");
+        workPaths = new WorkPaths(
+            ModArchivesDir: Path.Combine(modsDir, EnabledModsSubdir),
+            ExtractionBaseDir: Path.Combine(tempDir, Guid.NewGuid().ToString()),
+            CurrentStateFile: Path.Combine(modsDir, "installed.json")
         );
     }
 
@@ -63,9 +63,9 @@ public class ModManager
 
     private void Cleanup()
     {
-        if (Directory.Exists(installPaths.TempPath))
+        if (Directory.Exists(workPaths.ExtractionBaseDir))
         {
-            Directory.Delete(installPaths.TempPath, recursive: true);
+            Directory.Delete(workPaths.ExtractionBaseDir, recursive: true);
         }
     }
 
@@ -106,19 +106,19 @@ public class ModManager
 
     private void InstallAllModFiles()
     {
-        if (!Directory.Exists(installPaths.ModArchivesPath))
+        if (!Directory.Exists(workPaths.ModArchivesDir))
         {
-            Console.WriteLine($"No mod archives found in {installPaths.ModArchivesPath}");
+            Console.WriteLine($"No mod archives found in {workPaths.ModArchivesDir}");
             return;
         }
         var modConfigs = new List<IMod.ConfigEntries>();
-        var modArchives = Directory.EnumerateFiles(installPaths.ModArchivesPath).ToList();
+        var modArchives = Directory.EnumerateFiles(workPaths.ModArchivesDir).ToList();
         var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
         try
         {
             if (!modArchives.Any())
             {
-                Console.WriteLine($"No mod archives found in {installPaths.ModArchivesPath}");
+                Console.WriteLine($"No mod archives found in {workPaths.ModArchivesDir}");
             }
             else
             {
@@ -176,7 +176,7 @@ public class ModManager
 
     private IMod ExtractMod(string packageName, string archivePath)
     {
-        var extractionDir = Path.Combine(installPaths.TempPath, packageName);
+        var extractionDir = Path.Combine(workPaths.ExtractionBaseDir, packageName);
         using var archiveFile = new ArchiveFile(archivePath);
         archiveFile.Extract(extractionDir);
 
@@ -185,12 +185,12 @@ public class ModManager
 
     private IMod BootfilesMod()
     {
-        var bootfilesArchives = Directory.EnumerateFiles(installPaths.ModArchivesPath, $"{BootfilesPrefix}*.*");
+        var bootfilesArchives = Directory.EnumerateFiles(workPaths.ModArchivesDir, $"{BootfilesPrefix}*.*");
         switch (bootfilesArchives.Count())
         {
             case 0:
                 Console.WriteLine("Extracting bootfiles from game");
-                return modFactory.GeneratedBootfiles(installPaths.TempPath);
+                return modFactory.GeneratedBootfiles(workPaths.ExtractionBaseDir);
             case 1:
                 var archivePath = bootfilesArchives.First();
                 var packageName = Path.GetFileNameWithoutExtension(archivePath);
@@ -207,17 +207,17 @@ public class ModManager
     }
 
     private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles() {
-        if (!File.Exists(installPaths.InstalledFilesPath))
+        if (!File.Exists(workPaths.CurrentStateFile))
         {
             return new Dictionary<string, IReadOnlyCollection<string>>();
         }
 
         return JsonConvert
-            .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(installPaths.InstalledFilesPath));
+            .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(workPaths.CurrentStateFile));
     }
 
     private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
-        File.WriteAllText(installPaths.InstalledFilesPath, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
+        File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
     }
 }
