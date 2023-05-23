@@ -9,7 +9,7 @@ public class ModManager
 {
     private record WorkPaths(
         string ModArchivesDir,
-        string ExtractionBaseDir,
+        string TempDir,
         string CurrentStateFile
     );
 
@@ -31,10 +31,9 @@ public class ModManager
         this.game = game;
         this.modFactory = modFactory;
         var modsDir = Path.Combine(game.InstallationDirectory, ModsSubdir);
-        var tempDir = Path.Combine(modsDir, "Temp");
         workPaths = new WorkPaths(
             ModArchivesDir: Path.Combine(modsDir, EnabledModsSubdir),
-            ExtractionBaseDir: Path.Combine(tempDir, Guid.NewGuid().ToString()),
+            TempDir: Path.Combine(modsDir, "Temp"),
             CurrentStateFile: Path.Combine(modsDir, "installed.json")
         );
     }
@@ -57,15 +56,16 @@ public class ModManager
 
         CheckGameNotRunning();
         RestoreOriginalState();
+        Cleanup();
         InstallAllModFiles();
         Cleanup();
     }
 
     private void Cleanup()
     {
-        if (Directory.Exists(workPaths.ExtractionBaseDir))
+        if (Directory.Exists(workPaths.TempDir))
         {
-            Directory.Delete(workPaths.ExtractionBaseDir, recursive: true);
+            Directory.Delete(workPaths.TempDir, recursive: true);
         }
     }
 
@@ -176,7 +176,7 @@ public class ModManager
 
     private IMod ExtractMod(string packageName, string archivePath)
     {
-        var extractionDir = Path.Combine(workPaths.ExtractionBaseDir, packageName);
+        var extractionDir = Path.Combine(workPaths.TempDir, packageName);
         using var archiveFile = new ArchiveFile(archivePath);
         archiveFile.Extract(extractionDir);
 
@@ -190,7 +190,7 @@ public class ModManager
         {
             case 0:
                 Console.WriteLine("Extracting bootfiles from game");
-                return modFactory.GeneratedBootfiles(workPaths.ExtractionBaseDir);
+                return modFactory.GeneratedBootfiles(workPaths.TempDir);
             case 1:
                 var archivePath = bootfilesArchives.First();
                 var packageName = Path.GetFileNameWithoutExtension(archivePath);
