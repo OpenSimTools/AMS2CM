@@ -117,4 +117,14 @@ public sealed partial class MainWindow : WindowEx
         // Refresh list after removing mods with context menu
         SyncModListView();
     }
+
+    private void ModListView_RightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+    {
+        // Select the mod if right click outside of selection
+        var mvm = (e.OriginalSource as FrameworkElement).DataContext as ModVM;
+        if (!ModListView.SelectedItems.Contains(mvm))
+        {
+            ModListView.SelectedItem = mvm;
+        }
+    }
 }

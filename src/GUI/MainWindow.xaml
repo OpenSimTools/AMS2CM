@@ -35,6 +35,7 @@
                 x:Name="ModListView"
                 SelectionMode="Extended"
                 AllowDrop="True"
+                RightTapped="ModListView_RightTapped"
                 DragOver="ModListView_DragOver"
                 Drop="ModListView_Drop"
                 CanDragItems="True"
