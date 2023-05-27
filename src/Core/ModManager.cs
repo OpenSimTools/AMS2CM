@@ -1,4 +1,4 @@
-﻿using Core.Games;
+using Core.Games;
 using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
@@ -8,7 +8,8 @@ namespace Core;
 public class ModManager
 {
     private record WorkPaths(
-        string ModArchivesDir,
+        string EnabledModArchivesDir,
+        string DisabledModArchivesDir,
         string TempDir,
         string CurrentStateFile
     );
@@ -20,6 +21,7 @@ public class ModManager
 
     private const string ModsDirName = "Mods";
     private const string EnabledModsDirName = "Enabled";
+    private const string DisabledModsSubdir = "Disabled";
     private const string TempDirName = "Temp";
     private const string CurrentStateFileName = "installed.json";
 
@@ -33,11 +35,13 @@ public class ModManager
 
     public ModManager(IGame game, IModFactory modFactory)
     {
+
         this.game = game;
         this.modFactory = modFactory;
         var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
         workPaths = new WorkPaths(
-            ModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
+            EnabledModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
+            DisabledModArchivesDir: Path.Combine(modsDir, DisabledModsSubdir),
             TempDir: Path.Combine(modsDir, TempDirName),
             CurrentStateFile: Path.Combine(modsDir, CurrentStateFileName)
         );
@@ -52,6 +56,75 @@ public class ModManager
             return;
         }
         Environment.SetEnvironmentVariable(pathEnvVar, $"{env};{additionalPath}");
+    }
+
+    public List<ModState> FetchState()
+    {
+        var installedPackageNames = ReadPreviouslyInstalledFiles().Keys.Where(_ => !IsBootFiles(_)).ToHashSet();
+        var enabledTuples = ListEnabledModPackages().Select(_ => (_, true));
+        var disabledTuples = ListDisabledModPackages().Select(_ => (_, false));
+        var availableTuples = enabledTuples.Concat(disabledTuples);
+        var availableModsState = availableTuples.Select(_ =>
+        {
+            var packagePath = _._;
+            var isEnabled = _.Item2;
+            var packageName = PackageName(packagePath);
+            return new ModState(
+                PackageName: packageName,
+                PackagePath: packagePath,
+                IsEnabled:   isEnabled,
+                IsInstalled: installedPackageNames.Contains(packageName)
+            );
+        });
+        var availablePackageNames = availableModsState.Select(_ => _.PackageName);
+        var unavailablePackageNames = installedPackageNames.Except(availablePackageNames);
+        var unavailableModsState = unavailablePackageNames.Select(packageName => new ModState(
+                PackageName: packageName,
+                PackagePath: null,
+                IsEnabled: null,
+                IsInstalled: true
+            ));
+        return unavailableModsState.Concat(availableModsState).ToList();
+    }
+
+    public ModState EnableNewMod(string packagePath)
+    {
+        var destinationDirectoryPath = workPaths.EnabledModArchivesDir;
+        ExistingDirectoryOrCreate(destinationDirectoryPath);
+        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
+        File.Copy(packagePath, destinationFilePath);
+        return new ModState(
+                PackageName: PackageName(destinationFilePath),
+                PackagePath: destinationFilePath,
+                IsEnabled: true,
+                IsInstalled: false
+            );
+    }
+
+    public string EnableMod(string packagePath)
+    {
+        return MoveMod(packagePath, workPaths.EnabledModArchivesDir);
+    }
+
+    public string DisableMod(string packagePath)
+    {
+        return MoveMod(packagePath, workPaths.DisabledModArchivesDir);
+    }
+
+    private string MoveMod(string packagePath, string destinationDirectoryPath)
+    {
+        ExistingDirectoryOrCreate(destinationDirectoryPath);
+        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
+        File.Move(packagePath, destinationFilePath);
+        return destinationFilePath;
+    }
+
+    private static void ExistingDirectoryOrCreate(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+        }
     }
 
     public void InstallEnabledMods()
@@ -112,27 +185,18 @@ public class ModManager
 
     private void InstallAllModFiles()
     {
-        if (!Directory.Exists(workPaths.ModArchivesDir))
-        {
-            Console.WriteLine($"No mod archives found in {workPaths.ModArchivesDir}");
-            return;
-        }
+        var modPackages = ListEnabledModPackages();
         var modConfigs = new List<IMod.ConfigEntries>();
-        var modArchives = Directory.EnumerateFiles(workPaths.ModArchivesDir).ToList();
         var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
         try
         {
-            if (!modArchives.Any())
-            {
-                Console.WriteLine($"No mod archives found in {workPaths.ModArchivesDir}");
-            }
-            else
+            if (modPackages.Any())
             {
                 Console.WriteLine("Installing mods:");
-                foreach (var archivePath in modArchives)
+                foreach (var packagePath in modPackages)
                 {
-                    var packageName = Path.GetFileNameWithoutExtension(archivePath);
-                    if (packageName.StartsWith(BootfilesPrefix))
+                    var packageName = Path.GetFileNameWithoutExtension(packagePath);
+                    if (IsBootFiles(packageName))
                     {
                         Console.WriteLine($"- {packageName} (skipped)");
                         continue;
@@ -140,7 +204,7 @@ public class ModManager
 
                     Console.WriteLine($"- {packageName}");
 
-                    var mod = ExtractMod(packageName, archivePath);
+                    var mod = ExtractMod(packageName, packagePath);
                     try
                     {
                         mod.Install(game.InstallationDirectory);
@@ -173,12 +237,18 @@ public class ModManager
                     Console.WriteLine("Post-processing not required");
                 }
             }
+            else
+            {
+                Console.WriteLine($"No mod archives found in {workPaths.EnabledModArchivesDir}");
+            }
         }
         finally
         {
             WriteInstalledFiles(installedFilesByMod);
         }
     }
+
+    private bool IsBootFiles(string packageName) => packageName.StartsWith(BootfilesPrefix);
 
     private IMod ExtractMod(string packageName, string archivePath)
     {
@@ -191,7 +261,7 @@ public class ModManager
 
     private IMod BootfilesMod()
     {
-        var bootfilesArchives = Directory.EnumerateFiles(workPaths.ModArchivesDir, $"{BootfilesPrefix}*.*");
+        var bootfilesArchives = Directory.EnumerateFiles(workPaths.EnabledModArchivesDir, $"{BootfilesPrefix}*.*");
         switch (bootfilesArchives.Count())
         {
             case 0:
@@ -212,6 +282,24 @@ public class ModManager
         }
     }
 
+    private IReadOnlyCollection<string> ListEnabledModPackages() => ListModPackages(workPaths.EnabledModArchivesDir);
+
+    private IReadOnlyCollection<string> ListDisabledModPackages() => ListModPackages(workPaths.DisabledModArchivesDir);
+
+    private IReadOnlyCollection<string> ListModPackages(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            return Directory.EnumerateFiles(path).ToList();
+        }
+        else
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private string PackageName(string archivePath) => Path.GetFileNameWithoutExtension(archivePath);
+
     private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles() {
         if (!File.Exists(workPaths.CurrentStateFile))
         {
@@ -224,6 +312,9 @@ public class ModManager
 
     private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
+        if (!filesByMod.Any() && !File.Exists(workPaths.CurrentStateFile)) {
+            return;
+        }
         File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
     }
 }

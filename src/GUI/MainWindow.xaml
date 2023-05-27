@@ -1,0 +1,87 @@
+<winex:WindowEx
+    x:Class="AMS2CM.GUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:AMS2CM.GUI"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:winex="using:WinUIEx"
+    mc:Ignorable="d"
+    Title="Automobilista 2 Content Manager"
+    TaskBarIcon="AMS2CM.ico"
+    Width="600" Height="600">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <SymbolIcon
+            Margin="15,10,0,10"
+            Symbol="Download"
+            ToolTipService.ToolTip="Installed"/>
+        <SymbolIcon Grid.Column="1"
+            Margin="15,10,0,10"
+            Symbol="Import"
+            ToolTipService.ToolTip="To Install"/>
+        <ScrollViewer Grid.Row="1" Grid.ColumnSpan="3">
+            <ListView
+                x:Name="ModListView"
+                SelectionMode="Extended"
+                AllowDrop="True"
+                RightTapped="ModListView_RightTapped"
+                DragOver="ModListView_DragOver"
+                Drop="ModListView_Drop"
+                CanDragItems="True"
+                DragItemsStarting="ModListView_DragItemsStarting"
+                DragItemsCompleted="ModListView_DragItemsCompleted">
+                <ListView.ContextFlyout>
+                    <MenuFlyout x:Name="ModListMenu">
+                        <MenuFlyoutItem Text="To Install" Click="ModListMenuToInstall_Click"/>
+                        <MenuFlyoutItem Text="Delete" Click="ModListMenuDelete_Click">
+                            <MenuFlyoutItem.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Delete" />
+                            </MenuFlyoutItem.KeyboardAccelerators>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </ListView.ContextFlyout>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:ModVM">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox
+                                MinWidth="0"
+                                IsChecked="{x:Bind IsInstalled}" IsEnabled="False"/>
+                            <CheckBox
+                                Grid.Column="1"
+                                MinWidth="0"
+                                IsChecked="{x:Bind IsEnabled}" IsEnabled="{x:Bind IsAvailable}"
+                                x:DefaultBindMode="TwoWay"/>
+                            <TextBlock
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Text="{x:Bind PackageName}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </ScrollViewer>
+        <Button Grid.Row="2" Grid.ColumnSpan="3"
+            Margin="18,10,14,10"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            Style="{StaticResource AccentButtonStyle}"
+            x:Name="SyncButton"
+            Click="SyncButton_Click">Sync</Button>
+    </Grid>
+
+</winex:WindowEx>
