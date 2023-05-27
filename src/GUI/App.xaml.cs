@@ -9,11 +9,11 @@ public partial class App : Application
         InitializeComponent();
     }
 
-    protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        m_window = new MainWindow();
-        m_window.Activate();
+        window = new MainWindow();
+        window.Activate();
     }
 
-    private Window m_window;
+    private Window window;
 }

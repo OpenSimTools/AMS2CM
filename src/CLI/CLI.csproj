@@ -1,25 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0-windows</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Company>OpenSimTools</Company>
+		<Authors>OpenSimTools Contributors</Authors>
+		<AssemblyName>AMS2CM</AssemblyName>
+		<RootNamespace>AMS2CM.CLI</RootNamespace>
+		<ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
+	</PropertyGroup>
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0-windows</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <Company>OpenSimTools</Company>
-        <Authors>OpenSimTools Contributors</Authors>
-        <AssemblyName>AMS2CM</AssemblyName>
-        <RootNamespace>AMS2CM.CLI</RootNamespace>
-        <ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
-    </PropertyGroup>
-
-    <ItemGroup>
+	<ItemGroup>
 		<ProjectReference Include="..\Core\Core.csproj" />
-    </ItemGroup>
+	</ItemGroup>
 
 	<ItemGroup>
 		<Content Include="..\Shared\Config.yaml">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
-
 </Project>

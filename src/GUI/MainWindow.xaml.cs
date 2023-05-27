@@ -12,7 +12,7 @@ using WinUIEx;
 
 namespace AMS2CM.GUI;
 
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow : WindowEx
 {
     private readonly ObservableCollection<ModVM> modList;
     private readonly ModManager modManager;
@@ -21,7 +21,6 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         modManager = CreateModManager();
-        this.SetWindowSize(600,600);
         modList = new ObservableCollection<ModVM>();
         ModListView.ItemsSource = modList;
         SyncModListView();
