@@ -312,6 +312,9 @@ public class ModManager
 
     private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
+        if (!filesByMod.Any() && !File.Exists(workPaths.CurrentStateFile)) {
+            return;
+        }
         File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
     }
 }
