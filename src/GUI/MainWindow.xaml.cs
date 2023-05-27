@@ -46,7 +46,7 @@ public sealed partial class MainWindow : WindowEx
     private void SyncModListView()
     {
         modList.Clear();
-        foreach (var modState in modManager.FetchState())
+        foreach (var modState in modManager.FetchState().OrderBy(_ => _.PackageName))
         {
             modList.Add(new ModVM(modState, modManager));
         }
@@ -67,9 +67,10 @@ public sealed partial class MainWindow : WindowEx
                 foreach (var storageFile in items.OfType<StorageFile>())
                 {
                     var filePath = storageFile.Path;
-                    var modState = modManager.EnableNewMod(filePath);
-                    modList.Add(new ModVM(modState, modManager));
+                    modManager.EnableNewMod(filePath);
                 }
+                // Refresh list after adding mods with drag and drop
+                SyncModListView();
             }
         }
     }
@@ -90,6 +91,7 @@ public sealed partial class MainWindow : WindowEx
 
     private void ModListView_DragItemsCompleted(Microsoft.UI.Xaml.Controls.ListViewBase sender, Microsoft.UI.Xaml.Controls.DragItemsCompletedEventArgs args)
     {
+        // Refresh list after removing mods with drag and drop
         SyncModListView();
     }
 
@@ -112,6 +114,7 @@ public sealed partial class MainWindow : WindowEx
                 FileSystem.DeleteFile(mvm.PackagePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
             }
         }
+        // Refresh list after removing mods with context menu
         SyncModListView();
     }
 }
