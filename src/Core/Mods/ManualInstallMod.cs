@@ -1,4 +1,6 @@
-﻿namespace Core.Mods;
+﻿using Microsoft.Extensions.FileSystemGlobbing;
+
+namespace Core.Mods;
 
 public class ManualInstallMod : ExtractedMod
 {
@@ -8,14 +10,22 @@ public class ManualInstallMod : ExtractedMod
         IEnumerable<string> ExcludedFromConfig { get; }
     }
 
-    private readonly HashSet<string> filesExcludedFromConfig;
+    private readonly Matcher filesToConfigureMatcher;
     private readonly List<string> dirsAtRootLowerCase;
 
     internal ManualInstallMod(string packageName, string extractedPath, IConfig config)
         : base(packageName, extractedPath)
     {
-        filesExcludedFromConfig = config.ExcludedFromConfig.ToHashSet();
         dirsAtRootLowerCase = config.DirsAtRoot.Select(dir => dir.ToLowerInvariant()).ToList();
+        filesToConfigureMatcher = MatcherExcluding(config.ExcludedFromConfig);
+    }
+
+    private static Matcher MatcherExcluding(IEnumerable<string> exclusions)
+    {
+        var matcher = new Matcher();
+        matcher.AddInclude(@"**\*");
+        matcher.AddExcludePatterns(exclusions);
+        return matcher;
     }
 
     protected override IEnumerable<string> ExtractedRootDirs()
@@ -54,8 +64,7 @@ public class ManualInstallMod : ExtractedMod
             .ToList();
 
     private IEnumerable<string> FileEntriesToConfigure() =>
-        installedFiles.Where(p => filesExcludedFromConfig.All(excluded => Path.GetFileName(p) != excluded));
-
+        installedFiles.Where(_ => filesToConfigureMatcher.Match(_).HasMatches);
 
     private List<string> FindDrivelineRecords()
     {

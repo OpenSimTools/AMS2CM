@@ -17,17 +17,8 @@ ModInstall:
   - vehicles
   ExcludedFromConfig:
   # IndyCar 2023 1.0 Fix
-  - IR-18_2023_Dale_Coyne_hr.crd
+  - '**\IR-18_2023_Dale_Coyne_hr.crd'
   # IndyCar 2023 Optional Entries
-  - IR-18_2023_Abel.crd
-  - IR-18_2023_Abel_SO.crd
-  - IR-18_2023_Abel_SS.crd
-  - IR-18_2023_Abel_SW.crd
-  - IR-18_2023_Dreyer_Reinbold.crd
-  - IR-18_2023_Dreyer_Reinbold_SO.crd
-  - IR-18_2023_Dreyer_Reinbold_SS.crd
-  - IR-18_2023_Dreyer_Reinbold_SW.crd
-  - IR-18_2023_My_Team.crd
-  - IR-18_2023_My_Team_SO.crd
-  - IR-18_2023_My_Team_SS.crd
-  - IR-18_2023_My_Team_SW.crd
+  #- '**\IR-18_2023_Abel*'
+  #- '**\IR-18_2023_Dreyer_Reinbold*'
+  #- '**\IR-18_2023_My_Team*'
