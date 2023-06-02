@@ -72,7 +72,7 @@ public class ModManager
             return new ModState(
                 PackageName: packageName,
                 PackagePath: packagePath,
-                IsEnabled:   isEnabled,
+                IsEnabled: isEnabled,
                 IsInstalled: installedPackageNames.Contains(packageName)
             );
         });
@@ -290,7 +290,14 @@ public class ModManager
     {
         if (Directory.Exists(path))
         {
-            return Directory.EnumerateFiles(path).ToList();
+            var options = new EnumerationOptions()
+            {
+                MatchType = MatchType.Win32,
+                IgnoreInaccessible = false,
+                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                MaxRecursionDepth = 0,
+            };
+            return Directory.EnumerateFiles(path, "*", options).ToList();
         }
         else
         {
@@ -300,7 +307,8 @@ public class ModManager
 
     private string PackageName(string archivePath) => Path.GetFileNameWithoutExtension(archivePath);
 
-    private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles() {
+    private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles()
+    {
         if (!File.Exists(workPaths.CurrentStateFile))
         {
             return new Dictionary<string, IReadOnlyCollection<string>>();
@@ -312,7 +320,8 @@ public class ModManager
 
     private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
-        if (!filesByMod.Any() && !File.Exists(workPaths.CurrentStateFile)) {
+        if (!filesByMod.Any() && !File.Exists(workPaths.CurrentStateFile))
+        {
             return;
         }
         File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
