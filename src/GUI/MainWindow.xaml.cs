@@ -41,18 +41,8 @@ public sealed partial class MainWindow : WindowEx
     private async void SyncButton_Click(object sender, RoutedEventArgs e)
     {
         SyncButton.IsEnabled = false;
-        var dialog = new SyncDialog
-        {
-            XamlRoot = SyncButton.XamlRoot
-        };
 
-        var dialogueResult = dialog.ShowAsync();
-        //using var cancelTokenSource = new CancellationTokenSource();
-        //var task = Task.Run(() => modManager.InstallEnabledMods(cancelTokenSource.Token));
-        //cancelTokenSource.Cancel();
-        //await task;
-        
-        await dialogueResult;
+        await SyncDialog.ShowAsync(SyncButton.XamlRoot, modManager.InstallEnabledMods);
 
         SyncModListView();
         SyncButton.IsEnabled = true;

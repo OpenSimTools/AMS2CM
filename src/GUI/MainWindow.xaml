@@ -83,16 +83,6 @@
             x:Name="SyncButton"
             Content="Sync"
             Click="SyncButton_Click" />
-        <TeachingTip
-            x:Name="SyncPopUp"
-            Target="{x:Bind SyncButton}">
-            <TeachingTip.CloseButtonContent>
-                <TextBlock>Foo</TextBlock>
-            </TeachingTip.CloseButtonContent>
-            <TeachingTip.Content>
-                <TextBlock TextWrapping="WrapWholeWords" Margin="0,16,0,0">To change your desktop theme visit the <Hyperlink NavigateUri="ms-settings:colors">Settings app</Hyperlink>.</TextBlock>
-            </TeachingTip.Content>
-        </TeachingTip>
     </Grid>
 
 </winex:WindowEx>
