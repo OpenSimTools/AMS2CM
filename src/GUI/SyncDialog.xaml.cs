@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Windows.UI.Notifications;
 
 namespace AMS2CM.GUI;
 
@@ -16,6 +15,7 @@ public sealed partial class SyncDialog : ContentDialog
         InitializeComponent();
         XamlRoot = xamlRoot;
         IsSecondaryButtonEnabled = false;
+        Logs.Text = $"Synchronization started.{Environment.NewLine}";
         this.cancellationTokenSource = cancellationTokenSource;
     }
 
@@ -23,6 +23,7 @@ public sealed partial class SyncDialog : ContentDialog
     {
         args.Cancel = true;
         IsPrimaryButtonEnabled = false;
+        Logs.Text += $"Aborting...{Environment.NewLine}";
         cancellationTokenSource.Cancel();
     }
 
@@ -30,6 +31,14 @@ public sealed partial class SyncDialog : ContentDialog
     {
         DispatcherQueue.TryEnqueue(() =>
         {
+            if (cancellationTokenSource.Token.IsCancellationRequested)
+            {
+                Logs.Text += $"Synchronization aborted.{Environment.NewLine}";
+            }
+            else
+            {
+                Logs.Text += $"Synchronization completed.{Environment.NewLine}";
+            }
             IsPrimaryButtonEnabled = false;
             IsSecondaryButtonEnabled = true;
         });

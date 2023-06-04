@@ -17,9 +17,7 @@
             <Grid>
                 <TextBlock
                     x:Name="Logs"
-                    TextWrapping="Wrap">
-                    TODO...
-                </TextBlock>
+                    TextWrapping="Wrap"/>
             </Grid>
         </ScrollViewer>
     </StackPanel>
