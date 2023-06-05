@@ -9,6 +9,9 @@ using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
+using System.Threading.Tasks;
+using Microsoft.UI.Xaml.Controls;
+using System.Threading;
 
 namespace AMS2CM.GUI;
 
@@ -35,10 +38,12 @@ public sealed partial class MainWindow : WindowEx
         return new ModManager(game, modFactory);
     }
 
-    private void SyncButton_Click(object sender, RoutedEventArgs e)
+    private async void SyncButton_Click(object sender, RoutedEventArgs e)
     {
         SyncButton.IsEnabled = false;
-        modManager.InstallEnabledMods();
+
+        await SyncDialog.ShowAsync(SyncButton.XamlRoot, modManager.InstallEnabledMods);
+
         SyncModListView();
         SyncButton.IsEnabled = true;
     }

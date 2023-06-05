@@ -81,7 +81,8 @@
             HorizontalAlignment="Center" VerticalAlignment="Center"
             Style="{StaticResource AccentButtonStyle}"
             x:Name="SyncButton"
-            Click="SyncButton_Click">Sync</Button>
+            Content="Sync"
+            Click="SyncButton_Click" />
     </Grid>
 
 </winex:WindowEx>

@@ -127,7 +127,7 @@ public class ModManager
         }
     }
 
-    public void InstallEnabledMods()
+    public void InstallEnabledMods(CancellationToken cancellationToken = default)
     {
         // It shoulnd't be needed, but some systems seem to want to load oo2core
         // even when Mermaid and Kraken compression are not used in pak files!
@@ -136,7 +136,7 @@ public class ModManager
         CheckGameNotRunning();
         RestoreOriginalState();
         Cleanup();
-        InstallAllModFiles();
+        InstallAllModFiles(cancellationToken);
         Cleanup();
     }
 
@@ -183,7 +183,7 @@ public class ModManager
         }
     }
 
-    private void InstallAllModFiles()
+    private void InstallAllModFiles(CancellationToken cancellationToken)
     {
         var modPackages = ListEnabledModPackages();
         var modConfigs = new List<IMod.ConfigEntries>();
@@ -195,6 +195,10 @@ public class ModManager
                 Console.WriteLine("Installing mods:");
                 foreach (var packagePath in modPackages)
                 {
+                    if (cancellationToken.IsCancellationRequested) {
+                        break;
+                    }
+
                     var packageName = Path.GetFileNameWithoutExtension(packagePath);
                     if (IsBootFiles(packageName))
                     {
