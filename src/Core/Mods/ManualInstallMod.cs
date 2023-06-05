@@ -92,7 +92,7 @@ public class ManualInstallMod : ExtractedMod
                     recordLines.Clear();
                     continue;
                 }
-                var lineNoIndent = line.Substring(recordIndent);
+                var lineNoIndent = line.Substring(recordIndent).TrimEnd();
                 recordLines.Add(lineNoIndent);
             }
 
