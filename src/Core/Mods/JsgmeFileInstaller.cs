@@ -85,7 +85,16 @@ public static class JsgmeFileInstaller
     /// </summary>
     /// <param name="dstPath">Game directory</param>
     /// <param name="files">Perviously installed mod files</param>
-    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files)
+    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files) =>
+        RestoreOriginalState(dstPath, files, _ => true);
+
+    /// <summary>
+    /// Uninstall mod files.
+    /// </summary>
+    /// <param name="dstPath">Game directory</param>
+    /// <param name="files">Perviously installed mod files</param>
+    /// <param name="skip">Function to decide if a file should be skipped</param>
+    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files, Func<string, bool> skip)
     {
         var installedPaths = files.Select(file => Path.Combine(dstPath, file));
         foreach (var path in installedPaths)
@@ -93,6 +102,11 @@ public static class JsgmeFileInstaller
             // Some mods have duplicate entries, so files might have been removed already
             if (File.Exists(path))
             {
+                if (skip(path))
+                {
+                    DeleteBackup(path);
+                    continue;
+                }
                 File.Delete(path);
             }
 
@@ -129,6 +143,15 @@ public static class JsgmeFileInstaller
         if (File.Exists(backupFilePath))
         {
             File.Move(backupFilePath, path);
+        }
+    }
+
+    private static void DeleteBackup(string path)
+    {
+        var backupFilePath = BackupFileName(path);
+        if (File.Exists(backupFilePath))
+        {
+            File.Delete(backupFilePath);
         }
     }
 

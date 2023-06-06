@@ -157,7 +157,11 @@ public class ModManager
             foreach (var (modName, filePaths) in previouslyInstalledFiles)
             {
                 Console.WriteLine($"- {modName}");
-                JsgmeFileInstaller.RestoreOriginalState(game.InstallationDirectory, filePaths);
+                JsgmeFileInstaller.RestoreOriginalState(
+                    game.InstallationDirectory,
+                    filePaths,
+                    SkipCreatedAfter(PreviousInstallationTimeUtc())
+                );
             }
         }
         else
@@ -165,6 +169,23 @@ public class ModManager
             CheckNoBootfilesInstalled();
             Console.WriteLine("No previously installed mods found. Skipping uninstall phase.");
         }
+    }
+
+    private static Func<string, bool> SkipCreatedAfter(DateTime? dateTimeUtc) {
+        if (dateTimeUtc is null)
+        {
+            return _ => false;
+        }
+
+        return path =>
+        {
+            var exclude = File.GetCreationTimeUtc(path) > dateTimeUtc;
+            if (exclude)
+            {
+                Console.WriteLine($"  Skipping {path}");
+            }
+            return exclude;
+        };
     }
 
     private void CheckGameNotRunning()
@@ -310,6 +331,15 @@ public class ModManager
     }
 
     private string PackageName(string archivePath) => Path.GetFileNameWithoutExtension(archivePath);
+
+    private DateTime? PreviousInstallationTimeUtc()
+    {
+        if (!File.Exists(workPaths.CurrentStateFile))
+        {
+            return null;
+        }
+        return File.GetLastWriteTimeUtc(workPaths.CurrentStateFile);
+    }
 
     private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles()
     {
