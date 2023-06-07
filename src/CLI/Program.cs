@@ -7,11 +7,13 @@ try
     var game = new Game(config.Game);
     var modFactory = new ModFactory(config.ModInstall, game);
     var modManager = new ModManager(game, modFactory);
+    modManager.Logs += Console.WriteLine;
     modManager.InstallEnabledMods();
 }
 catch (Exception e)
 {
     Console.WriteLine($"Error: {e.Message}");
 }
+
 Console.WriteLine("Press any key to exit.");
 Console.ReadKey();
