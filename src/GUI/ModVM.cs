@@ -6,13 +6,13 @@ namespace AMS2CM.GUI;
 internal class ModVM : INotifyPropertyChanged
 {
     private readonly ModState modState;
-    private readonly ModManager modManager;
+    private readonly IModManager modManager;
     private bool isEnabled;
     private string currentPackagePath;
 
     public event PropertyChangedEventHandler PropertyChanged;
 
-    public ModVM(ModState modState, ModManager modManager)
+    public ModVM(ModState modState, IModManager modManager)
     {
         this.modState = modState;
         this.modManager = modManager;

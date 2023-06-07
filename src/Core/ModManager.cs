@@ -2,7 +2,6 @@ using Core.Games;
 using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
-using static Core.IModManager;
 
 namespace Core;
 
@@ -34,7 +33,7 @@ public class ModManager : IModManager
     private readonly IGame game;
     private readonly IModFactory modFactory;
 
-    public event LogHandler Logs;
+    public event IModManager.LogHandler Logs;
 
     public ModManager(IGame game, IModFactory modFactory)
     {

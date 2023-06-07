@@ -15,7 +15,6 @@ public sealed partial class SyncDialog : ContentDialog
         InitializeComponent();
         XamlRoot = xamlRoot;
         IsSecondaryButtonEnabled = false;
-        Logs.Text = $"Synchronization started.{Environment.NewLine}";
         this.cancellationTokenSource = cancellationTokenSource;
     }
 
@@ -44,14 +43,36 @@ public sealed partial class SyncDialog : ContentDialog
         });
     }
 
-    public static async Task ShowAsync(XamlRoot xamlRoot, Action<CancellationToken> action)
+    public void LogMessage(string message)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            Logs.Text += $"{message}{Environment.NewLine}";
+        });
+    }
+
+    public void LogError(Exception ex)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            Logs.Text += $"Error: {ex.Message}{Environment.NewLine}";
+        });
+    }
+
+    public static async Task ShowAsync(XamlRoot xamlRoot, Action<SyncDialog, CancellationToken> action)
     {
         using var cancellationTokenSource = new CancellationTokenSource();
 
         var dialog = new SyncDialog(xamlRoot, cancellationTokenSource);
 
         var task = Task.Run(() => {
-            action(cancellationTokenSource.Token);
+            try
+            {
+                action(dialog, cancellationTokenSource.Token);
+            } catch (Exception ex)
+            {
+                dialog.LogError(ex);
+            }
             dialog.SignalTermination();
         });
 
