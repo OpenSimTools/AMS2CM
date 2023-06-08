@@ -2,6 +2,8 @@ using Core.Games;
 using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
+using static Core.IModManager;
+using static Core.Mods.JsgmeFileInstaller;
 
 namespace Core;
 
@@ -33,7 +35,7 @@ public class ModManager : IModManager
     private readonly IGame game;
     private readonly IModFactory modFactory;
 
-    public event IModManager.LogHandler? Logs;
+    public event LogHandler? Logs;
 
     public ModManager(IGame game, IModFactory modFactory)
     {
@@ -172,7 +174,7 @@ public class ModManager : IModManager
         }
     }
 
-    private Func<string, bool> SkipCreatedAfter(DateTime? dateTimeUtc)
+    private ShouldSkipFile SkipCreatedAfter(DateTime? dateTimeUtc)
     {
         if (dateTimeUtc is null)
         {
