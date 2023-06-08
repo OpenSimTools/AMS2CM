@@ -2,6 +2,8 @@
 
 public static class JsgmeFileInstaller
 {
+    public delegate bool ShouldSkipFile(string path);
+
     private const string BackupFileSuffix = ".orig";
     public const string RemoveFileSuffix = "-remove";
 
@@ -94,7 +96,7 @@ public static class JsgmeFileInstaller
     /// <param name="dstPath">Game directory</param>
     /// <param name="files">Perviously installed mod files</param>
     /// <param name="skip">Function to decide if a file should be skipped</param>
-    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files, Func<string, bool> skip)
+    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files, ShouldSkipFile skip)
     {
         var installedPaths = files.Select(file => Path.Combine(dstPath, file));
         foreach (var path in installedPaths)

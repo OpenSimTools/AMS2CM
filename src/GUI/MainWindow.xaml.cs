@@ -9,8 +9,6 @@ using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
-using System.Threading.Tasks;
-using Microsoft.UI.Xaml.Controls;
 using System.Threading;
 
 namespace AMS2CM.GUI;
@@ -18,31 +16,26 @@ namespace AMS2CM.GUI;
 public sealed partial class MainWindow : WindowEx
 {
     private readonly ObservableCollection<ModVM> modList;
-    private readonly ModManager modManager;
+    private readonly IModManager modManager;
 
-    public MainWindow()
+    public MainWindow(IModManager modManager)
     {
         InitializeComponent();
-        modManager = CreateModManager();
+        this.modManager = modManager;
         modList = new ObservableCollection<ModVM>();
         ModListView.ItemsSource = modList;
         SyncModListView();
-    }
-
-    private static ModManager CreateModManager()
-    {
-        var args = Environment.GetCommandLineArgs();
-        var config = Config.Load(args);
-        var game = new Game(config.Game);
-        var modFactory = new ModFactory(config.ModInstall, game);
-        return new ModManager(game, modFactory);
     }
 
     private async void SyncButton_Click(object sender, RoutedEventArgs e)
     {
         SyncButton.IsEnabled = false;
 
-        await SyncDialog.ShowAsync(SyncButton.XamlRoot, modManager.InstallEnabledMods);
+        await SyncDialog.ShowAsync(SyncButton.XamlRoot, (dialog, cancellationToken) => {
+            modManager.Logs += dialog.LogMessage;
+            modManager.InstallEnabledMods(cancellationToken);
+            modManager.Logs -= dialog.LogMessage;
+        });
 
         SyncModListView();
         SyncButton.IsEnabled = true;

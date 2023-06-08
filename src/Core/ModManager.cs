@@ -2,10 +2,12 @@ using Core.Games;
 using Core.Mods;
 using Newtonsoft.Json;
 using SevenZipExtractor;
+using static Core.IModManager;
+using static Core.Mods.JsgmeFileInstaller;
 
 namespace Core;
 
-public class ModManager
+public class ModManager : IModManager
 {
     private record WorkPaths(
         string EnabledModArchivesDir,
@@ -33,9 +35,10 @@ public class ModManager
     private readonly IGame game;
     private readonly IModFactory modFactory;
 
+    public event LogHandler? Logs;
+
     public ModManager(IGame game, IModFactory modFactory)
     {
-
         this.game = game;
         this.modFactory = modFactory;
         var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
@@ -153,10 +156,10 @@ public class ModManager
         var previouslyInstalledFiles = ReadPreviouslyInstalledFiles();
         if (previouslyInstalledFiles.Any())
         {
-            Console.WriteLine($"Uninstalling mods:");
+            Logs?.Invoke($"Uninstalling mods:");
             foreach (var (modName, filePaths) in previouslyInstalledFiles)
             {
-                Console.WriteLine($"- {modName}");
+                Logs?.Invoke($"- {modName}");
                 JsgmeFileInstaller.RestoreOriginalState(
                     game.InstallationDirectory,
                     filePaths,
@@ -167,11 +170,12 @@ public class ModManager
         else
         {
             CheckNoBootfilesInstalled();
-            Console.WriteLine("No previously installed mods found. Skipping uninstall phase.");
+            Logs?.Invoke("No previously installed mods found. Skipping uninstall phase.");
         }
     }
 
-    private static Func<string, bool> SkipCreatedAfter(DateTime? dateTimeUtc) {
+    private ShouldSkipFile SkipCreatedAfter(DateTime? dateTimeUtc)
+    {
         if (dateTimeUtc is null)
         {
             return _ => false;
@@ -182,7 +186,7 @@ public class ModManager
             var exclude = File.GetCreationTimeUtc(path) > dateTimeUtc;
             if (exclude)
             {
-                Console.WriteLine($"  Skipping {path}");
+                Logs?.Invoke($"  Skipping {path}");
             }
             return exclude;
         };
@@ -213,21 +217,22 @@ public class ModManager
         {
             if (modPackages.Any())
             {
-                Console.WriteLine("Installing mods:");
+                Logs?.Invoke("Installing mods:");
                 foreach (var packagePath in modPackages)
                 {
-                    if (cancellationToken.IsCancellationRequested) {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
                         break;
                     }
 
                     var packageName = Path.GetFileNameWithoutExtension(packagePath);
                     if (IsBootFiles(packageName))
                     {
-                        Console.WriteLine($"- {packageName} (skipped)");
+                        Logs?.Invoke($"- {packageName} (skipped)");
                         continue;
                     }
 
-                    Console.WriteLine($"- {packageName}");
+                    Logs?.Invoke($"- {packageName}");
 
                     var mod = ExtractMod(packageName, packagePath);
                     try
@@ -237,7 +242,7 @@ public class ModManager
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine($"  Error: {e.Message}");
+                        Logs?.Invoke($"  Error: {e.Message}");
                     }
                     // Add even partially installed files
                     installedFilesByMod.Add(mod.PackageName, mod.InstalledFiles);
@@ -249,22 +254,22 @@ public class ModManager
                     bootfilesMod.Install(game.InstallationDirectory);
                     installedFilesByMod.Add(bootfilesMod.PackageName, bootfilesMod.InstalledFiles);
 
-                    Console.WriteLine("Post-processing:");
-                    Console.WriteLine("- Appending crd file entries");
+                    Logs?.Invoke("Post-processing:");
+                    Logs?.Invoke("- Appending crd file entries");
                     PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
-                    Console.WriteLine("- Appending trd file entries");
+                    Logs?.Invoke("- Appending trd file entries");
                     PostProcessor.AppendTrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.TrdFileEntries));
-                    Console.WriteLine("- Appending driveline records");
+                    Logs?.Invoke("- Appending driveline records");
                     PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
                 }
                 else
                 {
-                    Console.WriteLine("Post-processing not required");
+                    Logs?.Invoke("Post-processing not required");
                 }
             }
             else
             {
-                Console.WriteLine($"No mod archives found in {workPaths.EnabledModArchivesDir}");
+                Logs?.Invoke($"No mod archives found in {workPaths.EnabledModArchivesDir}");
             }
         }
         finally
@@ -290,18 +295,18 @@ public class ModManager
         switch (bootfilesArchives.Count())
         {
             case 0:
-                Console.WriteLine("Extracting bootfiles from game");
+                Logs?.Invoke("Extracting bootfiles from game");
                 return modFactory.GeneratedBootfiles(workPaths.TempDir);
             case 1:
                 var archivePath = bootfilesArchives.First();
                 var packageName = Path.GetFileNameWithoutExtension(archivePath);
-                Console.WriteLine($"Extracting bootfiles from {packageName}");
+                Logs?.Invoke($"Extracting bootfiles from {packageName}");
                 return ExtractMod(packageName, archivePath);
             default:
-                Console.WriteLine("Multiple bootfiles found:");
+                Logs?.Invoke("Multiple bootfiles found:");
                 foreach (var bf in bootfilesArchives)
                 {
-                    Console.WriteLine($"- {bf}");
+                    Logs?.Invoke($"- {bf}");
                 }
                 throw new Exception("Too many bootfiles found");
         }
