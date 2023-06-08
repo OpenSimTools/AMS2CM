@@ -33,7 +33,7 @@ public class ModManager : IModManager
     private readonly IGame game;
     private readonly IModFactory modFactory;
 
-    public event IModManager.LogHandler Logs;
+    public event IModManager.LogHandler? Logs;
 
     public ModManager(IGame game, IModFactory modFactory)
     {
