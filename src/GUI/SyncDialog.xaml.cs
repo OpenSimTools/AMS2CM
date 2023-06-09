@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -14,7 +11,6 @@ public sealed partial class SyncDialog : ContentDialog
     {
         InitializeComponent();
         XamlRoot = xamlRoot;
-        IsSecondaryButtonEnabled = false;
         this.cancellationTokenSource = cancellationTokenSource;
     }
 

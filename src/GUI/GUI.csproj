@@ -3,6 +3,8 @@
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
 		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
 		<AssemblyName>AMS2CM.GUI</AssemblyName>
 		<RootNamespace>AMS2CM.GUI</RootNamespace>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
@@ -34,12 +36,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Remove="ErrorDialog.xaml" />
 		<None Remove="SyncDialog.xaml" />
 	</ItemGroup>
+
 	<ItemGroup>
-	  <Page Update="SyncDialog.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </Page>
+		<Page Update="ErrorDialog.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Update="SyncDialog.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
 	</ItemGroup>
 
 	<!-- From https://youtu.be/LHNahJi21Vg -->

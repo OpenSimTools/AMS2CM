@@ -84,7 +84,7 @@ public class ModManager : IModManager
         var unavailableModsState = unavailablePackageNames.Select(packageName => new ModState(
                 PackageName: packageName,
                 PackagePath: null,
-                IsEnabled: null,
+                IsEnabled: false,
                 IsInstalled: true
             ));
         return unavailableModsState.Concat(availableModsState).ToList();

@@ -8,21 +8,21 @@ internal class ModVM : INotifyPropertyChanged
     private readonly ModState modState;
     private readonly IModManager modManager;
     private bool isEnabled;
-    private string currentPackagePath;
+    private string? packagePath;
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public ModVM(ModState modState, IModManager modManager)
     {
         this.modState = modState;
         this.modManager = modManager;
-        isEnabled = modState.IsEnabled ?? false;
-        currentPackagePath = modState.PackagePath;
+        isEnabled = modState.IsEnabled;
+        packagePath = modState.PackagePath;
     }
 
     public string PackageName => modState.PackageName;
 
-    public string PackagePath => currentPackagePath;
+    public string? PackagePath => packagePath;
 
     public bool IsInstalled => modState.IsInstalled;
 
@@ -34,28 +34,24 @@ internal class ModVM : INotifyPropertyChanged
 
     public bool IsAvailable
     {
-        get => modState.IsEnabled is not null;
-        set => DoNothing();
+        get => PackagePath is not null;
+        set { }
     }
 
     private void EnableOrDisable(bool shouldEnable)
     {
-        if (!IsAvailable || shouldEnable == isEnabled)
+        if (packagePath is null || shouldEnable == isEnabled)
             return;
 
         if (shouldEnable)
         {
-            currentPackagePath = modManager.EnableMod(currentPackagePath);
+            packagePath = modManager.EnableMod(packagePath);
         }
         else
         {
-            currentPackagePath = modManager.DisableMod(currentPackagePath);
+            packagePath = modManager.DisableMod(packagePath);
         }
         isEnabled = shouldEnable;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEnabled)));
-    }
-
-    private void DoNothing()
-    {
     }
 }
