@@ -36,10 +36,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Remove="ErrorDialog.xaml" />
 		<None Remove="SyncDialog.xaml" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<Page Update="ErrorDialog.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
 		<Page Update="SyncDialog.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</Page>

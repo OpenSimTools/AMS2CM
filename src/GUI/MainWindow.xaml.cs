@@ -127,7 +127,8 @@ public sealed partial class MainWindow : WindowEx
 
     public async void SignalErrorAsync(string message)
     {
-        await ShowMessageDialogAsync(message);
+        var dialog = new ErrorDialog(Content.XamlRoot, message);
+        await dialog.ShowAsync();
         Close();
     }
 }
