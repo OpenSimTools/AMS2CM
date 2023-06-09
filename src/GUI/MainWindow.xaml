@@ -11,7 +11,7 @@
     TaskBarIcon="AMS2CM.ico"
     Width="600" Height="600">
 
-    <Grid>
+    <Grid Loaded="Root_Loaded">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>

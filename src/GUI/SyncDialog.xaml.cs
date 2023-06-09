@@ -1,18 +1,17 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace AMS2CM.GUI;
 
-public sealed partial class SyncDialog : BaseDialog
+public sealed partial class SyncDialog : ContentDialog
 {
     private readonly CancellationTokenSource cancellationTokenSource;
 
-    private SyncDialog(XamlRoot xamlRoot, CancellationTokenSource cancellationTokenSource) : base(xamlRoot)
+    private SyncDialog(XamlRoot xamlRoot, CancellationTokenSource cancellationTokenSource)
     {
         InitializeComponent();
+        XamlRoot = xamlRoot;
+        Style = Application.Current.Resources["DefaultContentDialogStyle"] as Style;
         IsSecondaryButtonEnabled = false;
         this.cancellationTokenSource = cancellationTokenSource;
     }

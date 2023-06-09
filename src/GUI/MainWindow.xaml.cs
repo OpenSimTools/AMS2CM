@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Microsoft.VisualBasic.FileIO;
-using System.Linq;
 using Core;
 using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
@@ -22,6 +19,10 @@ public sealed partial class MainWindow : WindowEx
         this.modManager = modManager;
         modList = new ObservableCollection<ModVM>();
         ModListView.ItemsSource = modList;
+    }
+
+    private void Root_Loaded(object sender, RoutedEventArgs e)
+    {
         SyncModListView();
     }
 
@@ -105,7 +106,7 @@ public sealed partial class MainWindow : WindowEx
         foreach (var o in ModListView.SelectedItems)
         {
             var mvm = (ModVM)o;
-            if (mvm.IsAvailable)
+            if (mvm.PackagePath is not null)
             {
                 FileSystem.DeleteFile(mvm.PackagePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
             }
@@ -117,10 +118,16 @@ public sealed partial class MainWindow : WindowEx
     private void ModListView_RightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
     {
         // Select the mod if right click outside of selection
-        var mvm = (e.OriginalSource as FrameworkElement).DataContext as ModVM;
+        var mvm = (e.OriginalSource as FrameworkElement)?.DataContext as ModVM;
         if (!ModListView.SelectedItems.Contains(mvm))
         {
             ModListView.SelectedItem = mvm;
         }
+    }
+
+    public async void SignalErrorAsync(string message)
+    {
+        await ShowMessageDialogAsync(message);
+        Close();
     }
 }
