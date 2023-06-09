@@ -12,18 +12,16 @@
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 		<ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
 	</PropertyGroup>
-	<ItemGroup>
-	  <None Remove="SyncDialog.xaml" />
-	</ItemGroup>
-	<ItemGroup>
-		<ProjectReference Include="..\Core\Core.csproj" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
 		<PackageReference Include="WinUIEx" Version="2.1.0" />
 		<Manifest Include="$(ApplicationManifest)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Core\Core.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -36,8 +34,20 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Remove="SyncDialog.xaml" />
+	</ItemGroup>
+	<ItemGroup>
 	  <Page Update="SyncDialog.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </Page>
 	</ItemGroup>
+
+	<!-- From https://youtu.be/LHNahJi21Vg -->
+	<Target Name="RemoveUnsupportedLanguages" AfterTargets="Build">
+		<ItemGroup>
+			<LangFilesToRemove Include="$(OutDir)*\*.mui" Exclude="$(OutDir)en-us\*.mui" />
+			<LangDirsToRemove Include="@(LangFilesToRemove->'%(RootDir)%(Directory)')" />
+		</ItemGroup>
+		<RemoveDir Directories="@(LangDirsToRemove)" />
+	</Target>
 </Project>
