@@ -14,7 +14,7 @@ public partial class App : Application
         UnhandledException += HandleUnhandledException;
     }
 
-    private void HandleUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs args)
+        private void HandleUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs args)
     {
         if (window is null)
         {
@@ -57,7 +57,10 @@ public partial class App : Application
             this.ex = ex;
         }
 
-        public event IModManager.LogHandler? Logs;
+        public event IModManager.LogHandler? Logs {
+            add => throw ex;
+            remove => throw ex;
+        }
 
         public string DisableMod(string packagePath) => throw ex;
         public string EnableMod(string packagePath) => throw ex;
