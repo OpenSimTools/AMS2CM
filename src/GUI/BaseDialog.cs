@@ -8,5 +8,6 @@ public class BaseDialog : ContentDialog
     public BaseDialog(XamlRoot xamlRoot)
     {
         XamlRoot = xamlRoot;
+        Style = Application.Current.Resources["DefaultContentDialogStyle"] as Style;
     }
 }

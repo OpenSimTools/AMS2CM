@@ -35,10 +35,15 @@
 
 	<ItemGroup>
 		<None Remove="ErrorDialog.xaml" />
+		<None Remove="ErrorWindow.xaml" />
 		<None Remove="SyncDialog.xaml" />
 	</ItemGroup>
+
 	<ItemGroup>
-        <Page Update="SyncDialog.xaml">
+		<Page Update="ErrorDialog.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Update="ErrorWindow.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</Page>
 		<Page Update="SyncDialog.xaml">

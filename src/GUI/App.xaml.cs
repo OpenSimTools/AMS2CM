@@ -14,9 +14,14 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // TODO Display error if it fails!
-        var modManager = CreateModManager();
-        window = new MainWindow(modManager);
+        try
+        {
+            var modManager = CreateModManager();
+            window = new MainWindow(modManager);
+        } catch (Exception ex)
+        {
+            window = new ErrorWindow(ex.Message);
+        }
         window.Activate();
     }
 

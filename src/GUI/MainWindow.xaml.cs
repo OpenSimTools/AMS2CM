@@ -29,7 +29,7 @@ public sealed partial class MainWindow : WindowEx
     {
         SyncButton.IsEnabled = false;
 
-        await SyncDialog.ShowAsync(SyncButton.XamlRoot, (dialog, cancellationToken) => {
+        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) => {
             modManager.Logs += dialog.LogMessage;
             modManager.InstallEnabledMods(cancellationToken);
             modManager.Logs -= dialog.LogMessage;

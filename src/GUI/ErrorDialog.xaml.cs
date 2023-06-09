@@ -7,6 +7,6 @@ public sealed partial class ErrorDialog : BaseDialog
     public ErrorDialog(XamlRoot xamlRoot, string message) : base(xamlRoot)
     {
         InitializeComponent();
-        this.Message.Text = message;
+        Message.Text = message;
     }
 }
