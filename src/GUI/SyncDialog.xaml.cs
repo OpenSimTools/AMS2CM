@@ -6,14 +6,13 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace AMS2CM.GUI;
 
-public sealed partial class SyncDialog : ContentDialog
+public sealed partial class SyncDialog : BaseDialog
 {
     private readonly CancellationTokenSource cancellationTokenSource;
 
-    private SyncDialog(XamlRoot xamlRoot, CancellationTokenSource cancellationTokenSource)
+    private SyncDialog(XamlRoot xamlRoot, CancellationTokenSource cancellationTokenSource) : base(xamlRoot)
     {
         InitializeComponent();
-        XamlRoot = xamlRoot;
         IsSecondaryButtonEnabled = false;
         this.cancellationTokenSource = cancellationTokenSource;
     }

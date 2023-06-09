@@ -34,12 +34,16 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Remove="ErrorDialog.xaml" />
 		<None Remove="SyncDialog.xaml" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Page Update="SyncDialog.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </Page>
+        <Page Update="SyncDialog.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Update="SyncDialog.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
 	</ItemGroup>
 
 	<!-- From https://youtu.be/LHNahJi21Vg -->

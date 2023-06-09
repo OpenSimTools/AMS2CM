@@ -4,12 +4,10 @@ using System.Collections.ObjectModel;
 using Microsoft.VisualBasic.FileIO;
 using System.Linq;
 using Core;
-using Core.Games;
 using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
-using System.Threading;
 
 namespace AMS2CM.GUI;
 
