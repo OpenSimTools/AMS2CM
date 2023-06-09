@@ -11,8 +11,6 @@ public sealed partial class SyncDialog : ContentDialog
     {
         InitializeComponent();
         XamlRoot = xamlRoot;
-        Style = Application.Current.Resources["DefaultContentDialogStyle"] as Style;
-        IsSecondaryButtonEnabled = false;
         this.cancellationTokenSource = cancellationTokenSource;
     }
 
