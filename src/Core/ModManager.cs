@@ -13,7 +13,22 @@ public class ModManager : IModManager
         string EnabledModArchivesDir,
         string DisabledModArchivesDir,
         string TempDir,
-        string CurrentStateFile
+        string StateFile,
+        string OldStateFile
+    );
+
+    private record InternalState(
+        InternalInstallationState Install
+    );
+
+    private record InternalInstallationState(
+        DateTime Time,
+        IReadOnlyDictionary<string, InternalModInstallationState> Mods
+    );
+
+    private record InternalModInstallationState(
+        bool Partial,
+        IReadOnlyCollection<string> Files
     );
 
     private static readonly string FileRemovedByBootfiles = Path.Combine(
@@ -25,11 +40,15 @@ public class ModManager : IModManager
     private const string EnabledModsDirName = "Enabled";
     private const string DisabledModsSubdir = "Disabled";
     private const string TempDirName = "Temp";
-    private const string CurrentStateFileName = "installed.json";
+    private const string StateFileName = "state.json";
+    private const string OldStateFileName = "installed.json";
 
     private const string BootfilesPrefix = "__bootfiles";
 
-    private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
+    private static readonly JsonSerializerSettings JsonSerializerSettings = new() {
+        Formatting = Formatting.None,
+        DefaultValueHandling = DefaultValueHandling.Ignore,
+    };
 
     private readonly WorkPaths workPaths;
     private readonly IGame game;
@@ -46,7 +65,8 @@ public class ModManager : IModManager
             EnabledModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
             DisabledModArchivesDir: Path.Combine(modsDir, DisabledModsSubdir),
             TempDir: Path.Combine(modsDir, TempDirName),
-            CurrentStateFile: Path.Combine(modsDir, CurrentStateFileName)
+            StateFile: Path.Combine(modsDir, StateFileName),
+            OldStateFile: Path.Combine(modsDir, OldStateFileName)
         );
     }
 
@@ -339,30 +359,52 @@ public class ModManager : IModManager
 
     private DateTime? PreviousInstallationTimeUtc()
     {
-        if (!File.Exists(workPaths.CurrentStateFile))
+        if (File.Exists(workPaths.StateFile))
         {
-            return null;
+            // TODO duplicated: it will be removed later
+            var contents = File.ReadAllText(workPaths.StateFile);
+            var state = JsonConvert.DeserializeObject<InternalState>(contents);
+            return state.Install.Time;
         }
-        return File.GetLastWriteTimeUtc(workPaths.CurrentStateFile);
+        if (File.Exists(workPaths.OldStateFile))
+        {
+            return File.GetLastWriteTimeUtc(workPaths.OldStateFile);
+        }
+        return null;
     }
 
-    private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles()
+    private IReadOnlyDictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles()
     {
-        if (!File.Exists(workPaths.CurrentStateFile))
+        if (File.Exists(workPaths.StateFile))
         {
-            return new Dictionary<string, IReadOnlyCollection<string>>();
+            var contents = File.ReadAllText(workPaths.StateFile);
+            var state = JsonConvert.DeserializeObject<InternalState>(contents);
+            return state.Install.Mods.AsEnumerable()
+                .ToDictionary(kv => kv.Key, kv => kv.Value.Files);
         }
-
-        return JsonConvert
-            .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(workPaths.CurrentStateFile));
+        if (File.Exists(workPaths.OldStateFile))
+        {
+            var contents = File.ReadAllText(workPaths.OldStateFile);
+            return JsonConvert.DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(contents);
+        }
+        return new Dictionary<string, IReadOnlyCollection<string>>();
     }
 
-    private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
+    private void WriteInstalledFiles(IReadOnlyDictionary<string, IReadOnlyCollection<string>> filesByMod)
     {
-        if (!filesByMod.Any() && !File.Exists(workPaths.CurrentStateFile))
+        if (File.Exists(workPaths.OldStateFile))
         {
-            return;
+            File.WriteAllText(workPaths.OldStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
         }
-        File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
+        var state = new InternalState(
+            Install: new(
+                Time: DateTime.Now,
+                Mods: filesByMod.AsEnumerable().ToDictionary(
+                    kv => kv.Key,
+                    kv => new InternalModInstallationState(false, kv.Value)
+                )
+            )
+        );
+        File.WriteAllText(workPaths.StateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
     }
 }
