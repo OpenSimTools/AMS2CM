@@ -101,18 +101,19 @@ public class ModManager : IModManager
         var enabledModPaths = ListEnabledModPackages().ToDictionary(PackageName);
         var disabledModPaths = ListDisabledModPackages().ToDictionary(PackageName);
 
+        var bootfilesFailed = installedMods.Where(kv => IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
         var availableModPaths = enabledModPaths.Merge(disabledModPaths);
         var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
-            modInstallationState is null ? false : (modInstallationState.Partial ? null : true)
+            modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
         );
 
         var allModNames = installedMods.Keys
             .Concat(enabledModPaths.Keys)
             .Concat(disabledModPaths.Keys)
+            .Where(_ => !IsBootFiles(_))
             .Distinct();
 
         return allModNames
-            .Where(_ => !IsBootFiles(_))
             .Select(packageName => {
                 string? packagePath;
                 bool? isInstalled;
