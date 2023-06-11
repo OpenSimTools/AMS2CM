@@ -1,5 +1,8 @@
+using System.Collections.Immutable;
+using System.Linq;
 using Core.Games;
 using Core.Mods;
+using Core.Utils;
 using Newtonsoft.Json;
 using SevenZipExtractor;
 using static Core.IModManager;
@@ -13,7 +16,33 @@ public class ModManager : IModManager
         string EnabledModArchivesDir,
         string DisabledModArchivesDir,
         string TempDir,
-        string CurrentStateFile
+        string StateFile,
+        string OldStateFile
+    );
+
+    private record InternalState(
+        InternalInstallationState Install
+    )
+    {
+        public static InternalState Empty() => new(
+            Install: InternalInstallationState.Empty()
+        );
+    };
+
+    private record InternalInstallationState(
+        DateTime? Time,
+        IReadOnlyDictionary<string, InternalModInstallationState> Mods
+    )
+    {
+        public static InternalInstallationState Empty() => new (
+            Time: null,
+            Mods: ImmutableDictionary.Create<string, InternalModInstallationState>()
+        );
+    };
+
+    private record InternalModInstallationState(
+        bool Partial,
+        IReadOnlyCollection<string> Files
     );
 
     private static readonly string FileRemovedByBootfiles = Path.Combine(
@@ -25,11 +54,15 @@ public class ModManager : IModManager
     private const string EnabledModsDirName = "Enabled";
     private const string DisabledModsSubdir = "Disabled";
     private const string TempDirName = "Temp";
-    private const string CurrentStateFileName = "installed.json";
+    private const string StateFileName = "state.json";
+    private const string OldStateFileName = "installed.json";
 
     private const string BootfilesPrefix = "__bootfiles";
 
-    private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Formatting = Formatting.Indented };
+    private static readonly JsonSerializerSettings JsonSerializerSettings = new() {
+        Formatting = Formatting.None,
+        DefaultValueHandling = DefaultValueHandling.Ignore,
+    };
 
     private readonly WorkPaths workPaths;
     private readonly IGame game;
@@ -46,7 +79,8 @@ public class ModManager : IModManager
             EnabledModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
             DisabledModArchivesDir: Path.Combine(modsDir, DisabledModsSubdir),
             TempDir: Path.Combine(modsDir, TempDirName),
-            CurrentStateFile: Path.Combine(modsDir, CurrentStateFileName)
+            StateFile: Path.Combine(modsDir, StateFileName),
+            OldStateFile: Path.Combine(modsDir, OldStateFileName)
         );
     }
 
@@ -63,31 +97,33 @@ public class ModManager : IModManager
 
     public List<ModState> FetchState()
     {
-        var installedPackageNames = ReadPreviouslyInstalledFiles().Keys.Where(_ => !IsBootFiles(_)).ToHashSet();
-        var enabledTuples = ListEnabledModPackages().Select(_ => (_, true));
-        var disabledTuples = ListDisabledModPackages().Select(_ => (_, false));
-        var availableTuples = enabledTuples.Concat(disabledTuples);
-        var availableModsState = availableTuples.Select(_ =>
-        {
-            var packagePath = _._;
-            var isEnabled = _.Item2;
-            var packageName = PackageName(packagePath);
-            return new ModState(
-                PackageName: packageName,
-                PackagePath: packagePath,
-                IsEnabled: isEnabled,
-                IsInstalled: installedPackageNames.Contains(packageName)
-            );
-        });
-        var availablePackageNames = availableModsState.Select(_ => _.PackageName);
-        var unavailablePackageNames = installedPackageNames.Except(availablePackageNames);
-        var unavailableModsState = unavailablePackageNames.Select(packageName => new ModState(
-                PackageName: packageName,
-                PackagePath: null,
-                IsEnabled: false,
-                IsInstalled: true
-            ));
-        return unavailableModsState.Concat(availableModsState).ToList();
+        var installedMods = ReadState().Install.Mods;
+        var enabledModPaths = ListEnabledModPackages().ToDictionary(PackageName);
+        var disabledModPaths = ListDisabledModPackages().ToDictionary(PackageName);
+
+        var bootfilesFailed = installedMods.Where(kv => IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
+        var availableModPaths = enabledModPaths.Merge(disabledModPaths);
+        var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
+            modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
+        );
+
+        var allModNames = installedMods.Keys
+            .Concat(enabledModPaths.Keys)
+            .Concat(disabledModPaths.Keys)
+            .Where(_ => !IsBootFiles(_))
+            .Distinct();
+
+        return allModNames
+            .Select(packageName => {
+                string? packagePath;
+                bool? isInstalled;
+                return new ModState(
+                    PackageName: packageName,
+                    PackagePath: availableModPaths.TryGetValue(packageName, out packagePath) ? packagePath : null,
+                    IsInstalled: isModInstalled.TryGetValue(packageName, out isInstalled) ? isInstalled : false,
+                    IsEnabled: enabledModPaths.Keys.Contains(packageName)
+                );
+            }).ToList();
     }
 
     public ModState EnableNewMod(string packagePath)
@@ -153,17 +189,17 @@ public class ModManager : IModManager
 
     private void RestoreOriginalState()
     {
-        var previouslyInstalledFiles = ReadPreviouslyInstalledFiles();
-        if (previouslyInstalledFiles.Any())
+        var previousInstallation = ReadState().Install;
+        if (previousInstallation.Mods.Any())
         {
             Logs?.Invoke($"Uninstalling mods:");
-            foreach (var (modName, filePaths) in previouslyInstalledFiles)
+            foreach (var (modName, modInstallationState) in previousInstallation.Mods)
             {
                 Logs?.Invoke($"- {modName}");
                 JsgmeFileInstaller.RestoreOriginalState(
                     game.InstallationDirectory,
-                    filePaths,
-                    SkipCreatedAfter(PreviousInstallationTimeUtc())
+                    modInstallationState.Files,
+                    SkipCreatedAfter(previousInstallation.Time)
                 );
             }
         }
@@ -212,7 +248,7 @@ public class ModManager : IModManager
     {
         var modPackages = ListEnabledModPackages();
         var modConfigs = new List<IMod.ConfigEntries>();
-        var installedFilesByMod = new Dictionary<string, IReadOnlyCollection<string>>();
+        var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
         try
         {
             if (modPackages.Any())
@@ -244,23 +280,36 @@ public class ModManager : IModManager
                     {
                         Logs?.Invoke($"  Error: {e.Message}");
                     }
-                    // Add even partially installed files
-                    installedFilesByMod.Add(mod.PackageName, mod.InstalledFiles);
+                    installedFilesByMod.Add(mod.PackageName, new(
+                        Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
+                        Files: mod.InstalledFiles
+                    ));
                 }
 
                 if (modConfigs.Where(_ => _.NotEmpty()).Any())
                 {
                     var bootfilesMod = BootfilesMod();
-                    bootfilesMod.Install(game.InstallationDirectory);
-                    installedFilesByMod.Add(bootfilesMod.PackageName, bootfilesMod.InstalledFiles);
-
-                    Logs?.Invoke("Post-processing:");
-                    Logs?.Invoke("- Appending crd file entries");
-                    PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
-                    Logs?.Invoke("- Appending trd file entries");
-                    PostProcessor.AppendTrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.TrdFileEntries));
-                    Logs?.Invoke("- Appending driveline records");
-                    PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
+                    var postProcessingDone = false;
+                    try
+                    {
+                        bootfilesMod.Install(game.InstallationDirectory);
+                        Logs?.Invoke("Post-processing:");
+                        Logs?.Invoke("- Appending crd file entries");
+                        PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
+                        Logs?.Invoke("- Appending trd file entries");
+                        PostProcessor.AppendTrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.TrdFileEntries));
+                        Logs?.Invoke("- Appending driveline records");
+                        PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
+                        postProcessingDone = true;
+                    }
+                    catch (Exception e)
+                    {
+                        Logs?.Invoke($"  Error: {e.Message}");
+                    }
+                    installedFilesByMod.Add(bootfilesMod.PackageName, new(
+                        Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled || !postProcessingDone,
+                        Files: bootfilesMod.InstalledFiles
+                    ));
                 }
                 else
                 {
@@ -274,7 +323,13 @@ public class ModManager : IModManager
         }
         finally
         {
-            WriteInstalledFiles(installedFilesByMod);
+            var newState = new InternalState(
+                Install: new(
+                    Time: DateTime.UtcNow,
+                    Mods: installedFilesByMod
+                )
+            );
+            WriteState(newState);
         }
     }
 
@@ -337,32 +392,40 @@ public class ModManager : IModManager
 
     private string PackageName(string archivePath) => Path.GetFileNameWithoutExtension(archivePath);
 
-    private DateTime? PreviousInstallationTimeUtc()
+    private InternalState ReadState()
     {
-        if (!File.Exists(workPaths.CurrentStateFile))
+        if (File.Exists(workPaths.StateFile))
         {
-            return null;
+            var contents = File.ReadAllText(workPaths.StateFile);
+            return JsonConvert.DeserializeObject<InternalState>(contents);
         }
-        return File.GetLastWriteTimeUtc(workPaths.CurrentStateFile);
+        // Fallback to old state when new state is not present
+        if (File.Exists(workPaths.OldStateFile))
+        {
+            var contents = File.ReadAllText(workPaths.OldStateFile);
+            var oldState = JsonConvert.DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(contents);
+            var installTime = File.GetLastWriteTimeUtc(workPaths.OldStateFile);
+            return new InternalState(
+                Install: new(
+                    Time: installTime,
+                    Mods: oldState.AsEnumerable().ToDictionary(
+                        kv => kv.Key,
+                        kv => new InternalModInstallationState(false, kv.Value)
+                    )
+                )
+            );
+        }
+        return InternalState.Empty();
     }
 
-    private Dictionary<string, IReadOnlyCollection<string>> ReadPreviouslyInstalledFiles()
+    private void WriteState(InternalState state)
     {
-        if (!File.Exists(workPaths.CurrentStateFile))
+        // Write old state if it exists
+        if (File.Exists(workPaths.OldStateFile))
         {
-            return new Dictionary<string, IReadOnlyCollection<string>>();
+            var oldState = state.Install.Mods.ToDictionary(kv => kv.Key, kv => kv.Value.Files);
+            File.WriteAllText(workPaths.OldStateFile, JsonConvert.SerializeObject(oldState, JsonSerializerSettings));
         }
-
-        return JsonConvert
-            .DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(File.ReadAllText(workPaths.CurrentStateFile));
-    }
-
-    private void WriteInstalledFiles(Dictionary<string, IReadOnlyCollection<string>> filesByMod)
-    {
-        if (!filesByMod.Any() && !File.Exists(workPaths.CurrentStateFile))
-        {
-            return;
-        }
-        File.WriteAllText(workPaths.CurrentStateFile, JsonConvert.SerializeObject(filesByMod, JsonSerializerSettings));
+        File.WriteAllText(workPaths.StateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
     }
 }
