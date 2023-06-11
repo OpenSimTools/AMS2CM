@@ -3,6 +3,6 @@
 public record ModState(
     string PackageName,
     string? PackagePath,
-    bool IsInstalled,
+    bool? IsInstalled, // null is partial
     bool IsEnabled
 );

@@ -24,7 +24,7 @@ internal class ModVM : INotifyPropertyChanged
 
     public string? PackagePath => packagePath;
 
-    public bool IsInstalled => modState.IsInstalled;
+    public bool? IsInstalled => modState.IsInstalled;
 
     public bool IsEnabled
     {
@@ -41,7 +41,9 @@ internal class ModVM : INotifyPropertyChanged
     private void EnableOrDisable(bool shouldEnable)
     {
         if (packagePath is null || shouldEnable == isEnabled)
+        {
             return;
+        }
 
         if (shouldEnable)
         {

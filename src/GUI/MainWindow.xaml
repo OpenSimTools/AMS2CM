@@ -61,11 +61,15 @@
                             </Grid.ColumnDefinitions>
                             <CheckBox
                                 MinWidth="0"
-                                IsChecked="{x:Bind IsInstalled}" IsEnabled="False"/>
+                                IsThreeState="True"
+                                IsChecked="{x:Bind IsInstalled}"
+                                IsEnabled="False"/>
                             <CheckBox
                                 Grid.Column="1"
                                 MinWidth="0"
-                                IsChecked="{x:Bind IsEnabled}" IsEnabled="{x:Bind IsAvailable}"
+                                IsThreeState="False"
+                                IsChecked="{x:Bind IsEnabled}"
+                                IsEnabled="{x:Bind IsAvailable}"
                                 x:DefaultBindMode="TwoWay"/>
                             <TextBlock
                                 Grid.Column="2"

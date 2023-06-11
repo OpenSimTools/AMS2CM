@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Core.Games;
 using Core.Mods;
+using Core.Utils;
 using Newtonsoft.Json;
 using SevenZipExtractor;
 using static Core.IModManager;
@@ -95,31 +97,32 @@ public class ModManager : IModManager
 
     public List<ModState> FetchState()
     {
-        var installedPackageNames = ReadState().Install.Mods.Keys.Where(_ => !IsBootFiles(_)).ToHashSet();
-        var enabledTuples = ListEnabledModPackages().Select(_ => (_, true));
-        var disabledTuples = ListDisabledModPackages().Select(_ => (_, false));
-        var availableTuples = enabledTuples.Concat(disabledTuples);
-        var availableModsState = availableTuples.Select(_ =>
-        {
-            var packagePath = _._;
-            var isEnabled = _.Item2;
-            var packageName = PackageName(packagePath);
-            return new ModState(
-                PackageName: packageName,
-                PackagePath: packagePath,
-                IsEnabled: isEnabled,
-                IsInstalled: installedPackageNames.Contains(packageName)
-            );
-        });
-        var availablePackageNames = availableModsState.Select(_ => _.PackageName);
-        var unavailablePackageNames = installedPackageNames.Except(availablePackageNames);
-        var unavailableModsState = unavailablePackageNames.Select(packageName => new ModState(
-                PackageName: packageName,
-                PackagePath: null,
-                IsEnabled: false,
-                IsInstalled: true
-            ));
-        return unavailableModsState.Concat(availableModsState).ToList();
+        var installedMods = ReadState().Install.Mods;
+        var enabledModPaths = ListEnabledModPackages().ToDictionary(PackageName);
+        var disabledModPaths = ListDisabledModPackages().ToDictionary(PackageName);
+
+        var availableModPaths = enabledModPaths.Merge(disabledModPaths);
+        var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
+            modInstallationState is null ? false : (modInstallationState.Partial ? null : true)
+        );
+
+        var allModNames = installedMods.Keys
+            .Concat(enabledModPaths.Keys)
+            .Concat(disabledModPaths.Keys)
+            .Distinct();
+
+        return allModNames
+            .Where(_ => !IsBootFiles(_))
+            .Select(packageName => {
+                string? packagePath;
+                bool? isInstalled;
+                return new ModState(
+                    PackageName: packageName,
+                    PackagePath: availableModPaths.TryGetValue(packageName, out packagePath) ? packagePath : null,
+                    IsInstalled: isModInstalled.TryGetValue(packageName, out isInstalled) ? isInstalled : false,
+                    IsEnabled: enabledModPaths.Keys.Contains(packageName)
+                );
+            }).ToList();
     }
 
     public ModState EnableNewMod(string packagePath)
