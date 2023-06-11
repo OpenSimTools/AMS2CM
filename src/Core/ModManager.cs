@@ -289,26 +289,27 @@ public class ModManager : IModManager
                 if (modConfigs.Where(_ => _.NotEmpty()).Any())
                 {
                     var bootfilesMod = BootfilesMod();
+                    var postProcessingDone = false;
                     try
                     {
                         bootfilesMod.Install(game.InstallationDirectory);
+                        Logs?.Invoke("Post-processing:");
+                        Logs?.Invoke("- Appending crd file entries");
+                        PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
+                        Logs?.Invoke("- Appending trd file entries");
+                        PostProcessor.AppendTrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.TrdFileEntries));
+                        Logs?.Invoke("- Appending driveline records");
+                        PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
+                        postProcessingDone = true;
                     }
                     catch (Exception e)
                     {
                         Logs?.Invoke($"  Error: {e.Message}");
                     }
                     installedFilesByMod.Add(bootfilesMod.PackageName, new(
-                        Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled,
+                        Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled || !postProcessingDone,
                         Files: bootfilesMod.InstalledFiles
                     ));
-
-                    Logs?.Invoke("Post-processing:");
-                    Logs?.Invoke("- Appending crd file entries");
-                    PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
-                    Logs?.Invoke("- Appending trd file entries");
-                    PostProcessor.AppendTrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.TrdFileEntries));
-                    Logs?.Invoke("- Appending driveline records");
-                    PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
                 }
                 else
                 {
