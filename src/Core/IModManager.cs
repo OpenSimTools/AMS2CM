@@ -12,4 +12,5 @@ public interface IModManager
     string EnableMod(string packagePath);
     ModState EnableNewMod(string packagePath);
     void InstallEnabledMods(CancellationToken cancellationToken = default);
+    void UninstallAllMods(CancellationToken cancellationToken = default);
 }

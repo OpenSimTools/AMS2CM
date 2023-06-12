@@ -26,18 +26,26 @@ public sealed partial class MainWindow : WindowEx
         SyncModListView();
     }
 
-    private async void SyncButton_Click(object sender, RoutedEventArgs e)
+    private async void ApplyButton_Click(Microsoft.UI.Xaml.Controls.SplitButton sender, Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs args)
     {
-        SyncButton.IsEnabled = false;
-
-        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) => {
+        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
+        {
             modManager.Logs += dialog.LogMessage;
             modManager.InstallEnabledMods(cancellationToken);
             modManager.Logs -= dialog.LogMessage;
         });
-
         SyncModListView();
-        SyncButton.IsEnabled = true;
+    }
+
+    private async void UninstallAllItem_Click(object sender, RoutedEventArgs e)
+    {
+        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, _) =>
+        {
+            modManager.Logs += dialog.LogMessage;
+            modManager.UninstallAllMods();
+            modManager.Logs -= dialog.LogMessage;
+        });
+        SyncModListView();
     }
 
     private void SyncModListView()
