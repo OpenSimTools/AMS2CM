@@ -16,7 +16,9 @@
     <StackPanel Orientation="Vertical" Width="400" Height="400">
         <ScrollViewer>
             <Grid>
-                <TextBlock x:Name="Logs" TextWrapping="Wrap"/>
+                <TextBlock x:Name="Logs"
+                    TextWrapping="Wrap"
+                    IsTextSelectionEnabled="True"/>
             </Grid>
         </ScrollViewer>
     </StackPanel>
