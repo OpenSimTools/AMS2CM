@@ -44,8 +44,7 @@ public abstract class ExtractedMod : IMod
 
         foreach (var rootPath in ExtractedRootDirs())
         {
-            JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
-                relativeFilePath => installedFiles.Add(relativeFilePath));
+            JsgmeFileInstaller.InstallFiles(rootPath, dstPath, installedFiles.Add);
         }
 
         Config = GenerateConfig();

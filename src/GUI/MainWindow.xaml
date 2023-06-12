@@ -80,13 +80,18 @@
                 </ListView.ItemTemplate>
             </ListView>
         </ScrollViewer>
-        <Button Grid.Row="2" Grid.ColumnSpan="3"
-            Margin="18,10,14,10"
-            HorizontalAlignment="Center" VerticalAlignment="Center"
-            Style="{StaticResource AccentButtonStyle}"
-            x:Name="SyncButton"
-            Content="Sync"
-            Click="SyncButton_Click" />
+        <SplitButton x:Name="ApplyButton"
+                Content="Apply"
+                Grid.Row="2" Grid.ColumnSpan="3"
+                Margin="18,10,14,10"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Click="ApplyButton_Click">
+            <SplitButton.Flyout>
+                <MenuFlyout Placement="Bottom">
+                    <MenuFlyoutItem Text="Uninstall All" Click="UninstallAllItem_Click"/>
+                </MenuFlyout>
+            </SplitButton.Flyout>
+        </SplitButton>
     </Grid>
-
 </winex:WindowEx>

@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Core.Games;
 using Core.Mods;
 using Core.Utils;
@@ -168,18 +167,26 @@ public class ModManager : IModManager
 
     public void InstallEnabledMods(CancellationToken cancellationToken = default)
     {
+        CheckGameNotRunning();
         // It shoulnd't be needed, but some systems seem to want to load oo2core
         // even when Mermaid and Kraken compression are not used in pak files!
         AddToEnvionmentPath(game.InstallationDirectory);
 
-        CheckGameNotRunning();
-        RestoreOriginalState();
-        Cleanup();
-        InstallAllModFiles(cancellationToken);
-        Cleanup();
+        if (RestoreOriginalState(cancellationToken))
+        {
+            CleanupTemp();
+            InstallAllModFiles(cancellationToken);
+            CleanupTemp();
+        }
     }
 
-    private void Cleanup()
+    public void UninstallAllMods(CancellationToken cancellationToken = default)
+    {
+        CheckGameNotRunning();
+        RestoreOriginalState(cancellationToken);
+    }
+
+    private void CleanupTemp()
     {
         if (Directory.Exists(workPaths.TempDir))
         {
@@ -187,27 +194,72 @@ public class ModManager : IModManager
         }
     }
 
-    private void RestoreOriginalState()
+    private bool RestoreOriginalState(CancellationToken cancellationToken)
     {
         var previousInstallation = ReadState().Install;
         if (previousInstallation.Mods.Any())
         {
-            Logs?.Invoke($"Uninstalling mods:");
-            foreach (var (modName, modInstallationState) in previousInstallation.Mods)
+            var modsLeft = new Dictionary<string, InternalModInstallationState>(previousInstallation.Mods);
+            try
             {
-                Logs?.Invoke($"- {modName}");
-                JsgmeFileInstaller.RestoreOriginalState(
-                    game.InstallationDirectory,
-                    modInstallationState.Files,
-                    SkipCreatedAfter(previousInstallation.Time)
-                );
+                Logs?.Invoke($"Uninstalling mods:");
+                foreach (var (modName, modInstallationState) in previousInstallation.Mods)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    Logs?.Invoke($"- {modName}");
+                    var filesLeft = UninstallFiles(modInstallationState.Files, SkipCreatedAfter(previousInstallation.Time));
+                    if (filesLeft.Any())
+                    {
+                        modsLeft[modName] = new InternalModInstallationState(
+                            Partial: filesLeft.Count != modInstallationState.Files.Count,
+                            Files: filesLeft
+                        );
+                    }
+                    else
+                    {
+                        modsLeft.Remove(modName);
+                    }
+                }
             }
+            finally
+            {
+                WriteState(new InternalState(
+                    Install: new(
+                        Time: DateTime.UtcNow,
+                        Mods: modsLeft
+                    )
+                ));
+            }
+            return !modsLeft.Any(); // Success if everything was uninstalled
         }
         else
         {
             CheckNoBootfilesInstalled();
             Logs?.Invoke("No previously installed mods found. Skipping uninstall phase.");
+            return true;
         }
+    }
+
+    private IReadOnlyCollection<string> UninstallFiles(IReadOnlyCollection<string> files, ShouldSkipFile skip)
+    {
+        var filesLeft = files.ToHashSet();
+        try
+        {
+            JsgmeFileInstaller.UninstallFiles(
+                game.InstallationDirectory,
+                files,
+                p => filesLeft.Remove(p),
+                skip
+            );
+        }
+        catch (Exception ex)
+        {
+            Logs?.Invoke($"  Error: {ex.Message}");
+        }
+        return filesLeft;
     }
 
     private ShouldSkipFile SkipCreatedAfter(DateTime? dateTimeUtc)
@@ -323,13 +375,12 @@ public class ModManager : IModManager
         }
         finally
         {
-            var newState = new InternalState(
+            WriteState(new InternalState(
                 Install: new(
                     Time: DateTime.UtcNow,
                     Mods: installedFilesByMod
                 )
-            );
-            WriteState(newState);
+            ));
         }
     }
 

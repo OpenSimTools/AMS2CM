@@ -89,38 +89,46 @@ public static class JsgmeFileInstaller
     /// </summary>
     /// <param name="dstPath">Game directory</param>
     /// <param name="files">Perviously installed mod files</param>
-    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files) =>
-        RestoreOriginalState(dstPath, files, _ => true);
+    /// <param name="fileUninstalledCallback">It is called for each uninstalled file</param>
+    public static void UninstallFiles(string dstPath, IEnumerable<string> files, Action<string> fileUninstalledCallback) =>
+        UninstallFiles(dstPath, files, fileUninstalledCallback, _ => true);
 
     /// <summary>
     /// Uninstall mod files.
     /// </summary>
     /// <param name="dstPath">Game directory</param>
     /// <param name="files">Perviously installed mod files</param>
+    /// <param name="fileUninstalledCallback">It is called for each uninstalled file</param>
     /// <param name="skip">Function to decide if a file should be skipped</param>
-    public static void RestoreOriginalState(string dstPath, IEnumerable<string> files, ShouldSkipFile skip)
+    public static void UninstallFiles(string dstPath, IEnumerable<string> files, Action<string> fileUninstalledCallback, ShouldSkipFile skip)
     {
-        var installedPaths = files.Select(file => Path.Combine(dstPath, file));
-        foreach (var path in installedPaths)
+        foreach (var file in files)
         {
+            var path = Path.Combine(dstPath, file);
             // Some mods have duplicate entries, so files might have been removed already
             if (File.Exists(path))
             {
                 if (skip(path))
                 {
                     DeleteBackup(path);
+                    fileUninstalledCallback(file);
                     continue;
                 }
                 File.Delete(path);
             }
 
             RestoreFile(path);
+            fileUninstalledCallback(file);
         }
-        DeleteEmptyDirectories(dstPath, installedPaths);
+        DeleteEmptyDirectories(dstPath, files);
     }
 
     private static void DeleteEmptyDirectories(string dstRootPath, IEnumerable<string> filePaths) {
-        var dirs = filePaths.SelectMany(dstFilePath => AncestorsUpTo(dstRootPath, dstFilePath)).Distinct().OrderByDescending(name => name.Length);
+        var dirs = filePaths
+            .Select(file => Path.Combine(dstRootPath, file))
+            .SelectMany(dstFilePath => AncestorsUpTo(dstRootPath, dstFilePath))
+            .Distinct()
+            .OrderByDescending(name => name.Length);
         foreach (var dir in dirs)
         {
             // Some mods have duplicate entries, so files might have been removed already
