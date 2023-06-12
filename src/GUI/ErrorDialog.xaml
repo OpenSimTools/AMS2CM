@@ -11,5 +11,7 @@
     CloseButtonText="Exit"
     DefaultButton="Close">
 
-    <TextBlock x:Name="Message" TextWrapping="Wrap"/>
+    <TextBlock x:Name="Message"
+        TextWrapping="Wrap"
+        IsTextSelectionEnabled="True"/>
 </ContentDialog>
