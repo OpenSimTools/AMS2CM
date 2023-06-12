@@ -80,7 +80,7 @@
                 </ListView.ItemTemplate>
             </ListView>
         </ScrollViewer>
-        <SplitButton x:Name="ApplyButton"
+        <SplitButton
                 Content="Apply"
                 Grid.Row="2" Grid.ColumnSpan="3"
                 Margin="18,10,14,10"

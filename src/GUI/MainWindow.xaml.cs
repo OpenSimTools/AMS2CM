@@ -28,8 +28,6 @@ public sealed partial class MainWindow : WindowEx
 
     private async void ApplyButton_Click(Microsoft.UI.Xaml.Controls.SplitButton sender, Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs args)
     {
-        ApplyButton.IsEnabled = false;
-
         await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
             modManager.Logs += dialog.LogMessage;
@@ -37,14 +35,10 @@ public sealed partial class MainWindow : WindowEx
             modManager.Logs -= dialog.LogMessage;
         });
         SyncModListView();
-
-        ApplyButton.IsEnabled = true;
     }
 
     private async void UninstallAllItem_Click(object sender, RoutedEventArgs e)
     {
-        ApplyButton.IsEnabled = false;
-
         await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, _) =>
         {
             modManager.Logs += dialog.LogMessage;
@@ -52,8 +46,6 @@ public sealed partial class MainWindow : WindowEx
             modManager.Logs -= dialog.LogMessage;
         });
         SyncModListView();
-
-        ApplyButton.IsEnabled = true;
     }
 
     private void SyncModListView()
