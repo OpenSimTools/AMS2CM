@@ -13,8 +13,8 @@
     IsSecondaryButtonEnabled="False"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <StackPanel Orientation="Vertical" Width="400" Height="400">
-        <ScrollViewer>
+    <StackPanel Orientation="Vertical" Width="400">
+        <ScrollViewer Height="300">
             <Grid>
                 <TextBlock x:Name="Logs"
                     TextWrapping="Wrap"
