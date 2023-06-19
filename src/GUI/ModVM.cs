@@ -20,6 +20,8 @@ internal class ModVM : INotifyPropertyChanged
         packagePath = modState.PackagePath;
     }
 
+    public string Name => modState.ModName;
+
     public string PackageName => modState.PackageName;
 
     public string? PackagePath => packagePath;

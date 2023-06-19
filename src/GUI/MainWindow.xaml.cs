@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
+using System.Linq;
 
 namespace AMS2CM.GUI;
 
@@ -51,7 +52,7 @@ public sealed partial class MainWindow : WindowEx
     private void SyncModListView()
     {
         modList.Clear();
-        foreach (var modState in modManager.FetchState().OrderBy(_ => _.PackageName))
+        foreach (var modState in modManager.FetchState().OrderBy(_ => _.ModName).ThenBy(_ => _.PackageName))
         {
             modList.Add(new ModVM(modState, modManager));
         }
