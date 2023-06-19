@@ -3,7 +3,7 @@ using Core.Games;
 using Core.Mods;
 using Core.Utils;
 using Newtonsoft.Json;
-using SevenZipExtractor;
+using SevenZip;
 using static Core.IModManager;
 using static Core.Mods.JsgmeFileInstaller;
 
@@ -389,8 +389,8 @@ public class ModManager : IModManager
     private IMod ExtractMod(string packageName, string archivePath)
     {
         var extractionDir = Path.Combine(workPaths.TempDir, packageName);
-        using var archiveFile = new ArchiveFile(archivePath);
-        archiveFile.Extract(extractionDir);
+        using var extractor = new SevenZipExtractor(archivePath);
+        extractor.ExtractArchive(extractionDir);
 
         return modFactory.ManualInstallMod(packageName, extractionDir);
     }

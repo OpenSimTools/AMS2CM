@@ -8,6 +8,7 @@
 		<Authors>OpenSimTools Contributors</Authors>
 		<AssemblyName>AMS2CM</AssemblyName>
 		<RootNamespace>AMS2CM.CLI</RootNamespace>
+		<Platforms>x64</Platforms>
 		<ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
 	</PropertyGroup>
 
@@ -20,4 +21,13 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
+
+	<!-- 7zip -->
+	<ItemGroup>
+		<PackageReference Include="7z.Libs" Version="21.7.0" />
+	</ItemGroup>
+	<Target Name="Organize7zLibs" AfterTargets="Build">
+		<Move SourceFiles="$(OutDir)\x64\7z.dll" DestinationFiles="$(OutDir)\7z64.dll" />
+		<RemoveDir Directories="$(OutDir)\x86;$(OutDir)\x64" />
+	</Target>
 </Project>
