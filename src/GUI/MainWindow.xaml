@@ -74,7 +74,8 @@
                             <TextBlock
                                 Grid.Column="2"
                                 VerticalAlignment="Center"
-                                Text="{x:Bind PackageName}"/>
+                                Text="{x:Bind Name}"
+                                ToolTipService.ToolTip="{x:Bind PackageName}"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

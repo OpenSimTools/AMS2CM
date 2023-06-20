@@ -11,6 +11,11 @@ namespace Core;
 
 public class ModManager : IModManager
 {
+    private record ModReference(string RootPath, string FullPath)
+    {
+        public string PackageName => Path.GetRelativePath(RootPath, FullPath);
+    }
+
     private record WorkPaths(
         string EnabledModArchivesDir,
         string DisabledModArchivesDir,
@@ -97,44 +102,52 @@ public class ModManager : IModManager
     public List<ModState> FetchState()
     {
         var installedMods = ReadState().Install.Mods;
-        var enabledModPaths = ListEnabledModPackages().ToDictionary(PackageName);
-        var disabledModPaths = ListDisabledModPackages().ToDictionary(PackageName);
+        var enabledModReferences = ListEnabledModPackages().ToDictionary(_ => _.PackageName);
+        var disabledModReferences = ListDisabledModPackages().ToDictionary(_ => _.PackageName);
 
+        var availableModPaths = enabledModReferences.Merge(disabledModReferences).SelectValues(_ => _.FullPath);
         var bootfilesFailed = installedMods.Where(kv => IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
-        var availableModPaths = enabledModPaths.Merge(disabledModPaths);
         var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
             modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
         );
 
-        var allModNames = installedMods.Keys
-            .Concat(enabledModPaths.Keys)
-            .Concat(disabledModPaths.Keys)
+        var allPackageNames = installedMods.Keys
+            .Concat(enabledModReferences.Keys)
+            .Concat(disabledModReferences.Keys)
             .Where(_ => !IsBootFiles(_))
             .Distinct();
 
-        return allModNames
+        return allPackageNames
             .Select(packageName => {
                 string? packagePath;
                 bool? isInstalled;
                 return new ModState(
+                    ModName: Path.GetFileNameWithoutExtension(packageName),
                     PackageName: packageName,
                     PackagePath: availableModPaths.TryGetValue(packageName, out packagePath) ? packagePath : null,
                     IsInstalled: isModInstalled.TryGetValue(packageName, out isInstalled) ? isInstalled : false,
-                    IsEnabled: enabledModPaths.Keys.Contains(packageName)
+                    IsEnabled: enabledModReferences.Keys.Contains(packageName)
                 );
             }).ToList();
     }
 
-    public ModState EnableNewMod(string packagePath)
+    public ModState EnableNewMod(string packageFullPath)
     {
-        var destinationDirectoryPath = workPaths.EnabledModArchivesDir;
+        var fileName = Path.GetFileName(packageFullPath);
+        var isDisabled = ListDisabledModPackages().Where(_ => _.PackageName == fileName).Any();
+        var destinationDirectoryPath = isDisabled ? workPaths.DisabledModArchivesDir : workPaths.EnabledModArchivesDir;
+        var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
+
         ExistingDirectoryOrCreate(destinationDirectoryPath);
-        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
-        File.Copy(packagePath, destinationFilePath);
+        File.Copy(packageFullPath, destinationFilePath, overwrite: true);
+
+        var modReference = new ModReference(destinationDirectoryPath, packageFullPath);
+        var packageName = modReference.PackageName;
         return new ModState(
-                PackageName: PackageName(destinationFilePath),
-                PackagePath: destinationFilePath,
-                IsEnabled: true,
+                ModName: Path.GetFileNameWithoutExtension(packageName),
+                PackageName: packageName,
+                PackagePath: modReference.FullPath,
+                IsEnabled: !isDisabled,
                 IsInstalled: false
             );
     }
@@ -306,14 +319,14 @@ public class ModManager : IModManager
             if (modPackages.Any())
             {
                 Logs?.Invoke("Installing mods:");
-                foreach (var packagePath in modPackages)
+                foreach (var modReference in modPackages)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
 
-                    var packageName = Path.GetFileNameWithoutExtension(packagePath);
+                    var packageName = modReference.PackageName;
                     if (IsBootFiles(packageName))
                     {
                         Logs?.Invoke($"- {packageName} (skipped)");
@@ -322,7 +335,7 @@ public class ModManager : IModManager
 
                     Logs?.Invoke($"- {packageName}");
 
-                    var mod = ExtractMod(packageName, packagePath);
+                    var mod = ExtractMod(packageName, modReference.FullPath);
                     try
                     {
                         mod.Install(game.InstallationDirectory);
@@ -418,13 +431,13 @@ public class ModManager : IModManager
         }
     }
 
-    private IReadOnlyCollection<string> ListEnabledModPackages() => ListModPackages(workPaths.EnabledModArchivesDir);
+    private IReadOnlyCollection<ModReference> ListEnabledModPackages() => ListModPackages(workPaths.EnabledModArchivesDir);
 
-    private IReadOnlyCollection<string> ListDisabledModPackages() => ListModPackages(workPaths.DisabledModArchivesDir);
+    private IReadOnlyCollection<ModReference> ListDisabledModPackages() => ListModPackages(workPaths.DisabledModArchivesDir);
 
-    private IReadOnlyCollection<string> ListModPackages(string path)
+    private IReadOnlyCollection<ModReference> ListModPackages(string rootPath)
     {
-        if (Directory.Exists(path))
+        if (Directory.Exists(rootPath))
         {
             var options = new EnumerationOptions()
             {
@@ -433,15 +446,15 @@ public class ModManager : IModManager
                 AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
                 MaxRecursionDepth = 0,
             };
-            return Directory.EnumerateFiles(path, "*", options).ToList();
+            return Directory.EnumerateFiles(rootPath, "*", options)
+                .Select(modPath => new ModReference(rootPath, modPath))
+                .ToList();
         }
         else
         {
-            return Array.Empty<string>();
+            return Array.Empty<ModReference>();
         }
     }
-
-    private string PackageName(string archivePath) => Path.GetFileNameWithoutExtension(archivePath);
 
     private InternalState ReadState()
     {
