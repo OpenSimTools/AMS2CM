@@ -133,17 +133,21 @@ public class ModManager : IModManager
 
     public ModState EnableNewMod(string packageFullPath)
     {
-        var destinationDirectoryPath = workPaths.EnabledModArchivesDir;
+        var fileName = Path.GetFileName(packageFullPath);
+        var isDisabled = ListDisabledModPackages().Where(_ => _.PackageName == fileName).Any();
+        var destinationDirectoryPath = isDisabled ? workPaths.DisabledModArchivesDir : workPaths.EnabledModArchivesDir;
+        var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
+
         ExistingDirectoryOrCreate(destinationDirectoryPath);
-        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packageFullPath));
-        File.Copy(packageFullPath, destinationFilePath);
+        File.Copy(packageFullPath, destinationFilePath, overwrite: true);
+
         var modReference = new ModReference(destinationDirectoryPath, packageFullPath);
         var packageName = modReference.PackageName;
         return new ModState(
                 ModName: Path.GetFileNameWithoutExtension(packageName),
                 PackageName: packageName,
                 PackagePath: modReference.FullPath,
-                IsEnabled: true,
+                IsEnabled: !isDisabled,
                 IsInstalled: false
             );
     }
