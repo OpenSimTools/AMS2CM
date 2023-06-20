@@ -40,7 +40,7 @@ public partial class App : Application
             var config = Config.Load(args);
             var game = new Game(config.Game);
             var modFactory = new ModFactory(config.ModInstall, game);
-            return new ModManager(game, modFactory);
+            return new ModManager(game, modFactory, oldStateIsPrimary: false);
         }
         catch (Exception ex)
         {

@@ -71,13 +71,15 @@ public class ModManager : IModManager
     private readonly WorkPaths workPaths;
     private readonly IGame game;
     private readonly IModFactory modFactory;
+    private readonly bool oldStateIsPrimary;
 
     public event LogHandler? Logs;
 
-    public ModManager(IGame game, IModFactory modFactory)
+    public ModManager(IGame game, IModFactory modFactory, bool oldStateIsPrimary)
     {
         this.game = game;
         this.modFactory = modFactory;
+        this.oldStateIsPrimary = oldStateIsPrimary;
         var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
         workPaths = new WorkPaths(
             EnabledModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
@@ -458,6 +460,7 @@ public class ModManager : IModManager
 
     private InternalState ReadState()
     {
+        // Always favour new state if present
         if (File.Exists(workPaths.StateFile))
         {
             var contents = File.ReadAllText(workPaths.StateFile);
@@ -484,12 +487,16 @@ public class ModManager : IModManager
 
     private void WriteState(InternalState state)
     {
-        // Write old state if it exists
-        if (File.Exists(workPaths.OldStateFile))
+        // Write old state if it's primary or if it exists
+        if (oldStateIsPrimary || File.Exists(workPaths.OldStateFile))
         {
             var oldState = state.Install.Mods.ToDictionary(kv => kv.Key, kv => kv.Value.Files);
             File.WriteAllText(workPaths.OldStateFile, JsonConvert.SerializeObject(oldState, JsonSerializerSettings));
         }
-        File.WriteAllText(workPaths.StateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
+        // Write new state if it's primary or if it exists
+        if (!oldStateIsPrimary || File.Exists(workPaths.StateFile))
+        {
+            File.WriteAllText(workPaths.StateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
+        }
     }
 }
