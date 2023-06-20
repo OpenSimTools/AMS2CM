@@ -6,7 +6,7 @@ try
     var config = Config.Load(args);
     var game = new Game(config.Game);
     var modFactory = new ModFactory(config.ModInstall, game);
-    var modManager = new ModManager(game, modFactory);
+    var modManager = new ModManager(game, modFactory, oldStateIsPrimary: true);
     modManager.Logs += Console.WriteLine;
     modManager.InstallEnabledMods();
 }
