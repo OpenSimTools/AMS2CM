@@ -18,6 +18,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*">
+			<PrivateAssets>All</PrivateAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\Core\Core.csproj" />
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
