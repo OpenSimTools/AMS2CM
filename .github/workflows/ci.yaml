@@ -33,7 +33,7 @@ jobs:
     - name: Build
       run: |
         msbuild /t:Restore /p:Configuration=${{ matrix.configuration }}
-        msbuild /t:Publish /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }}
+        msbuild /t:Build /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }}
 
     - name: Upload license
       uses: actions/upload-artifact@v3
@@ -45,7 +45,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: AMS2CM
-        path: src/CLI/bin/${{ matrix.platform }}/${{ matrix.configuration }}/net6.0-windows/publish/**
+        path: src/CLI/bin/${{ matrix.platform }}/${{ matrix.configuration }}/net6.0-windows/**
         if-no-files-found: error
     # Separate package until stable, to be able to release CLI independently
     - name: Upload GUI
