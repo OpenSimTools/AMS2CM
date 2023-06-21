@@ -1,0 +1,11 @@
+<Configuration>
+    <MappedFolders>
+        <MappedFolder>
+            <HostFolder></HostFolder>
+            <SandboxFolder>C:\Package</SandboxFolder>
+        </MappedFolder>
+    </MappedFolders>
+    <LogonCommand>
+        <Command>msiexec /i C:\Package\Package.msi</Command>
+    </LogonCommand>
+</Configuration>
