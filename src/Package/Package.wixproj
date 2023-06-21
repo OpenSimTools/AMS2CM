@@ -9,13 +9,17 @@
 	<ItemGroup>
 		<ProjectReference Include="..\GUI\GUI.csproj" />
 		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net6.0-windows10.0.19041.0\">
-			<DirectoryRefId>ApplicationFolder</DirectoryRefId>
-			<ComponentGroupName>GUI</ComponentGroupName>
 			<PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
+			<ComponentGroupName>Application</ComponentGroupName>
+			<DirectoryRefId>ApplicationFolder</DirectoryRefId>
 			<SuppressRootDirectory>true</SuppressRootDirectory>
 			<SuppressRegistry>true</SuppressRegistry>
 			<SuppressCom>true</SuppressCom>
 		</HarvestDirectory>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="..\Shared\AMS2CM.ico" />
 	</ItemGroup>
 
 	<ItemGroup>

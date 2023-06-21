@@ -1,11 +1,12 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="AMS2CM" Manufacturer="OpenSimTools" Version="1.0.0.0" UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
+	<Package Name="AMS2CM" Manufacturer="OpenSimTools" Version="1.0.0.0" UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
+		<StandardDirectory Id="ProgramFiles64Folder">
+			<Directory Id="ApplicationFolder" Name="AMS2CM" />
+		</StandardDirectory>
 
-	<StandardDirectory Id="ProgramFiles64Folder">
-		<Directory Id="ApplicationFolder" Name="AMS2CM"/>
-	</StandardDirectory>
-	<Feature Id="Main">
-		<ComponentGroupRef Id="GUI" />
-	</Feature>
-  </Package>
+		<Feature Id="Main">
+			<ComponentGroupRef Id="Application" />
+			<ComponentRef Id="DesktopShortcut" />
+		</Feature>
+	</Package>
 </Wix>
