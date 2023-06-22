@@ -5,7 +5,6 @@ using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
-using System.Linq;
 
 namespace AMS2CM.GUI;
 
@@ -32,7 +31,9 @@ public sealed partial class MainWindow : WindowEx
         await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
             modManager.Logs += dialog.LogMessage;
+            modManager.Progress += dialog.SetProgress;
             modManager.InstallEnabledMods(cancellationToken);
+            modManager.Progress -= dialog.SetProgress;
             modManager.Logs -= dialog.LogMessage;
         });
         SyncModListView();
@@ -44,6 +45,7 @@ public sealed partial class MainWindow : WindowEx
         {
             modManager.Logs += dialog.LogMessage;
             modManager.UninstallAllMods();
+            dialog.SetProgress(1.0);
             modManager.Logs -= dialog.LogMessage;
         });
         SyncModListView();

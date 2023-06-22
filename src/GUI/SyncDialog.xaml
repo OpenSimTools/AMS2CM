@@ -13,13 +13,16 @@
     IsSecondaryButtonEnabled="False"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <StackPanel Orientation="Vertical" Width="400">
-        <ScrollViewer Height="300">
-            <Grid>
-                <TextBlock x:Name="Logs"
-                    TextWrapping="Wrap"
-                    IsTextSelectionEnabled="True"/>
-            </Grid>
-        </ScrollViewer>
-    </StackPanel>
+    <Expander x:Name="LogExpander" Width="400">
+        <Expander.Header>
+            <ProgressBar x:Name="Progress" IsIndeterminate="True" />
+        </Expander.Header>
+        <Expander.Content>
+            <ScrollViewer Height="300">
+                <Grid>
+                    <TextBlock x:Name="Logs" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                </Grid>
+            </ScrollViewer>
+        </Expander.Content>
+    </Expander>
 </ContentDialog>

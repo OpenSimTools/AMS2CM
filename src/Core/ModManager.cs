@@ -39,6 +39,7 @@ internal class ModManager : IModManager
     private readonly IStatePersistence statePersistence;
 
     public event LogHandler? Logs;
+    public event ProgressHandler? Progress;
 
     internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence)
     {
@@ -234,6 +235,7 @@ internal class ModManager : IModManager
         }
         catch (Exception ex)
         {
+            // TODO this should throw an exception, not log an error
             Logs?.Invoke($"  Error: {ex.Message}");
         }
         return filesLeft;
@@ -282,9 +284,11 @@ internal class ModManager : IModManager
         {
             if (modPackages.Any())
             {
+                double modsToInstall = modPackages.Count;
                 Logs?.Invoke("Installing mods:");
-                foreach (var modReference in modPackages)
+                foreach (var (modReference, index) in modPackages.WithIndex())
                 {
+                    Progress?.Invoke(index / modsToInstall);
                     if (cancellationToken.IsCancellationRequested)
                     {
                         break;
@@ -349,6 +353,7 @@ internal class ModManager : IModManager
             {
                 Logs?.Invoke($"No mod archives found in {workPaths.EnabledModArchivesDir}");
             }
+            Progress?.Invoke(1.0);
         }
         finally
         {

@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -19,6 +20,7 @@ public sealed partial class SyncDialog : ContentDialog
         args.Cancel = true;
         IsPrimaryButtonEnabled = false;
         Logs.Text += $"Aborting...{Environment.NewLine}";
+        Progress.ShowPaused = true;
         cancellationTokenSource.Cancel();
     }
 
@@ -39,6 +41,15 @@ public sealed partial class SyncDialog : ContentDialog
         });
     }
 
+    public void SetProgress(double? progress)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            Progress.IsIndeterminate = !progress.HasValue;
+            Progress.Value = progress.GetValueOrDefault() * 100;
+        });
+    }
+
     public void LogMessage(string message)
     {
         DispatcherQueue.TryEnqueue(() =>
@@ -51,6 +62,8 @@ public sealed partial class SyncDialog : ContentDialog
     {
         DispatcherQueue.TryEnqueue(() =>
         {
+            Progress.ShowError = true;
+            LogExpander.IsExpanded = true;
             Logs.Text += $"Error: {ex.Message}{Environment.NewLine}";
         });
     }
