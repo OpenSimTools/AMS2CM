@@ -188,17 +188,24 @@ internal class ModManager : IModManager
                         break;
                     }
                     Logs?.Invoke($"- {modName}");
-                    var filesLeft = UninstallFiles(modInstallationState.Files, SkipCreatedAfter(previousInstallation.Time));
-                    if (filesLeft.Any())
+                    var filesLeft = modInstallationState.Files.ToHashSet();
+                    try
                     {
-                        modsLeft[modName] = new InternalModInstallationState(
-                            Partial: filesLeft.Count != modInstallationState.Files.Count,
-                            Files: filesLeft
-                        );
-                    }
-                    else
+                        UninstallFiles(filesLeft, SkipCreatedAfter(previousInstallation.Time));
+                    } finally
                     {
-                        modsLeft.Remove(modName);
+                        if (filesLeft.Any())
+                        {
+                            modsLeft[modName] = new InternalModInstallationState(
+                                // Once partially uninstalled, it will stay that way unless fully uninstalled
+                                Partial: modInstallationState.Partial || filesLeft.Count != modInstallationState.Files.Count,
+                                Files: filesLeft
+                            );
+                        }
+                        else
+                        {
+                            modsLeft.Remove(modName);
+                        }
                     }
                 }
             }
@@ -221,25 +228,12 @@ internal class ModManager : IModManager
         }
     }
 
-    private IReadOnlyCollection<string> UninstallFiles(IReadOnlyCollection<string> files, ShouldSkipFile skip)
-    {
-        var filesLeft = files.ToHashSet();
-        try
-        {
-            JsgmeFileInstaller.UninstallFiles(
+    private void UninstallFiles(ISet<string> files, ShouldSkipFile skip) =>
+        JsgmeFileInstaller.UninstallFiles(
                 game.InstallationDirectory,
                 files,
-                p => filesLeft.Remove(p),
-                skip
-            );
-        }
-        catch (Exception ex)
-        {
-            // TODO this should throw an exception, not log an error
-            Logs?.Invoke($"  Error: {ex.Message}");
-        }
-        return filesLeft;
-    }
+                p => files.Remove(p),
+                skip);
 
     private ShouldSkipFile SkipCreatedAfter(DateTime? dateTimeUtc)
     {
