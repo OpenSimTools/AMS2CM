@@ -39,6 +39,7 @@ internal class ModManager : IModManager
     private readonly IStatePersistence statePersistence;
 
     public event LogHandler? Logs;
+    public event ProgressHandler? Progress;
 
     internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence)
     {
@@ -187,17 +188,24 @@ internal class ModManager : IModManager
                         break;
                     }
                     Logs?.Invoke($"- {modName}");
-                    var filesLeft = UninstallFiles(modInstallationState.Files, SkipCreatedAfter(previousInstallation.Time));
-                    if (filesLeft.Any())
+                    var filesLeft = modInstallationState.Files.ToHashSet();
+                    try
                     {
-                        modsLeft[modName] = new InternalModInstallationState(
-                            Partial: filesLeft.Count != modInstallationState.Files.Count,
-                            Files: filesLeft
-                        );
-                    }
-                    else
+                        UninstallFiles(filesLeft, SkipCreatedAfter(previousInstallation.Time));
+                    } finally
                     {
-                        modsLeft.Remove(modName);
+                        if (filesLeft.Any())
+                        {
+                            modsLeft[modName] = new InternalModInstallationState(
+                                // Once partially uninstalled, it will stay that way unless fully uninstalled
+                                Partial: modInstallationState.Partial || filesLeft.Count != modInstallationState.Files.Count,
+                                Files: filesLeft
+                            );
+                        }
+                        else
+                        {
+                            modsLeft.Remove(modName);
+                        }
                     }
                 }
             }
@@ -220,24 +228,12 @@ internal class ModManager : IModManager
         }
     }
 
-    private IReadOnlyCollection<string> UninstallFiles(IReadOnlyCollection<string> files, ShouldSkipFile skip)
-    {
-        var filesLeft = files.ToHashSet();
-        try
-        {
-            JsgmeFileInstaller.UninstallFiles(
+    private void UninstallFiles(ISet<string> files, ShouldSkipFile skip) =>
+        JsgmeFileInstaller.UninstallFiles(
                 game.InstallationDirectory,
                 files,
-                p => filesLeft.Remove(p),
-                skip
-            );
-        }
-        catch (Exception ex)
-        {
-            Logs?.Invoke($"  Error: {ex.Message}");
-        }
-        return filesLeft;
-    }
+                p => files.Remove(p),
+                skip);
 
     private ShouldSkipFile SkipCreatedAfter(DateTime? dateTimeUtc)
     {
@@ -282,8 +278,9 @@ internal class ModManager : IModManager
         {
             if (modPackages.Any())
             {
+                double modsToInstall = modPackages.Count;
                 Logs?.Invoke("Installing mods:");
-                foreach (var modReference in modPackages)
+                foreach (var (modReference, index) in modPackages.WithIndex())
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -305,14 +302,14 @@ internal class ModManager : IModManager
                         mod.Install(game.InstallationDirectory);
                         modConfigs.Add(mod.Config);
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        Logs?.Invoke($"  Error: {e.Message}");
+                        installedFilesByMod.Add(mod.PackageName, new(
+                            Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
+                            Files: mod.InstalledFiles
+                        ));
                     }
-                    installedFilesByMod.Add(mod.PackageName, new(
-                        Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
-                        Files: mod.InstalledFiles
-                    ));
+                    Progress?.Invoke((index + 1) / modsToInstall);
                 }
 
                 if (modConfigs.Where(_ => _.NotEmpty()).Any())

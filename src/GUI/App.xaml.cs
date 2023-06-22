@@ -59,6 +59,12 @@ public partial class App : Application
             remove => throw ex;
         }
 
+        public event IModManager.ProgressHandler? Progress
+        {
+            add => throw ex;
+            remove => throw ex;
+        }
+
         public string DisableMod(string packagePath) => throw ex;
         public string EnableMod(string packagePath) => throw ex;
         public ModState EnableNewMod(string packagePath) => throw ex;
