@@ -278,24 +278,19 @@ internal class ModManager : IModManager
         {
             if (modPackages.Any())
             {
-                double modsToInstall = modPackages.Count;
                 Logs?.Invoke("Installing mods:");
-                foreach (var (modReference, index) in modPackages.WithIndex())
+                var realModPackages = modPackages.Where(mp => !IsBootFiles(mp.PackageName)).ToList();
+                // Increase by one in case bootfiles are needed
+                var progress = Percent.OfTotal(realModPackages.Count + 2);
+                Progress?.Invoke(progress.Increment());
+                foreach (var modReference in modPackages)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
-
                     var packageName = modReference.PackageName;
-                    if (IsBootFiles(packageName))
-                    {
-                        Logs?.Invoke($"- {packageName} (skipped)");
-                        continue;
-                    }
-
                     Logs?.Invoke($"- {packageName}");
-
                     var mod = ExtractMod(packageName, modReference.FullPath);
                     try
                     {
@@ -309,7 +304,7 @@ internal class ModManager : IModManager
                             Files: mod.InstalledFiles
                         ));
                     }
-                    Progress?.Invoke((index + 1) / modsToInstall);
+                    Progress?.Invoke(progress.Increment());
                 }
 
                 if (modConfigs.Where(_ => _.NotEmpty()).Any())
@@ -328,23 +323,24 @@ internal class ModManager : IModManager
                         PostProcessor.AppendDrivelineRecords(game.InstallationDirectory, modConfigs.SelectMany(_ => _.DrivelineRecords));
                         postProcessingDone = true;
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        Logs?.Invoke($"  Error: {e.Message}");
+                        installedFilesByMod.Add(bootfilesMod.PackageName, new(
+                            Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled || !postProcessingDone,
+                            Files: bootfilesMod.InstalledFiles
+                        ));
                     }
-                    installedFilesByMod.Add(bootfilesMod.PackageName, new(
-                        Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled || !postProcessingDone,
-                        Files: bootfilesMod.InstalledFiles
-                    ));
                 }
                 else
                 {
                     Logs?.Invoke("Post-processing not required");
                 }
+                Progress?.Invoke(progress.Increment());
             }
             else
             {
                 Logs?.Invoke($"No mod archives found in {workPaths.EnabledModArchivesDir}");
+                Progress?.Invoke(1.0);
             }
         }
         finally
