@@ -12,7 +12,7 @@ public interface IModManager
     List<ModState> FetchState();
     string DisableMod(string packagePath);
     string EnableMod(string packagePath);
-    ModState EnableNewMod(string packagePath);
+    ModState AddNewMod(string packagePath);
     void InstallEnabledMods(CancellationToken cancellationToken = default);
     void UninstallAllMods(CancellationToken cancellationToken = default);
 }

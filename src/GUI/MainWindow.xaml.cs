@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
+using Windows.Storage.Pickers;
 
 namespace AMS2CM.GUI;
 
@@ -75,7 +76,7 @@ public sealed partial class MainWindow : WindowEx
                 foreach (var storageFile in items.OfType<StorageFile>())
                 {
                     var filePath = storageFile.Path;
-                    modManager.EnableNewMod(filePath);
+                    modManager.AddNewMod(filePath);
                 }
                 // Refresh list after adding mods with drag and drop
                 SyncModListView();
@@ -103,7 +104,7 @@ public sealed partial class MainWindow : WindowEx
         SyncModListView();
     }
 
-    private void ModListMenuToInstall_Click(object sender, RoutedEventArgs e)
+    private void ModListMenuMarkToInstall_Click(object sender, RoutedEventArgs e)
     {
         foreach (var o in ModListView.SelectedItems)
         {
@@ -112,7 +113,21 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
+    private async void ModListMenuAdd_Click(object sender, RoutedEventArgs e)
+    {
+        var filePicker = this.CreateOpenFilePicker();
+        filePicker.ViewMode = PickerViewMode.List;
+        filePicker.FileTypeFilter.Add("*");
+
+        var file = await filePicker.PickSingleFileAsync();
+        if (file is not null)
+        {
+            modManager.AddNewMod(file.Path);
+            SyncModListView();
+        }
+    }
+
+        private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
     {
         foreach (var o in ModListView.SelectedItems)
         {

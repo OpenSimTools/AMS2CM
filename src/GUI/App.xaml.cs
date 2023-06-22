@@ -67,7 +67,7 @@ public partial class App : Application
 
         public string DisableMod(string packagePath) => throw ex;
         public string EnableMod(string packagePath) => throw ex;
-        public ModState EnableNewMod(string packagePath) => throw ex;
+        public ModState AddNewMod(string packagePath) => throw ex;
         public List<ModState> FetchState() => throw ex;
         public void InstallEnabledMods(CancellationToken cancellationToken) => throw ex;
         public void UninstallAllMods(CancellationToken cancellationToken) => throw ex;
