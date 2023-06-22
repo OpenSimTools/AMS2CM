@@ -282,7 +282,6 @@ internal class ModManager : IModManager
                 Logs?.Invoke("Installing mods:");
                 foreach (var (modReference, index) in modPackages.WithIndex())
                 {
-                    Progress?.Invoke(index / modsToInstall);
                     if (cancellationToken.IsCancellationRequested)
                     {
                         break;
@@ -303,14 +302,14 @@ internal class ModManager : IModManager
                         mod.Install(game.InstallationDirectory);
                         modConfigs.Add(mod.Config);
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        Logs?.Invoke($"  Error: {e.Message}");
+                        installedFilesByMod.Add(mod.PackageName, new(
+                            Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
+                            Files: mod.InstalledFiles
+                        ));
                     }
-                    installedFilesByMod.Add(mod.PackageName, new(
-                        Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
-                        Files: mod.InstalledFiles
-                    ));
+                    Progress?.Invoke((index + 1) / modsToInstall);
                 }
 
                 if (modConfigs.Where(_ => _.NotEmpty()).Any())
@@ -347,7 +346,6 @@ internal class ModManager : IModManager
             {
                 Logs?.Invoke($"No mod archives found in {workPaths.EnabledModArchivesDir}");
             }
-            Progress?.Invoke(1.0);
         }
         finally
         {
