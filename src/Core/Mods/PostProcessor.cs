@@ -1,4 +1,6 @@
-﻿namespace Core.Mods;
+﻿using Core.Utils;
+
+namespace Core.Mods;
 
 internal static class PostProcessor
 {
@@ -30,8 +32,9 @@ internal static class PostProcessor
 
     public static void AppendDrivelineRecords(string gamePath, IEnumerable<string> recordBlocks)
     {
-        var recordsBlock = string.Join($"{Environment.NewLine}{Environment.NewLine}", recordBlocks);
-        if (!recordsBlock.Any())
+        var dedupedRecordBlocks = DedupeRecordBlocks(recordBlocks);
+        var recordsTextBlock = string.Join($"{Environment.NewLine}{Environment.NewLine}", dedupedRecordBlocks);
+        if (!recordsTextBlock.Any())
         {
             return;
         }
@@ -43,8 +46,23 @@ internal static class PostProcessor
         {
             throw new Exception("Could not find insertion point in driveline file");
         }
-        var newContents = contents.Insert(endIndex, WrapInComments(recordsBlock));
+        var newContents = contents.Insert(endIndex, WrapInComments(recordsTextBlock));
         File.WriteAllText(driveLineFilePath, newContents);
+    }
+
+    private static IEnumerable<string> DedupeRecordBlocks(IEnumerable<string> recordBlocks)
+    {
+        var deduped = new Dictionary<string, string>();
+        foreach (var rb in recordBlocks.Reverse())
+        {
+            var key = rb.Split(Environment.NewLine, 2).First().NormalizeWhitespaces();
+            if (deduped.ContainsKey(key))
+            {
+                continue;
+            }
+            deduped.Add(key, rb);
+        }
+        return deduped.Values;
     }
 
     private static string WrapInComments(string content)
