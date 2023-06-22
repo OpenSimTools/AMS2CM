@@ -37,10 +37,7 @@ public partial class App : Application
         try
         {
             var args = Environment.GetCommandLineArgs();
-            var config = Config.Load(args);
-            var game = new Game(config.Game);
-            var modFactory = new ModFactory(config.ModInstall, game);
-            return new ModManager(game, modFactory, oldStateIsPrimary: false);
+            return Init.CreateModManager(args, oldStateIsPrimary: false);
         }
         catch (Exception ex)
         {
