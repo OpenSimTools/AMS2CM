@@ -21,7 +21,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Install .NET Core
+    - name: Install .NET
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 6.0.x
@@ -34,6 +34,7 @@ jobs:
       run: |
         msbuild /t:Restore /p:Configuration=${{ matrix.configuration }}
         msbuild /t:Build /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }}
+        dotnet test --configuration ${{ matrix.configuration }} --arch ${{ matrix.platform }}
 
     - name: Upload license
       uses: actions/upload-artifact@v3
