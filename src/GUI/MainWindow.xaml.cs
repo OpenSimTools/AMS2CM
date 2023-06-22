@@ -71,16 +71,21 @@ public sealed partial class MainWindow : WindowEx
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             var items = await e.DataView.GetStorageItemsAsync();
-            if (items.Count > 0)
+            AddNewMods(items);
+        }
+    }
+
+    private void AddNewMods(IReadOnlyList<IStorageItem> items)
+    {
+        if (items.Count > 0)
+        {
+            foreach (var storageFile in items.OfType<StorageFile>())
             {
-                foreach (var storageFile in items.OfType<StorageFile>())
-                {
-                    var filePath = storageFile.Path;
-                    modManager.AddNewMod(filePath);
-                }
-                // Refresh list after adding mods with drag and drop
-                SyncModListView();
+                var filePath = storageFile.Path;
+                modManager.AddNewMod(filePath);
             }
+            // Refresh list after adding mods with drag and drop
+            SyncModListView();
         }
     }
 
@@ -119,12 +124,8 @@ public sealed partial class MainWindow : WindowEx
         filePicker.ViewMode = PickerViewMode.List;
         filePicker.FileTypeFilter.Add("*");
 
-        var file = await filePicker.PickSingleFileAsync();
-        if (file is not null)
-        {
-            modManager.AddNewMod(file.Path);
-            SyncModListView();
-        }
+        var files = await filePicker.PickMultipleFilesAsync();
+        AddNewMods(files);
     }
 
         private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
