@@ -18,10 +18,8 @@
             <ProgressBar x:Name="Progress" IsIndeterminate="True" />
         </Expander.Header>
         <Expander.Content>
-            <ScrollViewer Height="300">
-                <Grid>
-                    <TextBlock x:Name="Logs" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                </Grid>
+            <ScrollViewer Height="300" Width="360">
+                <TextBlock x:Name="Logs" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
             </ScrollViewer>
         </Expander.Content>
     </Expander>
