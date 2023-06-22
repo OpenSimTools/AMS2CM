@@ -1,12 +1,8 @@
 ﻿using Core;
-using Core.Games;
 
 try
 {
-    var config = Config.Load(args);
-    var game = new Game(config.Game);
-    var modFactory = new ModFactory(config.ModInstall, game);
-    var modManager = new ModManager(game, modFactory, oldStateIsPrimary: true);
+    var modManager = Init.CreateModManager(args, oldStateIsPrimary: true);
     modManager.Logs += Console.WriteLine;
     modManager.InstallEnabledMods();
 }
