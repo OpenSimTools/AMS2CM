@@ -109,12 +109,21 @@ public sealed partial class MainWindow : WindowEx
         SyncModListView();
     }
 
-    private void ModListMenuMarkToInstall_Click(object sender, RoutedEventArgs e)
+    private void ModListMenuEnable_Click(object sender, RoutedEventArgs e)
     {
         foreach (var o in ModListView.SelectedItems)
         {
             var mvm = (ModVM)o;
             mvm.IsEnabled = true;
+        }
+    }
+
+    private void ModListMenuDisable_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var o in ModListView.SelectedItems)
+        {
+            var mvm = (ModVM)o;
+            mvm.IsEnabled = false;
         }
     }
 

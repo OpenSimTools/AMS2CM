@@ -43,7 +43,8 @@
                 DragItemsCompleted="ModListView_DragItemsCompleted">
                 <ListView.ContextFlyout>
                     <MenuFlyout x:Name="ModListMenu">
-                        <MenuFlyoutItem Text="Mark to Install" Click="ModListMenuMarkToInstall_Click"/>
+                        <MenuFlyoutItem Text="Enable" Click="ModListMenuEnable_Click"/>
+                        <MenuFlyoutItem Text="Disable" Click="ModListMenuDisable_Click"/>
                         <MenuFlyoutItem Text="Add" Click="ModListMenuAdd_Click"/>
                         <MenuFlyoutItem Text="Delete" Click="ModListMenuDelete_Click">
                             <MenuFlyoutItem.KeyboardAccelerators>
