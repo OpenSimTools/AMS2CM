@@ -96,7 +96,7 @@ internal class ModManager : IModManager
             }).ToList();
     }
 
-    public ModState EnableNewMod(string packageFullPath)
+    public ModState AddNewMod(string packageFullPath)
     {
         var fileName = Path.GetFileName(packageFullPath);
         var isDisabled = ListDisabledModPackages().Where(_ => _.PackageName == fileName).Any();

@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
+using Windows.Storage.Pickers;
 
 namespace AMS2CM.GUI;
 
@@ -70,16 +71,21 @@ public sealed partial class MainWindow : WindowEx
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             var items = await e.DataView.GetStorageItemsAsync();
-            if (items.Count > 0)
+            AddNewMods(items);
+        }
+    }
+
+    private void AddNewMods(IReadOnlyList<IStorageItem> items)
+    {
+        if (items.Count > 0)
+        {
+            foreach (var storageFile in items.OfType<StorageFile>())
             {
-                foreach (var storageFile in items.OfType<StorageFile>())
-                {
-                    var filePath = storageFile.Path;
-                    modManager.EnableNewMod(filePath);
-                }
-                // Refresh list after adding mods with drag and drop
-                SyncModListView();
+                var filePath = storageFile.Path;
+                modManager.AddNewMod(filePath);
             }
+            // Refresh list after adding mods with drag and drop
+            SyncModListView();
         }
     }
 
@@ -103,7 +109,7 @@ public sealed partial class MainWindow : WindowEx
         SyncModListView();
     }
 
-    private void ModListMenuToInstall_Click(object sender, RoutedEventArgs e)
+    private void ModListMenuMarkToInstall_Click(object sender, RoutedEventArgs e)
     {
         foreach (var o in ModListView.SelectedItems)
         {
@@ -112,7 +118,17 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
+    private async void ModListMenuAdd_Click(object sender, RoutedEventArgs e)
+    {
+        var filePicker = this.CreateOpenFilePicker();
+        filePicker.ViewMode = PickerViewMode.List;
+        filePicker.FileTypeFilter.Add("*");
+
+        var files = await filePicker.PickMultipleFilesAsync();
+        AddNewMods(files);
+    }
+
+        private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
     {
         foreach (var o in ModListView.SelectedItems)
         {
