@@ -50,19 +50,21 @@ internal static class PostProcessor
         File.WriteAllText(driveLineFilePath, newContents);
     }
 
-    private static IEnumerable<string> DedupeRecordBlocks(IEnumerable<string> recordBlocks)
+    internal static IEnumerable<string> DedupeRecordBlocks(IEnumerable<string> recordBlocks)
     {
-        var deduped = new Dictionary<string, string>();
+        var seen = new HashSet<string>();
+        var deduped = new List<string>();
         foreach (var rb in recordBlocks.Reverse())
         {
             var key = rb.Split(Environment.NewLine, 2).First().NormalizeWhitespaces();
-            if (deduped.ContainsKey(key))
+            if (seen.Contains(key))
             {
                 continue;
             }
-            deduped.Add(key, rb);
+            seen.Add(key);
+            deduped.Add(rb);
         }
-        return deduped.Values;
+        return deduped.Reverse<string>();
     }
 
     private static string WrapInComments(string content)

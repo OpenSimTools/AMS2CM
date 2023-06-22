@@ -2,10 +2,10 @@ namespace Core.Tests.Utils;
 
 using static Core.Utils.StringExtensions;
 
-public class StringExtensionsTest
+public class PostProcessorTest
 {
     [Fact]
-    public void NormalizeWhitespacesReplacesWithSpaces()
+    public void NormalizeWhitespaces_ReplacesWithSpaces()
     {
         Assert.Equal("", "".NormalizeWhitespaces());
         Assert.Equal("foo bar", "foo bar".NormalizeWhitespaces());
@@ -13,7 +13,7 @@ public class StringExtensionsTest
     }
 
     [Fact]
-    public void NormalizeWhitespacesTrimsInput()
+    public void NormalizeWhitespaces_TrimsInput()
     {
         Assert.Equal("foo", " foo\f".NormalizeWhitespaces());
     }
