@@ -4,14 +4,25 @@
 		<StandardDirectory Id="DesktopFolder">
 			<Component Id="DesktopShortcut" Guid="3b02df3d-c1dc-4817-b2fc-960382ab087b">
 				<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="DesktopShortcutInstalled" Value="1" />
-				<Shortcut
-					Name="AMS2CM"
-					Description="Automobilista 2 Content Manager"
-					Target="[ApplicationFolder]AMS2CM.GUI.exe"
-					WorkingDirectory="ApplicationFolder"
-					Icon="ApplicationIcon" />
+				<Shortcut Name="AMS2CM"
+						  Description="Automobilista 2 Content Manager"
+						  Target="[ApplicationFolder]AMS2CM.GUI.exe"
+						  WorkingDirectory="ApplicationFolder"
+						  Icon="ApplicationIcon" />
 			</Component>
 		</StandardDirectory>
-		<Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
+		<StandardDirectory Id="ProgramMenuFolder">
+			<Directory Id="StartMenuDirectory" Name="AMS2CM">
+				<Component Id="StartMenuShortcut" Guid="2bd7aa5a-cb99-4389-aeab-6aba89c80455">
+					<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="StartMenuShortcutInstalled" Value="1" />
+					<Shortcut Name="AMS2CM"
+							  Description="Automobilista 2 Content Manager"
+							  Target="[ApplicationFolder]AMS2CM.GUI.exe"
+							  WorkingDirectory="ApplicationFolder"
+							  Icon="ApplicationIcon" />
+					<RemoveFolder Directory="StartMenuDirectory" On="uninstall"/>
+				</Component>
+			</Directory>
+		</StandardDirectory>
 	</Fragment>
 </Wix>

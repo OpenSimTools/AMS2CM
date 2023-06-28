@@ -1,5 +1,8 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-	<Package Name="AMS2CM" Manufacturer="OpenSimTools" Version="$(var.GitVersion_AssemblySemFileVer)" UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
+	<Package Name="AMS2CM"
+			 Manufacturer="OpenSimTools"
+			 Version="$(var.GitVersion_AssemblySemFileVer)"
+			 UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
 		<MediaTemplate EmbedCab="yes" />
 
 		<StandardDirectory Id="ProgramFiles64Folder">
@@ -9,6 +12,12 @@
 		<Feature Id="Main">
 			<ComponentGroupRef Id="Application" />
 			<ComponentRef Id="DesktopShortcut" />
+			<ComponentRef Id="StartMenuShortcut" />
 		</Feature>
+
+		<Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
+
+		<!-- "Add or remove programs" icon -->
+		<Property Id='ARPPRODUCTICON' Value='ApplicationIcon' />
 	</Package>
 </Wix>
