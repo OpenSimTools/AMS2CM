@@ -6,6 +6,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="WixToolset.Heat" Version="4.0.1" />
+		<PackageReference Include="WixToolset.UI.wixext" Version="4.0.1" />
 		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
 	</ItemGroup>
 
@@ -14,7 +15,7 @@
 		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net6.0-windows10.0.19041.0\">
 			<PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
 			<ComponentGroupName>Application</ComponentGroupName>
-			<DirectoryRefId>ApplicationFolder</DirectoryRefId>
+			<DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
 			<SuppressRootDirectory>true</SuppressRootDirectory>
 			<SuppressRegistry>true</SuppressRegistry>
 			<SuppressCom>true</SuppressCom>
@@ -28,6 +29,7 @@
 	<ItemGroup>
 		<None Include="Package.wsb" />
 	</ItemGroup>
+
 	<Target Name="SetUpSandbox" AfterTargets="Build">
 		<!-- ItemGroup/Content seems to be ignored -->
 		<Copy SourceFiles="Package.wsb" DestinationFolder="$(TargetDir)" />

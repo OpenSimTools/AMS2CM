@@ -1,13 +1,11 @@
-﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+	 xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 	<Package Name="AMS2CM"
 			 Manufacturer="OpenSimTools"
 			 Version="$(var.GitVersion_AssemblySemFileVer)"
 			 UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
-		<MediaTemplate EmbedCab="yes" />
 
-		<StandardDirectory Id="ProgramFiles64Folder">
-			<Directory Id="ApplicationFolder" Name="AMS2CM" />
-		</StandardDirectory>
+		<MediaTemplate EmbedCab="yes" />
 
 		<Feature Id="Main">
 			<ComponentGroupRef Id="Application" />
@@ -19,5 +17,8 @@
 
 		<!-- "Add or remove programs" icon -->
 		<Property Id='ARPPRODUCTICON' Value='ApplicationIcon' />
+
+		<!-- UI -->
+		<ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 	</Package>
 </Wix>
