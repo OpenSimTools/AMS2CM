@@ -22,11 +22,11 @@
   </ItemGroup>
 
 	<ItemGroup>
-    <None Include="Package.wsb" />
+    <None Include="Installer.wsb" />
   </ItemGroup>
   <Target Name="SetUpSandbox" AfterTargets="Build">
     <!-- ItemGroup/Content seems to be ignored -->
-    <Copy SourceFiles="Package.wsb" DestinationFolder="$(TargetDir)" />
-    <XmlPoke XmlInputPath="$(TargetDir)Package.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
+    <Copy SourceFiles="Installer.wsb" DestinationFolder="$(TargetDir)" />
+    <XmlPoke XmlInputPath="$(TargetDir)Installer.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
   </Target>
 </Project>
