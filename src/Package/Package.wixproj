@@ -4,6 +4,7 @@
 		<UpdateAssemblyInfo>false</UpdateAssemblyInfo>
 		<GenerateGitVersionInformation>false</GenerateGitVersionInformation>
 	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="WixToolset.Heat" Version="4.0.1" />
 		<PackageReference Include="WixToolset.UI.wixext" Version="4.0.1" />

@@ -7,10 +7,14 @@
 
 		<MediaTemplate EmbedCab="yes" />
 
-		<Feature Id="Main">
+		<Feature Id="MainFeature" Title="AMS2CM">
 			<ComponentGroupRef Id="Application" />
-			<ComponentRef Id="DesktopShortcut" />
-			<ComponentRef Id="StartMenuShortcut" />
+			<Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut">
+				<ComponentRef Id="DesktopShortcut" />
+			</Feature>
+			<Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut">
+				<ComponentRef Id="StartMenuShortcut" />
+			</Feature>
 		</Feature>
 
 		<Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
@@ -19,6 +23,6 @@
 		<Property Id='ARPPRODUCTICON' Value='ApplicationIcon' />
 
 		<!-- UI -->
-		<ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+		<ui:WixUI Id="WixUI_Custom" InstallDirectory="INSTALLFOLDER" />
 	</Package>
 </Wix>
