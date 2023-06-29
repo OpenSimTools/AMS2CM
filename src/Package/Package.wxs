@@ -7,14 +7,14 @@
 
 		<MediaTemplate EmbedCab="yes" />
 
-		<Feature Id="MainFeature" Title="AMS2CM">
+		<Feature Id="MainFeature" Display="hidden">
 			<ComponentGroupRef Id="Application" />
-			<Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut">
-				<ComponentRef Id="DesktopShortcut" />
-			</Feature>
-			<Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut">
-				<ComponentRef Id="StartMenuShortcut" />
-			</Feature>
+		</Feature>
+		<Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut">
+			<ComponentRef Id="DesktopShortcut" />
+		</Feature>
+		<Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut">
+			<ComponentRef Id="StartMenuShortcut" />
 		</Feature>
 
 		<Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
