@@ -6,8 +6,8 @@
 				<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="DesktopShortcutInstalled" Value="1" />
 				<Shortcut Name="AMS2CM"
 						  Description="Automobilista 2 Content Manager"
-						  Target="[INSTALLFOLDER]AMS2CM.GUI.exe"
-						  WorkingDirectory="INSTALLFOLDER"
+						  Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
+						  WorkingDirectory="APPLICATIONFOLDER"
 						  Icon="ApplicationIcon" />
 			</Component>
 		</StandardDirectory>
@@ -18,8 +18,8 @@
 					<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="StartMenuShortcutInstalled" Value="1" />
 					<Shortcut Name="AMS2CM"
 							  Description="Automobilista 2 Content Manager"
-							  Target="[INSTALLFOLDER]AMS2CM.GUI.exe"
-							  WorkingDirectory="INSTALLFOLDER"
+							  Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
+							  WorkingDirectory="APPLICATIONFOLDER"
 							  Icon="ApplicationIcon" />
 					<RemoveFolder Directory="StartMenuDirectory" On="uninstall"/>
 				</Component>
