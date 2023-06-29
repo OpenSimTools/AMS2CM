@@ -24,5 +24,6 @@
 
 		<!-- UI -->
 		<ui:WixUI Id="WixUI_Custom" />
+		<WixVariable Id="WixUILicenseRtf" Value="..\..\LICENSE.rtf" />
 	</Package>
 </Wix>

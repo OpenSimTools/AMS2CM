@@ -1,39 +1,32 @@
 ﻿<Project Sdk="WixToolset.Sdk/4.0.1">
-	<PropertyGroup>
-		<!--<OutputName>AMS2CM</OutputName>-->
-		<UpdateAssemblyInfo>false</UpdateAssemblyInfo>
-		<GenerateGitVersionInformation>false</GenerateGitVersionInformation>
-	</PropertyGroup>
+  <PropertyGroup>
+    <!--<OutputName>AMS2CM</OutputName>-->
+    <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
+    <GenerateGitVersionInformation>false</GenerateGitVersionInformation>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Heat" Version="4.0.1" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.1" />
+    <PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GUI\GUI.csproj" />
+    <HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net6.0-windows10.0.19041.0\">
+      <PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
+      <ComponentGroupName>Application</ComponentGroupName>
+      <DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <SuppressRegistry>true</SuppressRegistry>
+      <SuppressCom>true</SuppressCom>
+    </HarvestDirectory>
+  </ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="WixToolset.Heat" Version="4.0.1" />
-		<PackageReference Include="WixToolset.UI.wixext" Version="4.0.1" />
-		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\GUI\GUI.csproj" />
-		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net6.0-windows10.0.19041.0\">
-			<PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
-			<ComponentGroupName>Application</ComponentGroupName>
-			<DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>
-			<SuppressRootDirectory>true</SuppressRootDirectory>
-			<SuppressRegistry>true</SuppressRegistry>
-			<SuppressCom>true</SuppressCom>
-		</HarvestDirectory>
-	</ItemGroup>
-
-	<ItemGroup>
-		<Content Include="..\Shared\AMS2CM.ico" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Include="Package.wsb" />
-	</ItemGroup>
-
-	<Target Name="SetUpSandbox" AfterTargets="Build">
-		<!-- ItemGroup/Content seems to be ignored -->
-		<Copy SourceFiles="Package.wsb" DestinationFolder="$(TargetDir)" />
-		<XmlPoke XmlInputPath="$(TargetDir)Package.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
-	</Target>
+    <None Include="Package.wsb" />
+  </ItemGroup>
+  <Target Name="SetUpSandbox" AfterTargets="Build">
+    <!-- ItemGroup/Content seems to be ignored -->
+    <Copy SourceFiles="Package.wsb" DestinationFolder="$(TargetDir)" />
+    <XmlPoke XmlInputPath="$(TargetDir)Package.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
+  </Target>
 </Project>
