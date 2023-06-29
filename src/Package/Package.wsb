@@ -6,6 +6,6 @@
         </MappedFolder>
     </MappedFolders>
     <LogonCommand>
-        <Command>msiexec /i C:\Package\Package.msi</Command>
+        <Command>msiexec /i C:\Package\AMS2CM.msi</Command>
     </LogonCommand>
 </Configuration>

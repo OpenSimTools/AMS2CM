@@ -1,6 +1,6 @@
 ﻿<Project Sdk="WixToolset.Sdk/4.0.1">
   <PropertyGroup>
-    <!--<OutputName>AMS2CM</OutputName>-->
+    <OutputName>AMS2CM</OutputName>
     <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
     <GenerateGitVersionInformation>false</GenerateGitVersionInformation>
   </PropertyGroup>
