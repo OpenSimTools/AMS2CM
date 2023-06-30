@@ -102,7 +102,8 @@ public static class JsgmeFileInstaller
     /// <param name="skip">Function to decide if a file should be skipped</param>
     public static void UninstallFiles(string dstPath, IEnumerable<string> files, Action<string> fileUninstalledCallback, ShouldSkipFile skip)
     {
-        foreach (var file in files)
+        var fileList = files.ToList(); // It must be enumerated twice
+        foreach (var file in fileList)
         {
             var path = Path.Combine(dstPath, file);
             // Some mods have duplicate entries, so files might have been removed already
@@ -120,7 +121,7 @@ public static class JsgmeFileInstaller
             RestoreFile(path);
             fileUninstalledCallback(file);
         }
-        DeleteEmptyDirectories(dstPath, files);
+        DeleteEmptyDirectories(dstPath, fileList);
     }
 
     private static void DeleteEmptyDirectories(string dstRootPath, IEnumerable<string> filePaths) {
