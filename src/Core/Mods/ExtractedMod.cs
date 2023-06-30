@@ -42,9 +42,17 @@ public abstract class ExtractedMod : IMod
         }
         Installed = IMod.InstalledState.PartiallyInstalled;
 
+        var now = DateTime.UtcNow;
         foreach (var rootPath in ExtractedRootDirs())
         {
-            JsgmeFileInstaller.InstallFiles(rootPath, dstPath, installedFiles.Add);
+            JsgmeFileInstaller.InstallFiles(rootPath, dstPath, relativePath => {
+                installedFiles.Add(relativePath);
+                var fullPath = Path.Combine(dstPath, relativePath);
+                if (File.Exists(fullPath) && File.GetCreationTimeUtc(fullPath) > now)
+                {
+                    File.SetCreationTimeUtc(fullPath, now);
+                }
+            });
         }
 
         Config = GenerateConfig();
