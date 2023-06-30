@@ -39,19 +39,19 @@ jobs:
     - name: Upload license
       uses: actions/upload-artifact@v3
       with:
-        name: AMS2CM
+        name: AMS2CM CLI
         path: LICENSE
         if-no-files-found: error
     - name: Upload CLI
       uses: actions/upload-artifact@v3
       with:
-        name: AMS2CM
+        name: AMS2CM CLI
         path: src/CLI/bin/${{ matrix.platform }}/${{ matrix.configuration }}/net6.0-windows/**
         if-no-files-found: error
     # Separate package until stable, to be able to release CLI independently
-    - name: Upload GUI
+    - name: Upload Installer
       uses: actions/upload-artifact@v3
       with:
-        name: AMS2CM GUI
-        path: src/GUI/bin/${{ matrix.platform }}/${{ matrix.configuration }}/net6.0-windows10.0.19041.0/**
+        name: AMS2CM
+        path: src/Installer/bin/${{ matrix.platform }}/${{ matrix.configuration }}/AMS2CM.msi
         if-no-files-found: error
