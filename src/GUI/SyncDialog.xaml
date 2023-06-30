@@ -10,6 +10,7 @@
     PrimaryButtonText="Abort"
     PrimaryButtonClick="ContentDialog_PrimaryButtonClick"
     SecondaryButtonText="Close"
+    SecondaryButtonStyle="{StaticResource AccentButtonStyle}"
     IsSecondaryButtonEnabled="False"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
