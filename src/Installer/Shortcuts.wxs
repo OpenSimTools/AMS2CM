@@ -1,29 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+	<?define BetaArguments = '--Game:SteamId=1066880 --Game:Path="steamapps\common\Automobilista 2 Beta"' ?>
+
 	<Fragment>
 		<StandardDirectory Id="DesktopFolder">
 			<Component Id="DesktopShortcut" Guid="3b02df3d-c1dc-4817-b2fc-960382ab087b">
 				<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="DesktopShortcutInstalled" Value="1" />
-				<Shortcut Name="AMS2CM"
+				<Shortcut Name="AMS2 CM"
 						  Description="Automobilista 2 Content Manager"
 						  Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
+						  WorkingDirectory="APPLICATIONFOLDER"
+						  Icon="ApplicationIcon" />
+			</Component>
+			<Component Id="DesktopBetaShortcut" Guid="f060851d-9ca7-4881-996c-9beae6c82085">
+				<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="DesktopBetaShortcutInstalled" Value="1" />
+				<Shortcut Name="AMS2 Beta CM"
+						  Description="Automobilista 2 Beta Content Manager"
+						  Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
+						  Arguments="$(var.BetaArguments)"
 						  WorkingDirectory="APPLICATIONFOLDER"
 						  Icon="ApplicationIcon" />
 			</Component>
 		</StandardDirectory>
 
 		<StandardDirectory Id="ProgramMenuFolder">
-			<Directory Id="StartMenuDirectory" Name="AMS2CM">
-				<Component Id="StartMenuShortcut" Guid="2bd7aa5a-cb99-4389-aeab-6aba89c80455">
-					<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="StartMenuShortcutInstalled" Value="1" />
-					<Shortcut Name="AMS2CM"
-							  Description="Automobilista 2 Content Manager"
-							  Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
-							  WorkingDirectory="APPLICATIONFOLDER"
-							  Icon="ApplicationIcon" />
-					<RemoveFolder Directory="StartMenuDirectory" On="uninstall"/>
-				</Component>
-			</Directory>
+			<Component Id="StartMenuShortcut" Guid="2bd7aa5a-cb99-4389-aeab-6aba89c80455">
+				<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="StartMenuShortcutInstalled" Value="1" />
+				<Shortcut Name="AMS2 CM"
+							Description="Automobilista 2 Content Manager"
+							Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
+							WorkingDirectory="APPLICATIONFOLDER"
+							Icon="ApplicationIcon" />
+			</Component>
+			<Component Id="StartMenuBetaShortcut" Guid="b4436fde-955a-48fc-b3ee-74b72ece0800">
+				<RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Name="StartMenuBetaShortcutInstalled" Value="1" />
+				<Shortcut Name="AMS2 Beta CM"
+							Description="Automobilista 2 Beta Content Manager"
+							Target="[APPLICATIONFOLDER]AMS2CM.GUI.exe"
+							Arguments="$(var.BetaArguments)"
+							WorkingDirectory="APPLICATIONFOLDER"
+							Icon="ApplicationIcon" />
+			</Component>
 		</StandardDirectory>
 	</Fragment>
 </Wix>
