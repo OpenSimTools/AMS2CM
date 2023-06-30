@@ -1,0 +1,11 @@
+<Configuration>
+    <MappedFolders>
+        <MappedFolder>
+            <HostFolder></HostFolder>
+            <SandboxFolder>C:\Installer</SandboxFolder>
+        </MappedFolder>
+    </MappedFolders>
+    <LogonCommand>
+        <Command>msiexec /i C:\Installer\AMS2CM.msi</Command>
+    </LogonCommand>
+</Configuration>

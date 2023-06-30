@@ -1,0 +1,30 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+	 xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+	<Package Name="AMS2CM"
+			 Manufacturer="OpenSimTools"
+			 Version="$(var.GitVersion_AssemblySemFileVer)"
+			 UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
+		<MajorUpgrade AllowDowngrades="yes"/>
+
+		<MediaTemplate EmbedCab="yes" />
+
+		<Feature Id="ApplicationFeature" Title="AMS2CM" ConfigurableDirectory="APPLICATIONFOLDER">
+			<ComponentGroupRef Id="Application" />
+			<Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut">
+				<ComponentRef Id="DesktopShortcut" />
+			</Feature>
+			<Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut">
+				<ComponentRef Id="StartMenuShortcut" />
+			</Feature>
+		</Feature>
+
+		<Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
+
+		<!-- "Add or remove programs" icon -->
+		<Property Id='ARPPRODUCTICON' Value='ApplicationIcon' />
+
+		<!-- UI -->
+		<ui:WixUI Id="WixUI_Custom" />
+		<WixVariable Id="WixUILicenseRtf" Value="..\..\LICENSE.rtf" />
+	</Package>
+</Wix>
