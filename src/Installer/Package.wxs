@@ -9,7 +9,10 @@
 		<MediaTemplate EmbedCab="yes" />
 
 		<Feature Id="ApplicationFeature" Title="Content Manager" ConfigurableDirectory="APPLICATIONFOLDER" AllowAdvertise="no">
-			<ComponentGroupRef Id="Application" />
+			<ComponentGroupRef Id="GUI" />
+			<Feature Id="CLI" Title="Command Line Interface" Level="1000" AllowAdvertise="no">
+				<ComponentRef Id="CLI" />
+			</Feature>
 			<Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut" AllowAdvertise="no">
 				<ComponentRef Id="DesktopShortcut" />
 			</Feature>
