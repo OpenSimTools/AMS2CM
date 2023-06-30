@@ -2,7 +2,14 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 	<Fragment>
 		<StandardDirectory Id="ProgramFiles64Folder">
-			<Directory Id="APPLICATIONFOLDER" Name="AMS2CM" />
+			<Directory Id="APPLICATIONFOLDER" Name="AMS2CM">
+				<Component Id="CLI" Guid="6912ca61-6c24-4835-a60c-04155ba5053a">
+					<File Source="$(var.CLI.TargetDir)\AMS2CM.exe" />
+					<File Source="$(var.CLI.TargetDir)\AMS2CM.dll" />
+					<File Source="$(var.CLI.TargetDir)\AMS2CM.pdb" />
+					<File Source="$(var.CLI.TargetDir)\AMS2CM.runtimeconfig.json" />
+				</Component>
+			</Directory>
 		</StandardDirectory>
 	</Fragment>
 </Wix>

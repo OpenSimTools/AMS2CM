@@ -10,10 +10,11 @@
 		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
 	</ItemGroup>
 	<ItemGroup>
+		<ProjectReference Include="..\CLI\CLI.csproj" />
 		<ProjectReference Include="..\GUI\GUI.csproj" />
 		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net6.0-windows10.0.19041.0\">
 			<PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
-			<ComponentGroupName>Application</ComponentGroupName>
+			<ComponentGroupName>GUI</ComponentGroupName>
 			<DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>
 			<SuppressRootDirectory>true</SuppressRootDirectory>
 			<SuppressRegistry>true</SuppressRegistry>
