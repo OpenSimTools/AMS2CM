@@ -6,6 +6,7 @@ using Core.State;
 using SevenZip;
 using static Core.IModManager;
 using static Core.Mods.JsgmeFileInstaller;
+using System.IO;
 
 namespace Core;
 
@@ -228,28 +229,28 @@ internal class ModManager : IModManager
         }
     }
 
-    private void UninstallFiles(ISet<string> files, ShouldSkipFile skip) =>
+    private void UninstallFiles(ISet<string> files, BeforeFileCallback beforeFileCallback) =>
         JsgmeFileInstaller.UninstallFiles(
                 game.InstallationDirectory,
                 files,
-                p => files.Remove(p),
-                skip);
+                beforeFileCallback,
+                p => files.Remove(p));
 
-    private ShouldSkipFile SkipCreatedAfter(DateTime? dateTimeUtc)
+    private BeforeFileCallback SkipCreatedAfter(DateTime? dateTimeUtc)
     {
         if (dateTimeUtc is null)
         {
-            return _ => false;
+            return _ => true;
         }
 
         return path =>
         {
-            var exclude = File.GetCreationTimeUtc(path) > dateTimeUtc;
-            if (exclude)
+            var include = File.GetCreationTimeUtc(path) <= dateTimeUtc;
+            if (!include)
             {
-                Logs?.Invoke($"  Skipping {path}");
+                Logs?.Invoke($"  Skipping modified file {path}");
             }
-            return exclude;
+            return include;
         };
     }
 
@@ -271,9 +272,10 @@ internal class ModManager : IModManager
 
     private void InstallAllModFiles(CancellationToken cancellationToken)
     {
-        var modPackages = ListEnabledModPackages();
+        var modPackages = ListEnabledModPackages().Reverse();
         var modConfigs = new List<IMod.ConfigEntries>();
         var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
+        var installedFiles = new HashSet<string>();
         try
         {
             if (modPackages.Any())
@@ -294,7 +296,7 @@ internal class ModManager : IModManager
                     var mod = ExtractMod(packageName, modReference.FullPath);
                     try
                     {
-                        mod.Install(game.InstallationDirectory);
+                        mod.Install(game.InstallationDirectory, installedFiles.Add);
                         modConfigs.Add(mod.Config);
                     }
                     finally
@@ -313,7 +315,7 @@ internal class ModManager : IModManager
                     var postProcessingDone = false;
                     try
                     {
-                        bootfilesMod.Install(game.InstallationDirectory);
+                        bootfilesMod.Install(game.InstallationDirectory, installedFiles.Add);
                         Logs?.Invoke("Post-processing:");
                         Logs?.Invoke("- Appending crd file entries");
                         PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));

@@ -34,7 +34,7 @@ public abstract class ExtractedMod : IMod
 
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
-    public void Install(string dstPath)
+    public void Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback)
     {
         if (Installed != IMod.InstalledState.NotInstalled)
         {
@@ -45,14 +45,18 @@ public abstract class ExtractedMod : IMod
         var now = DateTime.UtcNow;
         foreach (var rootPath in ExtractedRootDirs())
         {
-            JsgmeFileInstaller.InstallFiles(rootPath, dstPath, relativePath => {
-                installedFiles.Add(relativePath);
-                var fullPath = Path.Combine(dstPath, relativePath);
-                if (File.Exists(fullPath) && File.GetCreationTimeUtc(fullPath) > now)
+            JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
+                beforeFileCallback,
+                relativePath =>
                 {
-                    File.SetCreationTimeUtc(fullPath, now);
+                    installedFiles.Add(relativePath);
+                    var fullPath = Path.Combine(dstPath, relativePath);
+                    if (File.Exists(fullPath) && File.GetCreationTimeUtc(fullPath) > now)
+                    {
+                        File.SetCreationTimeUtc(fullPath, now);
+                    }
                 }
-            });
+            );
         }
 
         Config = GenerateConfig();
