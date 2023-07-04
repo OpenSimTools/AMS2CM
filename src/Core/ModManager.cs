@@ -296,7 +296,7 @@ internal class ModManager : IModManager
                     var mod = ExtractMod(packageName, modReference.FullPath);
                     try
                     {
-                        mod.Install(game.InstallationDirectory, SkipDuplicates(installedFiles));
+                        mod.Install(game.InstallationDirectory, installedFiles.Add);
                         modConfigs.Add(mod.Config);
                     }
                     finally
@@ -315,7 +315,7 @@ internal class ModManager : IModManager
                     var postProcessingDone = false;
                     try
                     {
-                        bootfilesMod.Install(game.InstallationDirectory, SkipDuplicates(installedFiles));
+                        bootfilesMod.Install(game.InstallationDirectory, installedFiles.Add);
                         Logs?.Invoke("Post-processing:");
                         Logs?.Invoke("- Appending crd file entries");
                         PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
@@ -354,19 +354,6 @@ internal class ModManager : IModManager
                 )
             ));
         }
-    }
-
-    private BeforeFileCallback SkipDuplicates(ISet<string> allInstalledFiles)
-    {
-        return relativePath =>
-        {
-            var include = allInstalledFiles.Add(relativePath);
-            if (!include)
-            {
-                Logs?.Invoke($"  Skipping duplicate {relativePath}");
-            }
-            return include;
-        };
     }
 
     private bool IsBootFiles(string packageName) => packageName.StartsWith(BootfilesPrefix);
