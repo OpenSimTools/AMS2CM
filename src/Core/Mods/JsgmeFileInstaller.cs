@@ -4,7 +4,8 @@ namespace Core.Mods;
 
 public static class JsgmeFileInstaller
 {
-    public delegate bool ShouldSkipFile(string path);
+    public delegate void AfterFileCallback(string relativePath);
+    public delegate bool BeforeFileCallback(string relativePath);
 
     private const string BackupFileSuffix = ".orig";
     public const string RemoveFileSuffix = "-remove";
@@ -19,13 +20,15 @@ public static class JsgmeFileInstaller
     /// </summary>
     /// <param name="srcPath">Directory containing extracted mod archive</param>
     /// <param name="dstPath">Game directory</param>
-    /// <param name="fileInstalledCallback">Callback to allow partial file installation to be detected</param>
-    public static void InstallFiles(string srcPath, string dstPath, Action<string> fileInstalledCallback)
-    {
-        RecursiveMoveWithBackup(srcPath, dstPath, absoluteSrcFilePath => fileInstalledCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath)));
-    }
+    /// <param name="beforeFileCallback">Function to decide if a file should be installed</param>
+    /// <param name="afterFileCallback">Callback to allow partial file installation to be detected</param>
+    public static void InstallFiles(string srcPath, string dstPath, BeforeFileCallback beforeFileCallback, AfterFileCallback afterFileCallback) =>
+        RecursiveMoveWithBackup(srcPath, dstPath,
+            absoluteSrcFilePath => beforeFileCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath)),
+            absoluteSrcFilePath => afterFileCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath))
+        );
 
-    private static void RecursiveMoveWithBackup(string srcPath, string dstPath, Action<string> fileInstalledCallback)
+    private static void RecursiveMoveWithBackup(string srcPath, string dstPath, BeforeFileCallback beforeFileCallback, AfterFileCallback afterFileCallback)
     {
         if (!Directory.Exists(dstPath))
         {
@@ -35,6 +38,7 @@ public static class JsgmeFileInstaller
         foreach (var maybeSrcSubPath in Directory.GetFileSystemEntries(srcPath))
         {
             var (srcSubPath, remove) = NeedsRemoving(maybeSrcSubPath);
+
             var localName = Path.GetFileName(srcSubPath);
             if (ExcludeCopySuffix.Any(suffix => localName.EndsWith(suffix)))
             {
@@ -45,9 +49,12 @@ public static class JsgmeFileInstaller
             var dstSubPath = Path.Combine(dstPath, localName);
             if (Directory.Exists(srcSubPath)) // Is directory
             {
-                RecursiveMoveWithBackup(srcSubPath, dstSubPath, fileInstalledCallback);
+                RecursiveMoveWithBackup(srcSubPath, dstSubPath, beforeFileCallback, afterFileCallback);
                 continue;
             }
+
+            if (!beforeFileCallback(srcSubPath))
+                continue;
 
             if (File.Exists(dstSubPath))
             {
@@ -59,7 +66,7 @@ public static class JsgmeFileInstaller
                 File.Move(srcSubPath, dstSubPath);
             }
 
-            fileInstalledCallback(srcSubPath);
+            afterFileCallback(srcSubPath);
         }
     }
 
@@ -89,18 +96,9 @@ public static class JsgmeFileInstaller
     /// </summary>
     /// <param name="dstPath">Game directory</param>
     /// <param name="files">Perviously installed mod files</param>
-    /// <param name="fileUninstalledCallback">It is called for each uninstalled file</param>
-    public static void UninstallFiles(string dstPath, IEnumerable<string> files, Action<string> fileUninstalledCallback) =>
-        UninstallFiles(dstPath, files, fileUninstalledCallback, _ => true);
-
-    /// <summary>
-    /// Uninstall mod files.
-    /// </summary>
-    /// <param name="dstPath">Game directory</param>
-    /// <param name="files">Perviously installed mod files</param>
-    /// <param name="fileUninstalledCallback">It is called for each uninstalled file</param>
-    /// <param name="skip">Function to decide if a file should be skipped</param>
-    public static void UninstallFiles(string dstPath, IEnumerable<string> files, Action<string> fileUninstalledCallback, ShouldSkipFile skip)
+    /// <param name="beforeFileCallback">Function to decide if a file backup should be restored</param>
+    /// <param name="afterFileCallback">It is called for each uninstalled file</param>
+    public static void UninstallFiles(string dstPath, IEnumerable<string> files, BeforeFileCallback beforeFileCallback, AfterFileCallback afterFileCallback)
     {
         var fileList = files.ToList(); // It must be enumerated twice
         foreach (var file in fileList)
@@ -109,17 +107,17 @@ public static class JsgmeFileInstaller
             // Some mods have duplicate entries, so files might have been removed already
             if (File.Exists(path))
             {
-                if (skip(path))
+                if (!beforeFileCallback(path))
                 {
                     DeleteBackup(path);
-                    fileUninstalledCallback(file);
+                    afterFileCallback(file);
                     continue;
                 }
                 File.Delete(path);
             }
 
             RestoreFile(path);
-            fileUninstalledCallback(file);
+            afterFileCallback(file);
         }
         DeleteEmptyDirectories(dstPath, fileList);
     }

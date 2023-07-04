@@ -7,7 +7,7 @@ public interface IMod
     IReadOnlyCollection<string> InstalledFiles { get; }
     ConfigEntries Config { get; }
 
-    void Install(string dstPath);
+    void Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback);
 
     public record ConfigEntries(
         IReadOnlyCollection<string> CrdFileEntries,
