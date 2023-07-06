@@ -276,6 +276,7 @@ internal class ModManager : IModManager
         var modConfigs = new List<IMod.ConfigEntries>();
         var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
         var installedFiles = new HashSet<string>();
+        bool SkipAlreadyInstalled(string file) => installedFiles.Add(file.ToLowerInvariant());
         try
         {
             if (modPackages.Any())
@@ -296,7 +297,7 @@ internal class ModManager : IModManager
                     var mod = ExtractMod(packageName, modReference.FullPath);
                     try
                     {
-                        mod.Install(game.InstallationDirectory, installedFiles.Add);
+                        mod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
                         modConfigs.Add(mod.Config);
                     }
                     finally
@@ -315,7 +316,7 @@ internal class ModManager : IModManager
                     var postProcessingDone = false;
                     try
                     {
-                        bootfilesMod.Install(game.InstallationDirectory, installedFiles.Add);
+                        bootfilesMod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
                         Logs?.Invoke("Post-processing:");
                         Logs?.Invoke("- Appending crd file entries");
                         PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));
