@@ -6,7 +6,6 @@ using Core.State;
 using SevenZip;
 using static Core.IModManager;
 using static Core.Mods.JsgmeFileInstaller;
-using System.IO;
 
 namespace Core;
 

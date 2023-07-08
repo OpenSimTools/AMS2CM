@@ -6,6 +6,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
 using Windows.Storage.Pickers;
+using Core.Utils;
 
 namespace AMS2CM.GUI;
 
@@ -36,18 +37,22 @@ public sealed partial class MainWindow : WindowEx
             modManager.InstallEnabledMods(cancellationToken);
             modManager.Progress -= dialog.SetProgress;
             modManager.Logs -= dialog.LogMessage;
+            var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
+            dialog.LogMessage($"Synchronization {status}.");
         });
         SyncModListView();
     }
 
     private async void UninstallAllItem_Click(object sender, RoutedEventArgs e)
     {
-        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, _) =>
+        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
             modManager.Logs += dialog.LogMessage;
             modManager.UninstallAllMods();
             dialog.SetProgress(1.0);
             modManager.Logs -= dialog.LogMessage;
+            var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
+            dialog.LogMessage($"Uninstall {status}.");
         });
         SyncModListView();
     }
@@ -75,16 +80,27 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    private void AddNewMods(IReadOnlyList<IStorageItem> items)
+    private async void AddNewMods(IReadOnlyList<IStorageItem> items)
     {
         if (items.Count > 0)
         {
-            foreach (var storageFile in items.OfType<StorageFile>())
+            await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
             {
-                var filePath = storageFile.Path;
-                modManager.AddNewMod(filePath);
-            }
-            // Refresh list after adding mods with drag and drop
+                var filesToInstall = items.OfType<StorageFile>().ToList();
+                var progress = Percent.OfTotal(filesToInstall.Count);
+                foreach (var storageFile in filesToInstall)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    var filePath = storageFile.Path;
+                    modManager.AddNewMod(filePath);
+                    dialog.LogMessage(Path.GetFileName(filePath));
+                    dialog.SetProgress(progress.Increment());
+                }
+                return true;
+            });
             SyncModListView();
         }
     }
@@ -137,7 +153,7 @@ public sealed partial class MainWindow : WindowEx
         AddNewMods(files);
     }
 
-        private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
+    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
     {
         foreach (var o in ModListView.SelectedItems)
         {
