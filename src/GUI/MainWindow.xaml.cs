@@ -7,7 +7,6 @@ using Windows.Storage;
 using WinUIEx;
 using Windows.Storage.Pickers;
 using Core.Utils;
-using System.Collections;
 
 namespace AMS2CM.GUI;
 
@@ -166,36 +165,28 @@ public sealed partial class MainWindow : WindowEx
             return;
         }
 
-        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
-        {
-            var filesToInstall = filePaths.ToList();
-            var progress = Percent.OfTotal(filesToInstall.Count);
-            foreach (var filePath in filesToInstall)
+        await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
                 modManager.AddNewMod(filePath);
                 dialog.LogMessage(Path.GetFileName(filePath));
-                dialog.SetProgress(progress.Increment());
-            }
-            return true;
-        });
+            });
+
         SyncModListView();
     }
 
-    private void DeleteMods(IEnumerable<string> filePaths)
+    private async void DeleteMods(IEnumerable<string> filePaths)
     {
         if (!filePaths.Any())
         {
             return;
         }
 
-        foreach (var filePath in filePaths)
+        await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
         {
-            FileSystem.DeleteFile(filePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-        }
+            FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            dialog.LogMessage(Path.GetFileName(filePath));
+        });
+
         SyncModListView();
     }
 }

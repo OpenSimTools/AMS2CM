@@ -1,3 +1,4 @@
+using Core.Utils;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -60,11 +61,30 @@ public sealed partial class SyncDialog : ContentDialog
     }
 
     /// <summary>
+    /// Show dialog and execute an action for each item, updating the progress bar.
+    /// </summary>
+    public static async Task ShowAsync<T>(XamlRoot xamlRoot, IEnumerable<T> enumerable, Action<SyncDialog, T> action)
+    {
+        var items = enumerable.ToList();
+        await ShowAsync(xamlRoot, (sd, ct) =>
+        {
+            var progress = Percent.OfTotal(items.Count);
+            foreach (var i in items)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                action(sd, i);
+                sd.SetProgress(progress.Increment());
+            }
+            return true;
+        });
+    }
+
+    /// <summary>
     /// Show dialog and never close it automatically
     /// </summary>
-    /// <param name="xamlRoot"></param>
-    /// <param name="action"></param>
-    /// <returns></returns>
     public static async Task ShowAsync(XamlRoot xamlRoot, Action<SyncDialog, CancellationToken> action) =>
         await ShowAsync(xamlRoot, (sd, ct) =>
         {
@@ -75,9 +95,6 @@ public sealed partial class SyncDialog : ContentDialog
     /// <summary>
     /// Show dialog and close it automatically if function returns true
     /// </summary>
-    /// <param name="xamlRoot"></param>
-    /// <param name="func"></param>
-    /// <returns></returns>
     public static async Task ShowAsync(XamlRoot xamlRoot, Func<SyncDialog, CancellationToken, bool> func)
     {
         using var cancellationTokenSource = new CancellationTokenSource();
