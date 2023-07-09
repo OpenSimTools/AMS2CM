@@ -75,33 +75,9 @@ public sealed partial class MainWindow : WindowEx
     {
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
-            var items = await e.DataView.GetStorageItemsAsync();
-            AddNewMods(items);
-        }
-    }
-
-    private async void AddNewMods(IReadOnlyList<IStorageItem> items)
-    {
-        if (items.Count > 0)
-        {
-            await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
-            {
-                var filesToInstall = items.OfType<StorageFile>().ToList();
-                var progress = Percent.OfTotal(filesToInstall.Count);
-                foreach (var storageFile in filesToInstall)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    var filePath = storageFile.Path;
-                    modManager.AddNewMod(filePath);
-                    dialog.LogMessage(Path.GetFileName(filePath));
-                    dialog.SetProgress(progress.Increment());
-                }
-                return true;
-            });
-            SyncModListView();
+            var storageItems = await e.DataView.GetStorageItemsAsync();
+            var filePaths = storageItems.OfType<StorageFile>().Select(_ => _.Path);
+            AddNewMods(filePaths);
         }
     }
 
@@ -115,7 +91,6 @@ public sealed partial class MainWindow : WindowEx
             storageItems.Add(si);
         }
         e.Data.SetStorageItems(storageItems);
-
         e.Data.RequestedOperation = DataPackageOperation.Move;
     }
 
@@ -149,22 +124,15 @@ public sealed partial class MainWindow : WindowEx
         filePicker.ViewMode = PickerViewMode.List;
         filePicker.FileTypeFilter.Add("*");
 
-        var files = await filePicker.PickMultipleFilesAsync();
-        AddNewMods(files);
+        var storageFiles = await filePicker.PickMultipleFilesAsync();
+        var filePaths = storageFiles.Select(_ => _.Path);
+        AddNewMods(filePaths);
     }
 
     private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var o in ModListView.SelectedItems)
-        {
-            var mvm = (ModVM)o;
-            if (mvm.PackagePath is not null)
-            {
-                FileSystem.DeleteFile(mvm.PackagePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-            }
-        }
-        // Refresh list after removing mods with context menu
-        SyncModListView();
+        var filePaths = ModListView.SelectedItems.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
+        DeleteMods(filePaths);
     }
 
     private void ModListView_RightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
@@ -182,5 +150,45 @@ public sealed partial class MainWindow : WindowEx
         var dialog = new ErrorDialog(Content.XamlRoot, message);
         await dialog.ShowAsync();
         Close();
+    }
+
+    private async void AddNewMods(IEnumerable<string> filePaths)
+    {
+        if (!filePaths.Any())
+        {
+            return;
+        }
+
+        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
+        {
+            var filesToInstall = filePaths.ToList();
+            var progress = Percent.OfTotal(filesToInstall.Count);
+            foreach (var filePath in filesToInstall)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                modManager.AddNewMod(filePath);
+                dialog.LogMessage(Path.GetFileName(filePath));
+                dialog.SetProgress(progress.Increment());
+            }
+            return true;
+        });
+        SyncModListView();
+    }
+
+    private void DeleteMods(IEnumerable<string> filePaths)
+    {
+        if (!filePaths.Any())
+        {
+            return;
+        }
+
+        foreach (var filePath in filePaths)
+        {
+            FileSystem.DeleteFile(filePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+        }
+        SyncModListView();
     }
 }
