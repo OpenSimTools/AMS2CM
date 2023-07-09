@@ -7,6 +7,7 @@ using Windows.Storage;
 using WinUIEx;
 using Windows.Storage.Pickers;
 using Core.Utils;
+using System.Collections;
 
 namespace AMS2CM.GUI;
 
@@ -83,11 +84,17 @@ public sealed partial class MainWindow : WindowEx
 
     private async void ModListView_DragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
     {
-        var storageItems = new List<StorageFile>();
-        foreach (var o in e.Items)
+        var filePaths = e.Items.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
+        if (!filePaths.Any())
         {
-            var mvm = (ModVM)o;
-            var si = await StorageFile.GetFileFromPathAsync(mvm.PackagePath);
+            e.Cancel = true;
+            return;
+        }
+
+        var storageItems = new List<StorageFile>();
+        foreach (var filePath in filePaths)
+        {
+            var si = await StorageFile.GetFileFromPathAsync(filePath);
             storageItems.Add(si);
         }
         e.Data.SetStorageItems(storageItems);
