@@ -1,3 +1,4 @@
+using Core.Utils;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -27,14 +28,6 @@ public sealed partial class SyncDialog : ContentDialog
     {
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (cancellationTokenSource.Token.IsCancellationRequested)
-            {
-                Logs.Text += $"Synchronization aborted.{Environment.NewLine}";
-            }
-            else
-            {
-                Logs.Text += $"Synchronization completed.{Environment.NewLine}";
-            }
             IsPrimaryButtonEnabled = false;
             IsSecondaryButtonEnabled = true;
         });
@@ -67,26 +60,71 @@ public sealed partial class SyncDialog : ContentDialog
         });
     }
 
-    public static async Task ShowAsync(XamlRoot xamlRoot, Action<SyncDialog, CancellationToken> action)
+    /// <summary>
+    /// Show dialog and execute an action for each item, updating the progress bar.
+    /// </summary>
+    public static async Task ShowAsync<T>(XamlRoot xamlRoot, IEnumerable<T> enumerable, Action<SyncDialog, T> action)
+    {
+        var items = enumerable.ToList();
+        await ShowAsync(xamlRoot, (sd, ct) =>
+        {
+            var progress = Percent.OfTotal(items.Count);
+            foreach (var i in items)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                action(sd, i);
+                sd.SetProgress(progress.Increment());
+            }
+            return true;
+        });
+    }
+
+    /// <summary>
+    /// Show dialog and never close it automatically
+    /// </summary>
+    public static async Task ShowAsync(XamlRoot xamlRoot, Action<SyncDialog, CancellationToken> action) =>
+        await ShowAsync(xamlRoot, (sd, ct) =>
+        {
+            action(sd, ct);
+            return false;
+        });
+
+    /// <summary>
+    /// Show dialog and close it automatically if function returns true
+    /// </summary>
+    public static async Task ShowAsync(XamlRoot xamlRoot, Func<SyncDialog, CancellationToken, bool> func)
     {
         using var cancellationTokenSource = new CancellationTokenSource();
 
         var dialog = new SyncDialog(xamlRoot, cancellationTokenSource);
 
-        var task = Task.Run(() => {
+        var shouldCloseDialog = Task<bool>.Factory.StartNew(() =>
+        {
+            var closeDialog = false;
             try
             {
-                action(dialog, cancellationTokenSource.Token);
-            } catch (Exception ex)
+                closeDialog = func(dialog, cancellationTokenSource.Token);
+            }
+            catch (Exception ex)
             {
                 dialog.LogError(ex);
             }
             dialog.SignalTermination();
+            return closeDialog;
         });
 
         var result = dialog.ShowAsync();
 
-        await task;
-        await result;
+        if (await shouldCloseDialog)
+        {
+            result.Cancel();
+        }
+        else
+        {
+            await result;
+        }
     }
 }

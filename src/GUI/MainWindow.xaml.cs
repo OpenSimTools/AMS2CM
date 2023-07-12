@@ -6,6 +6,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using WinUIEx;
 using Windows.Storage.Pickers;
+using Core.Utils;
 
 namespace AMS2CM.GUI;
 
@@ -36,18 +37,22 @@ public sealed partial class MainWindow : WindowEx
             modManager.InstallEnabledMods(cancellationToken);
             modManager.Progress -= dialog.SetProgress;
             modManager.Logs -= dialog.LogMessage;
+            var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
+            dialog.LogMessage($"Synchronization {status}.");
         });
         SyncModListView();
     }
 
     private async void UninstallAllItem_Click(object sender, RoutedEventArgs e)
     {
-        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, _) =>
+        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
             modManager.Logs += dialog.LogMessage;
             modManager.UninstallAllMods();
             dialog.SetProgress(1.0);
             modManager.Logs -= dialog.LogMessage;
+            var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
+            dialog.LogMessage($"Uninstall {status}.");
         });
         SyncModListView();
     }
@@ -70,36 +75,28 @@ public sealed partial class MainWindow : WindowEx
     {
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
-            var items = await e.DataView.GetStorageItemsAsync();
-            AddNewMods(items);
-        }
-    }
-
-    private void AddNewMods(IReadOnlyList<IStorageItem> items)
-    {
-        if (items.Count > 0)
-        {
-            foreach (var storageFile in items.OfType<StorageFile>())
-            {
-                var filePath = storageFile.Path;
-                modManager.AddNewMod(filePath);
-            }
-            // Refresh list after adding mods with drag and drop
-            SyncModListView();
+            var storageItems = await e.DataView.GetStorageItemsAsync();
+            var filePaths = storageItems.OfType<StorageFile>().Select(_ => _.Path);
+            AddNewMods(filePaths);
         }
     }
 
     private async void ModListView_DragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
     {
-        var storageItems = new List<StorageFile>();
-        foreach (var o in e.Items)
+        var filePaths = e.Items.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
+        if (!filePaths.Any())
         {
-            var mvm = (ModVM)o;
-            var si = await StorageFile.GetFileFromPathAsync(mvm.PackagePath);
+            e.Cancel = true;
+            return;
+        }
+
+        var storageItems = new List<StorageFile>();
+        foreach (var filePath in filePaths)
+        {
+            var si = await StorageFile.GetFileFromPathAsync(filePath);
             storageItems.Add(si);
         }
         e.Data.SetStorageItems(storageItems);
-
         e.Data.RequestedOperation = DataPackageOperation.Move;
     }
 
@@ -133,22 +130,15 @@ public sealed partial class MainWindow : WindowEx
         filePicker.ViewMode = PickerViewMode.List;
         filePicker.FileTypeFilter.Add("*");
 
-        var files = await filePicker.PickMultipleFilesAsync();
-        AddNewMods(files);
+        var storageFiles = await filePicker.PickMultipleFilesAsync();
+        var filePaths = storageFiles.Select(_ => _.Path);
+        AddNewMods(filePaths);
     }
 
-        private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
+    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var o in ModListView.SelectedItems)
-        {
-            var mvm = (ModVM)o;
-            if (mvm.PackagePath is not null)
-            {
-                FileSystem.DeleteFile(mvm.PackagePath, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-            }
-        }
-        // Refresh list after removing mods with context menu
-        SyncModListView();
+        var filePaths = ModListView.SelectedItems.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
+        DeleteMods(filePaths);
     }
 
     private void ModListView_RightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
@@ -166,5 +156,37 @@ public sealed partial class MainWindow : WindowEx
         var dialog = new ErrorDialog(Content.XamlRoot, message);
         await dialog.ShowAsync();
         Close();
+    }
+
+    private async void AddNewMods(IEnumerable<string> filePaths)
+    {
+        if (!filePaths.Any())
+        {
+            return;
+        }
+
+        await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
+            {
+                modManager.AddNewMod(filePath);
+                dialog.LogMessage(Path.GetFileName(filePath));
+            });
+
+        SyncModListView();
+    }
+
+    private async void DeleteMods(IEnumerable<string> filePaths)
+    {
+        if (!filePaths.Any())
+        {
+            return;
+        }
+
+        await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
+        {
+            FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            dialog.LogMessage(Path.GetFileName(filePath));
+        });
+
+        SyncModListView();
     }
 }
