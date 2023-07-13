@@ -4,6 +4,8 @@ namespace Core.Mods;
 
 public class ManualInstallMod : ExtractedMod
 {
+    private static readonly string GameSupportedModDirectory = Path.Combine("UserData", "Mods");
+
     public interface IConfig
     {
         IEnumerable<string> DirsAtRoot { get; }
@@ -49,8 +51,15 @@ public class ManualInstallMod : ExtractedMod
         return roots;
     }
 
-    protected override IMod.ConfigEntries GenerateConfig() =>
-        new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
+    protected override IMod.ConfigEntries GenerateConfig()
+    {
+        var gameSupportedMod = FileEntriesToConfigure()
+            .Where(p => p.StartsWith(GameSupportedModDirectory))
+            .Any();
+        return gameSupportedMod
+            ? new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>())
+            : new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
+    }
 
     private List<string> CrdFileEntries() =>
         FileEntriesToConfigure()
