@@ -8,6 +8,7 @@ internal class GeneratedBootfiles : ExtractedMod
     internal const string VirtualPackageName = "__bootfiles_generated";
     internal const string PakfilesDirectory = "Pakfiles";
     internal const string BootFlowPakFileName = "BOOTFLOW.bff";
+    internal const string BootSplashPakFileName = "BOOTSPLASH.bff";
     internal const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
 
     private readonly string pakPath;
@@ -25,9 +26,9 @@ internal class GeneratedBootfiles : ExtractedMod
     {
         ExtractPakFileFromGame(BootFlowPakFileName);
         ExtractPakFileFromGame(PhysicsPersistentPakFileName);
-        CreateEmptyPakFile("BOOTSPLASH", ExtractedPakPath(BootFlowPakFileName));
         CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{JsgmeFileInstaller.RemoveFileSuffix}"));
-        DeleteExtractedFiles(BmtFilesWildcard);
+        File.Copy(Path.Combine(pakPath, BootSplashPakFileName), ExtractedPakPath(BootFlowPakFileName));
+        DeleteFromExtractedFiles(BmtFilesWildcard);
     }
 
     private void ExtractPakFileFromGame(string fileName)
@@ -40,38 +41,6 @@ internal class GeneratedBootfiles : ExtractedMod
 
     private string ExtractedPakPath(string name) =>
         Path.Combine(extractedPath, PakfilesDirectory, name);
-
-    private const string fileTag = " KAP";
-    private const uint version = 1 << 11 | 1;
-    private const uint fileCount = 0;
-
-    private const uint tocEntrySize = 16; // Required or PCarsTools will fail
-    private const uint crc = 0;
-    private const uint extInfoSize = 0x308; // Required for cert size even with no encryption
-
-    private const byte flags = 0;
-    private const byte encryptionType = 0;
-
-    private void CreateEmptyPakFile(string name, string path)
-    {
-        CreateParentDirectory(path);
-        using var writer = new BinaryWriter(File.Create(path));
-        writer.Write(fileTag.ToCharArray());
-        writer.Write(version);
-        writer.Write(fileCount);
-        writer.Write(new byte[12]);
-        writer.Write(name.ToCharArray());
-        writer.Write(new byte[0x100 - name.Length]);
-        writer.Write(tocEntrySize);
-        writer.Write(crc);
-        writer.Write(extInfoSize);
-        writer.Write(new byte[8]);
-        writer.Write(flags);
-        writer.Write(encryptionType);
-        writer.Write(new byte[2]);
-        writer.Write(new byte[tocEntrySize]);
-        writer.Write(new byte[extInfoSize]);
-    }
 
     private void CreateEmptyFile(string path)
     {
@@ -86,7 +55,7 @@ internal class GeneratedBootfiles : ExtractedMod
             Directory.CreateDirectory(parent);
     }
 
-    private void DeleteExtractedFiles(string wildcardRelative)
+    private void DeleteFromExtractedFiles(string wildcardRelative)
     {
         foreach (var file in Directory.EnumerateFiles(extractedPath, wildcardRelative))
         {
