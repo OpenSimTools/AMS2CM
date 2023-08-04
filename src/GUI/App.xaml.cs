@@ -37,7 +37,7 @@ public partial class App : Application
         try
         {
             var args = Environment.GetCommandLineArgs();
-            return Init.CreateModManager(args, oldStateIsPrimary: false);
+            return Init.CreateModManager(args);
         }
         catch (Exception ex)
         {
