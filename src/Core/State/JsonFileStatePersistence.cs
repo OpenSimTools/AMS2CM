@@ -7,7 +7,6 @@ internal class JsonFileStatePersistence : IStatePersistence
     private const string StateFileName = "state.json";
     private const string OldStateFileName = "installed.json";
 
-    private readonly bool oldStateIsPrimary;
     private readonly string stateFile;
     private readonly string oldStateFile;
 
@@ -17,9 +16,8 @@ internal class JsonFileStatePersistence : IStatePersistence
         DefaultValueHandling = DefaultValueHandling.Ignore,
     };
 
-    public JsonFileStatePersistence(string modsDir, bool oldStateIsPrimary)
+    public JsonFileStatePersistence(string modsDir)
     {
-        this.oldStateIsPrimary = oldStateIsPrimary;
         stateFile = Path.Combine(modsDir, StateFileName);
         oldStateFile = Path.Combine(modsDir, OldStateFileName);
     }
@@ -32,6 +30,7 @@ internal class JsonFileStatePersistence : IStatePersistence
             var contents = File.ReadAllText(stateFile);
             return JsonConvert.DeserializeObject<InternalState>(contents);
         }
+
         // Fallback to old state when new state is not present
         if (File.Exists(oldStateFile))
         {
@@ -48,28 +47,16 @@ internal class JsonFileStatePersistence : IStatePersistence
                 )
             );
         }
+
         return InternalState.Empty();
     }
 
     public void WriteState(InternalState state)
     {
-        // Write old state if it's primary, delete otherwise
-        if (oldStateIsPrimary)
-        {
-            var oldState = state.Install.Mods.ToDictionary(kv => kv.Key, kv => kv.Value.Files);
-            File.WriteAllText(oldStateFile, JsonConvert.SerializeObject(oldState, JsonSerializerSettings));
-        }
-        else
-        {
-            File.Delete(oldStateFile);
-        }
+        // Remove old state if upgrading from a previous version
+        File.Delete(oldStateFile);
 
-        // Write new state if it's primary or if it exists
-        if (!oldStateIsPrimary || File.Exists(stateFile))
-        {
-            File.WriteAllText(stateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
-        }
+        File.WriteAllText(stateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
     }
-
 }
 
