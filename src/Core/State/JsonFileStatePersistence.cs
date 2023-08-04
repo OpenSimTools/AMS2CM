@@ -53,12 +53,17 @@ internal class JsonFileStatePersistence : IStatePersistence
 
     public void WriteState(InternalState state)
     {
-        // Write old state if it's primary or if it exists
-        if (oldStateIsPrimary || File.Exists(oldStateFile))
+        // Write old state if it's primary, delete otherwise
+        if (oldStateIsPrimary)
         {
             var oldState = state.Install.Mods.ToDictionary(kv => kv.Key, kv => kv.Value.Files);
             File.WriteAllText(oldStateFile, JsonConvert.SerializeObject(oldState, JsonSerializerSettings));
         }
+        else
+        {
+            File.Delete(oldStateFile);
+        }
+
         // Write new state if it's primary or if it exists
         if (!oldStateIsPrimary || File.Exists(stateFile))
         {
