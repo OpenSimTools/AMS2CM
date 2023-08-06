@@ -76,8 +76,7 @@ public sealed partial class MainWindow : WindowEx
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             var storageItems = await e.DataView.GetStorageItemsAsync();
-            var filePaths = storageItems.OfType<StorageFile>().Select(_ => _.Path);
-            AddNewMods(filePaths);
+            AddNewMods(storageItems.Select(_ => _.Path));
         }
     }
 

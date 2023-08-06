@@ -99,6 +99,12 @@ internal class ModManager : IModManager
     public ModState AddNewMod(string packageFullPath)
     {
         var fileName = Path.GetFileName(packageFullPath);
+
+        if (IsDirectory(packageFullPath))
+        {
+            throw new Exception($"{fileName} is a directory");
+        }
+
         var isDisabled = ListDisabledModPackages().Where(_ => _.PackageName == fileName).Any();
         var destinationDirectoryPath = isDisabled ? workPaths.DisabledModArchivesDir : workPaths.EnabledModArchivesDir;
         var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
@@ -116,6 +122,9 @@ internal class ModManager : IModManager
                 IsInstalled: false
             );
     }
+
+    private bool IsDirectory(string path) =>
+        File.GetAttributes(path).HasFlag(FileAttributes.Directory);
 
     public string EnableMod(string packagePath)
     {
