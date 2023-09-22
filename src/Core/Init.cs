@@ -7,9 +7,8 @@ public static class Init
 {
     private const string ModsDirName = "Mods";
 
-    public static IModManager CreateModManager(string[] args)
+    public static IModManager CreateModManager(Config config)
     {
-        var config = Config.Load(args);
         var game = new Game(config.Game);
         var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
         var statePersistence = new JsonFileStatePersistence(modsDir);

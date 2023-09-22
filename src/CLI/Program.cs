@@ -2,7 +2,8 @@
 
 try
 {
-    var modManager = Init.CreateModManager(args);
+    var config = Config.Load(args);
+    var modManager = Init.CreateModManager(config);
     modManager.Logs += Console.WriteLine;
     modManager.InstallEnabledMods();
 }

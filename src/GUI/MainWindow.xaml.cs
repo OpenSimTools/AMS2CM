@@ -7,6 +7,7 @@ using Windows.Storage;
 using WinUIEx;
 using Windows.Storage.Pickers;
 using Core.Utils;
+using Core.SoftwareUpdates;
 
 namespace AMS2CM.GUI;
 
@@ -14,11 +15,13 @@ public sealed partial class MainWindow : WindowEx
 {
     private readonly ObservableCollection<ModVM> modList;
     private readonly IModManager modManager;
+    private readonly IUpdateChecker updateChecker;
 
-    public MainWindow(IModManager modManager)
+    public MainWindow(IModManager modManager, IUpdateChecker updateChecker)
     {
         InitializeComponent();
         this.modManager = modManager;
+        this.updateChecker = updateChecker;
         modList = new ObservableCollection<ModVM>();
         ModListView.ItemsSource = modList;
     }
@@ -26,6 +29,14 @@ public sealed partial class MainWindow : WindowEx
     private void Root_Loaded(object sender, RoutedEventArgs e)
     {
         SyncModListView();
+    }
+
+    private async void NewVersionBlock_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (await updateChecker.CheckUpdateAvailable())
+        {
+            DispatcherQueue.TryEnqueue(() => NewVersionBlock.Visibility = Visibility.Visible);
+        }
     }
 
     private async void ApplyButton_Click(Microsoft.UI.Xaml.Controls.SplitButton sender, Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs args)
