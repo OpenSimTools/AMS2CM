@@ -27,6 +27,7 @@
         <PackageReference Include="Gameloop.Vdf.JsonConverter" Version="0.2.1" />
         <PackageReference Include="PCarsTools" Version="1.1.2.5" />
         <PackageReference Include="Squid-Box.SevenZipSharp.Lite" Version="1.6.1.23" />
+        <PackageReference Include="Octokit" Version="7.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>

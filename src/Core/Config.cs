@@ -1,10 +1,12 @@
 ﻿using Core.Games;
+using Core.SoftwareUpdates;
 using Microsoft.Extensions.Configuration;
 
 namespace Core;
 
 public class Config
 {
+    public GitHubUpdateChecker.IConfig Updates { get; set; } = new UpdateConfig();
     public Game.IConfig Game { get; set; } = new GameConfig();
     public ModInstallConfig ModInstall { get; set; } = new ModInstallConfig();
 
@@ -16,6 +18,13 @@ public class Config
             .Build();
         return config.Get<Config>() ?? throw new Exception("Failed to read configuration");
     }
+}
+
+public class UpdateConfig : GitHubUpdateChecker.IConfig
+{
+    public string GitHubOwner { get; set; } = "OpenSimTools";
+    public string GitHubRepo { get; set; } = "AMS2CM";
+    public string GitHubClientApp { get; set; } = "AMS2CMUpdateChecker";
 }
 
 public class GameConfig : Game.IConfig

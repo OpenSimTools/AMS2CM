@@ -14,6 +14,7 @@
     <Grid Loaded="Root_Loaded">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -22,15 +23,25 @@
             <ColumnDefinition Width="40"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <SymbolIcon
+        <RichTextBlock Grid.ColumnSpan="3"
+            x:Name="NewVersionBlock"
+            Margin="18,10,14,10"
+            Visibility="Collapsed"
+            Loaded="NewVersionBlock_Loaded">
+            <Paragraph>
+                A new version of AMS2CM is available for download on
+                <Hyperlink NavigateUri="https://www.racedepartment.com/downloads/automobilista-2-content-manager.59727/">RaceDepartment</Hyperlink>.
+            </Paragraph>
+        </RichTextBlock>
+        <SymbolIcon Grid.Row="1"
             Margin="15,10,0,10"
             Symbol="Download"
             ToolTipService.ToolTip="Installed"/>
-        <SymbolIcon Grid.Column="1"
+        <SymbolIcon Grid.Row="1" Grid.Column="1"
             Margin="15,10,0,10"
             Symbol="Import"
             ToolTipService.ToolTip="To Install"/>
-        <ScrollViewer Grid.Row="1" Grid.ColumnSpan="3">
+        <ScrollViewer Grid.Row="2" Grid.ColumnSpan="3">
             <ListView
                 x:Name="ModListView"
                 SelectionMode="Extended"
@@ -85,7 +96,7 @@
         </ScrollViewer>
         <SplitButton
                 Content="Apply"
-                Grid.Row="2" Grid.ColumnSpan="3"
+                Grid.Row="3" Grid.ColumnSpan="3"
                 Margin="18,10,14,10"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"

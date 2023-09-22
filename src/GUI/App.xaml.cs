@@ -1,5 +1,5 @@
 ﻿using Core;
-using Core.Games;
+using Core.SoftwareUpdates;
 using Microsoft.UI.Xaml;
 
 namespace AMS2CM.GUI;
@@ -26,18 +26,18 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-
-        var modManager = CreateModManager();
-        window = new MainWindow(modManager);
+        var config = Config.Load(Environment.GetCommandLineArgs());
+        var modManager = CreateModManager(config);
+        var updateChecker = new GitHubUpdateChecker(config.Updates);
+        window = new MainWindow(modManager, updateChecker);
         window.Activate();
     }
 
-    private static IModManager CreateModManager()
+    private static IModManager CreateModManager(Config config)
     {
         try
         {
-            var args = Environment.GetCommandLineArgs();
-            return Init.CreateModManager(args);
+            return Init.CreateModManager(config);
         }
         catch (Exception ex)
         {
