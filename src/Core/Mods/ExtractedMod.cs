@@ -46,7 +46,9 @@ public abstract class ExtractedMod : IMod
         foreach (var rootPath in ExtractedRootDirs())
         {
             JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
-                beforeFileCallback,
+                relativePath =>
+                    FileShouldBeInstalled(relativePath) &&
+                    beforeFileCallback(relativePath),
                 relativePath =>
                 {
                     installedFiles.Add(relativePath);
@@ -67,4 +69,6 @@ public abstract class ExtractedMod : IMod
     protected abstract IEnumerable<string> ExtractedRootDirs();
 
     protected abstract IMod.ConfigEntries GenerateConfig();
+
+    protected virtual bool FileShouldBeInstalled(string relativePath) => true;
 }

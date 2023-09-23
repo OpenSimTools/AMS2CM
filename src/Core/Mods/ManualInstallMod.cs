@@ -9,9 +9,11 @@ public class ManualInstallMod : ExtractedMod
     public interface IConfig
     {
         IEnumerable<string> DirsAtRoot { get; }
+        IEnumerable<string> ExcludedFromInstall { get; }
         IEnumerable<string> ExcludedFromConfig { get; }
     }
 
+    private readonly Matcher filesToInstallMatcher;
     private readonly Matcher filesToConfigureMatcher;
     private readonly List<string> dirsAtRootLowerCase;
 
@@ -19,6 +21,7 @@ public class ManualInstallMod : ExtractedMod
         : base(packageName, extractedPath)
     {
         dirsAtRootLowerCase = config.DirsAtRoot.Select(dir => dir.ToLowerInvariant()).ToList();
+        filesToInstallMatcher = MatcherExcluding(config.ExcludedFromInstall);
         filesToConfigureMatcher = MatcherExcluding(config.ExcludedFromConfig);
     }
 
@@ -113,4 +116,7 @@ public class ManualInstallMod : ExtractedMod
 
         return recordBlocks;
     }
+
+    protected override bool FileShouldBeInstalled(string relativePath) =>
+        filesToInstallMatcher.Match(relativePath).HasMatches;
 }
