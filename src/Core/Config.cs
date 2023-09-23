@@ -37,5 +37,6 @@ public class GameConfig : Game.IConfig
 public class ModInstallConfig : ModFactory.IConfig
 {
     public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
+    public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();
     public IEnumerable<string> ExcludedFromConfig { get; set; } = Array.Empty<string>();
 }

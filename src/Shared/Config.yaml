@@ -15,6 +15,9 @@ ModInstall:
   - userdata
   - upgrade
   - vehicles
+  ExcludedFromInstall:
+  - '**\*.dll'
+  - '**\*.exe'
   ExcludedFromConfig:
   # IndyCar 2023 1.0 Fix
   - '**\IR-18_2023_Dale_Coyne_hr.crd'
