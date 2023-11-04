@@ -28,6 +28,8 @@ internal class ModVM : INotifyPropertyChanged
 
     public bool? IsInstalled => modState.IsInstalled;
 
+    public bool IsOutOfDate => isEnabled; // TODO
+
     public bool IsEnabled
     {
         get => isEnabled;
