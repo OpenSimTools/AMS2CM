@@ -42,7 +42,7 @@ internal class JsonFileStatePersistence : IStatePersistence
                     Time: installTime,
                     Mods: oldState.AsEnumerable().ToDictionary(
                         kv => kv.Key,
-                        kv => new InternalModInstallationState(Partial: false, Files: kv.Value)
+                        kv => new InternalModInstallationState(Hash: null, Partial: false, Files: kv.Value)
                     )
                 )
             );

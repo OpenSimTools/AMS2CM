@@ -8,6 +8,7 @@ internal class ModVM : INotifyPropertyChanged
     private readonly ModState modState;
     private readonly IModManager modManager;
     private bool isEnabled;
+    private readonly bool isOutOfDate;
     private string? packagePath;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -18,6 +19,7 @@ internal class ModVM : INotifyPropertyChanged
         this.modManager = modManager;
         isEnabled = modState.IsEnabled;
         packagePath = modState.PackagePath;
+        isOutOfDate = modState.IsOutOfDate;
     }
 
     public string Name => modState.ModName;
@@ -28,7 +30,7 @@ internal class ModVM : INotifyPropertyChanged
 
     public bool? IsInstalled => modState.IsInstalled;
 
-    public bool IsOutOfDate => isEnabled; // TODO
+    public bool IsOutOfDate => isOutOfDate;
 
     public bool IsEnabled
     {
