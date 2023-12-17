@@ -6,6 +6,7 @@ using Core.State;
 using SevenZip;
 using static Core.IModManager;
 using static Core.Mods.JsgmeFileInstaller;
+using Core.IO;
 
 namespace Core;
 
@@ -37,15 +38,17 @@ internal class ModManager : IModManager
     private readonly IGame game;
     private readonly IModFactory modFactory;
     private readonly IStatePersistence statePersistence;
+    private readonly ISafeFileDelete safeFileDelete;
 
     public event LogHandler? Logs;
     public event ProgressHandler? Progress;
 
-    internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence)
+    internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete)
     {
         this.game = game;
         this.modFactory = modFactory;
         this.statePersistence = statePersistence;
+        this.safeFileDelete = safeFileDelete;
         workPaths = new WorkPaths(
             EnabledModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
             DisabledModArchivesDir: Path.Combine(modsDir, DisabledModsSubdir),
@@ -122,6 +125,9 @@ internal class ModManager : IModManager
                 IsInstalled: false
             );
     }
+
+    public void DeleteMod(string packagePath) =>
+        safeFileDelete.SafeDelete(packagePath);
 
     private bool IsDirectory(string path) =>
         File.GetAttributes(path).HasFlag(FileAttributes.Directory);
