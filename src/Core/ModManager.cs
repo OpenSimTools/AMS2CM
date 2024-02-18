@@ -246,7 +246,7 @@ internal class ModManager : IModManager
     private void InstallAllModFiles(CancellationToken cancellationToken)
     {
         var modPackages = modRepository.ListEnabledMods().Where(_ => !IsBootFiles(_.PackageName)).Reverse();
-        var modConfigs = new List<IMod.ConfigEntries>();
+        var modConfigs = new List<ConfigEntries>();
         var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
         var installedFiles = new HashSet<string>();
         bool SkipAlreadyInstalled(string file) => installedFiles.Add(file.ToLowerInvariant());
@@ -269,8 +269,8 @@ internal class ModManager : IModManager
                     var mod = ExtractMod(modPackage);
                     try
                     {
-                        mod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
-                        modConfigs.Add(mod.Config);
+                        var modConfig = mod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
+                        modConfigs.Add(modConfig);
                     }
                     finally
                     {

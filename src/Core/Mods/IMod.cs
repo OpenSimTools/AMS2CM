@@ -5,18 +5,8 @@ public interface IMod
     string PackageName { get; }
     InstalledState Installed { get; }
     IReadOnlyCollection<string> InstalledFiles { get; }
-    ConfigEntries Config { get; }
 
-    void Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback);
-
-    public record ConfigEntries(
-        IReadOnlyCollection<string> CrdFileEntries,
-        IReadOnlyCollection<string> TrdFileEntries,
-        IReadOnlyCollection<string> DrivelineRecords
-    )
-    {
-        public bool NotEmpty() => CrdFileEntries.Any() || TrdFileEntries.Any() || DrivelineRecords.Any();
-    };
+    ConfigEntries Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback);
 
     public enum InstalledState
     {
