@@ -2,16 +2,12 @@
 
 public abstract class ExtractedMod : IMod
 {
-    protected static readonly IMod.ConfigEntries EmptyConfigEntries =
-        new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
-
     protected readonly string extractedPath;
     protected readonly List<string> installedFiles = new();
 
     internal ExtractedMod(string packageName, string extractedPath)
     {
         PackageName = packageName;
-        Config = EmptyConfigEntries;
         this.extractedPath = extractedPath;
     }
 
@@ -26,15 +22,9 @@ public abstract class ExtractedMod : IMod
         private set;
     }
 
-    public IMod.ConfigEntries Config
-    {
-        get;
-        private set;
-    }
-
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
-    public void Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback)
+    public ConfigEntries Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback)
     {
         if (Installed != IMod.InstalledState.NotInstalled)
         {
@@ -60,15 +50,14 @@ public abstract class ExtractedMod : IMod
                 }
             );
         }
-
-        Config = GenerateConfig();
-
         Installed = IMod.InstalledState.Installed;
+
+        return GenerateConfig();
     }
 
     protected abstract IEnumerable<string> ExtractedRootDirs();
 
-    protected abstract IMod.ConfigEntries GenerateConfig();
+    protected abstract ConfigEntries GenerateConfig();
 
     protected virtual bool FileShouldBeInstalled(string relativePath) => true;
 }

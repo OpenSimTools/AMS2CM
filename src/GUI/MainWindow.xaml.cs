@@ -193,7 +193,7 @@ public sealed partial class MainWindow : WindowEx
 
         await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
         {
-            FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            modManager.DeleteMod(filePath);
             dialog.LogMessage(Path.GetFileName(filePath));
         });
 

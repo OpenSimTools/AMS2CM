@@ -54,13 +54,13 @@ public class ManualInstallMod : ExtractedMod
         return roots;
     }
 
-    protected override IMod.ConfigEntries GenerateConfig()
+    protected override ConfigEntries GenerateConfig()
     {
         var gameSupportedMod = FileEntriesToConfigure()
             .Where(p => p.StartsWith(GameSupportedModDirectory))
             .Any();
         return gameSupportedMod
-            ? new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>())
+            ? ConfigEntries.Empty
             : new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
     }
 

@@ -6,51 +6,39 @@ using Core.State;
 using SevenZip;
 using static Core.IModManager;
 using static Core.Mods.JsgmeFileInstaller;
+using Core.IO;
 
 namespace Core;
 
 internal class ModManager : IModManager
 {
-    private record ModReference(string RootPath, string FullPath)
-    {
-        public string PackageName => Path.GetRelativePath(RootPath, FullPath);
-    }
-
-    private record WorkPaths(
-        string EnabledModArchivesDir,
-        string DisabledModArchivesDir,
-        string TempDir
-    );
-
     private static readonly string FileRemovedByBootfiles = Path.Combine(
         GeneratedBootfiles.PakfilesDirectory,
         GeneratedBootfiles.PhysicsPersistentPakFileName
     );
 
-    private const string EnabledModsDirName = "Enabled";
-    private const string DisabledModsSubdir = "Disabled";
     private const string TempDirName = "Temp";
-
     private const string BootfilesPrefix = "__bootfiles";
 
-    private readonly WorkPaths workPaths;
+    private readonly string tempDir;
     private readonly IGame game;
     private readonly IModFactory modFactory;
     private readonly IStatePersistence statePersistence;
+    private readonly ISafeFileDelete safeFileDelete;
+
+    private readonly ModRepository modRepository;
 
     public event LogHandler? Logs;
     public event ProgressHandler? Progress;
 
-    internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence)
+    internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete)
     {
         this.game = game;
         this.modFactory = modFactory;
         this.statePersistence = statePersistence;
-        workPaths = new WorkPaths(
-            EnabledModArchivesDir: Path.Combine(modsDir, EnabledModsDirName),
-            DisabledModArchivesDir: Path.Combine(modsDir, DisabledModsSubdir),
-            TempDir: Path.Combine(modsDir, TempDirName)
-        );
+        this.safeFileDelete = safeFileDelete;
+        tempDir = Path.Combine(modsDir, TempDirName);
+        modRepository = new ModRepository(modsDir);
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
@@ -67,18 +55,18 @@ internal class ModManager : IModManager
     public List<ModState> FetchState()
     {
         var installedMods = statePersistence.ReadState().Install.Mods;
-        var enabledModReferences = ListEnabledModPackages().ToDictionary(_ => _.PackageName);
-        var disabledModReferences = ListDisabledModPackages().ToDictionary(_ => _.PackageName);
+        var enabledModPackages = modRepository.ListEnabledMods().ToDictionary(_ => _.PackageName);
+        var disabledModPackages = modRepository.ListDisabledMods().ToDictionary(_ => _.PackageName);
 
-        var availableModPaths = enabledModReferences.Merge(disabledModReferences).SelectValues(_ => _.FullPath);
+        var availableModPaths = enabledModPackages.Merge(disabledModPackages).SelectValues(_ => _.FullPath);
         var bootfilesFailed = installedMods.Where(kv => IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
         var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
             modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
         );
 
         var allPackageNames = installedMods.Keys
-            .Concat(enabledModReferences.Keys)
-            .Concat(disabledModReferences.Keys)
+            .Concat(enabledModPackages.Keys)
+            .Concat(disabledModPackages.Keys)
             .Where(_ => !IsBootFiles(_))
             .Distinct();
 
@@ -91,65 +79,42 @@ internal class ModManager : IModManager
                     PackageName: packageName,
                     PackagePath: availableModPaths.TryGetValue(packageName, out packagePath) ? packagePath : null,
                     IsInstalled: isModInstalled.TryGetValue(packageName, out isInstalled) ? isInstalled : false,
-                    IsEnabled: enabledModReferences.Keys.Contains(packageName)
+                    IsEnabled: enabledModPackages.Keys.Contains(packageName)
                 );
             }).ToList();
     }
 
     public ModState AddNewMod(string packageFullPath)
     {
-        var fileName = Path.GetFileName(packageFullPath);
-
         if (IsDirectory(packageFullPath))
         {
-            throw new Exception($"{fileName} is a directory");
+            throw new Exception($"{packageFullPath} is a directory");
         }
 
-        var isDisabled = ListDisabledModPackages().Where(_ => _.PackageName == fileName).Any();
-        var destinationDirectoryPath = isDisabled ? workPaths.DisabledModArchivesDir : workPaths.EnabledModArchivesDir;
-        var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
-
-        ExistingDirectoryOrCreate(destinationDirectoryPath);
-        File.Copy(packageFullPath, destinationFilePath, overwrite: true);
-
-        var modReference = new ModReference(destinationDirectoryPath, packageFullPath);
-        var packageName = modReference.PackageName;
+        var modPackage = modRepository.UploadMod(packageFullPath);
         return new ModState(
-                ModName: Path.GetFileNameWithoutExtension(packageName),
-                PackageName: packageName,
-                PackagePath: modReference.FullPath,
-                IsEnabled: !isDisabled,
+                ModName: modPackage.Name,
+                PackageName: modPackage.PackageName,
+                PackagePath: modPackage.FullPath,
+                IsEnabled: modPackage.Enabled,
                 IsInstalled: false
             );
     }
 
-    private bool IsDirectory(string path) =>
+    public void DeleteMod(string packagePath) =>
+        safeFileDelete.SafeDelete(packagePath);
+
+    private static bool IsDirectory(string path) =>
         File.GetAttributes(path).HasFlag(FileAttributes.Directory);
 
     public string EnableMod(string packagePath)
     {
-        return MoveMod(packagePath, workPaths.EnabledModArchivesDir);
+        return modRepository.EnableMod(packagePath);
     }
 
     public string DisableMod(string packagePath)
     {
-        return MoveMod(packagePath, workPaths.DisabledModArchivesDir);
-    }
-
-    private string MoveMod(string packagePath, string destinationDirectoryPath)
-    {
-        ExistingDirectoryOrCreate(destinationDirectoryPath);
-        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
-        File.Move(packagePath, destinationFilePath);
-        return destinationFilePath;
-    }
-
-    private static void ExistingDirectoryOrCreate(string directoryPath)
-    {
-        if (!Directory.Exists(directoryPath))
-        {
-            Directory.CreateDirectory(directoryPath);
-        }
+        return modRepository.DisableMod(packagePath);
     }
 
     public void InstallEnabledMods(CancellationToken cancellationToken = default)
@@ -175,9 +140,9 @@ internal class ModManager : IModManager
 
     private void CleanupTemp()
     {
-        if (Directory.Exists(workPaths.TempDir))
+        if (Directory.Exists(tempDir))
         {
-            Directory.Delete(workPaths.TempDir, recursive: true);
+            Directory.Delete(tempDir, recursive: true);
         }
     }
 
@@ -280,8 +245,8 @@ internal class ModManager : IModManager
 
     private void InstallAllModFiles(CancellationToken cancellationToken)
     {
-        var modPackages = ListEnabledModPackages().Reverse();
-        var modConfigs = new List<IMod.ConfigEntries>();
+        var modPackages = modRepository.ListEnabledMods().Where(_ => !IsBootFiles(_.PackageName)).Reverse();
+        var modConfigs = new List<ConfigEntries>();
         var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
         var installedFiles = new HashSet<string>();
         bool SkipAlreadyInstalled(string file) => installedFiles.Add(file.ToLowerInvariant());
@@ -290,23 +255,22 @@ internal class ModManager : IModManager
             if (modPackages.Any())
             {
                 Logs?.Invoke("Installing mods:");
-                var realModPackages = modPackages.Where(mp => !IsBootFiles(mp.PackageName)).ToList();
-                // Increase by one in case bootfiles are needed
-                var progress = Percent.OfTotal(realModPackages.Count + 2);
+                // Increase by one in case bootfiles are needed and another one to show that something is happening
+                var progress = Percent.OfTotal(modPackages.Count() + 2);
                 Progress?.Invoke(progress.Increment());
-                foreach (var modReference in modPackages)
+
+                foreach (var modPackage in modPackages)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
-                    var packageName = modReference.PackageName;
-                    Logs?.Invoke($"- {packageName}");
-                    var mod = ExtractMod(packageName, modReference.FullPath);
+                    Logs?.Invoke($"- {modPackage.PackageName}");
+                    var mod = ExtractMod(modPackage);
                     try
                     {
-                        mod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
-                        modConfigs.Add(mod.Config);
+                        var modConfig = mod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
+                        modConfigs.Add(modConfig);
                     }
                     finally
                     {
@@ -350,7 +314,7 @@ internal class ModManager : IModManager
             }
             else
             {
-                Logs?.Invoke($"No mod archives found in {workPaths.EnabledModArchivesDir}");
+                Logs?.Invoke($"No mod archives to install");
                 Progress?.Invoke(1.0);
             }
         }
@@ -365,62 +329,36 @@ internal class ModManager : IModManager
         }
     }
 
-    private bool IsBootFiles(string packageName) => packageName.StartsWith(BootfilesPrefix);
+    private static bool IsBootFiles(string packageName) => packageName.StartsWith(BootfilesPrefix);
 
-    private IMod ExtractMod(string packageName, string archivePath)
+    private IMod ExtractMod(ModPackage modPackage)
     {
-        var extractionDir = Path.Combine(workPaths.TempDir, packageName);
-        using var extractor = new SevenZipExtractor(archivePath);
+        var extractionDir = Path.Combine(tempDir, modPackage.PackageName);
+        using var extractor = new SevenZipExtractor(modPackage.FullPath);
         extractor.ExtractArchive(extractionDir);
 
-        return modFactory.ManualInstallMod(packageName, extractionDir);
+        return modFactory.ManualInstallMod(modPackage.PackageName, extractionDir);
     }
 
     private IMod BootfilesMod()
     {
-        var bootfilesArchives = Directory.EnumerateFiles(workPaths.EnabledModArchivesDir, $"{BootfilesPrefix}*.*");
-        switch (bootfilesArchives.Count())
+        var bootfilesPackages = modRepository.ListEnabledMods().Where(_ => IsBootFiles(_.PackageName));
+        switch (bootfilesPackages.Count())
         {
             case 0:
                 Logs?.Invoke("Extracting bootfiles from game");
-                return modFactory.GeneratedBootfiles(workPaths.TempDir);
+                return modFactory.GeneratedBootfiles(tempDir);
             case 1:
-                var archivePath = bootfilesArchives.First();
-                var packageName = Path.GetFileNameWithoutExtension(archivePath);
-                Logs?.Invoke($"Extracting bootfiles from {packageName}");
-                return ExtractMod(packageName, archivePath);
+                var modPackage = bootfilesPackages.First();
+                Logs?.Invoke($"Extracting bootfiles from {modPackage.PackageName}");
+                return ExtractMod(modPackage);
             default:
                 Logs?.Invoke("Multiple bootfiles found:");
-                foreach (var bf in bootfilesArchives)
+                foreach (var bf in bootfilesPackages)
                 {
-                    Logs?.Invoke($"- {bf}");
+                    Logs?.Invoke($"- {bf.Name}");
                 }
                 throw new Exception("Too many bootfiles found");
-        }
-    }
-
-    private IReadOnlyCollection<ModReference> ListEnabledModPackages() => ListModPackages(workPaths.EnabledModArchivesDir);
-
-    private IReadOnlyCollection<ModReference> ListDisabledModPackages() => ListModPackages(workPaths.DisabledModArchivesDir);
-
-    private IReadOnlyCollection<ModReference> ListModPackages(string rootPath)
-    {
-        if (Directory.Exists(rootPath))
-        {
-            var options = new EnumerationOptions()
-            {
-                MatchType = MatchType.Win32,
-                IgnoreInaccessible = false,
-                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                MaxRecursionDepth = 0,
-            };
-            return Directory.EnumerateFiles(rootPath, "*", options)
-                .Select(modPath => new ModReference(rootPath, modPath))
-                .ToList();
-        }
-        else
-        {
-            return Array.Empty<ModReference>();
         }
     }
 }
