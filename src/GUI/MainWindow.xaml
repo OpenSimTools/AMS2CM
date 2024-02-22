@@ -21,9 +21,10 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="40"/>
             <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <RichTextBlock Grid.ColumnSpan="3"
+        <RichTextBlock Grid.ColumnSpan="4"
             x:Name="NewVersionBlock"
             Margin="18,10,14,10"
             Visibility="Collapsed"
@@ -41,7 +42,7 @@
             Margin="15,10,0,10"
             Symbol="Import"
             ToolTipService.ToolTip="To Install"/>
-        <ScrollViewer Grid.Row="2" Grid.ColumnSpan="3">
+        <ScrollViewer Grid.Row="2" Grid.ColumnSpan="4">
             <ListView
                 x:Name="ModListView"
                 SelectionMode="Extended"
@@ -71,6 +72,7 @@
                                 <ColumnDefinition Width="40"/>
                                 <ColumnDefinition Width="40"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="40"/>
                             </Grid.ColumnDefinitions>
                             <CheckBox
                                 MinWidth="0"
@@ -89,6 +91,10 @@
                                 VerticalAlignment="Center"
                                 Text="{x:Bind Name}"
                                 ToolTipService.ToolTip="{x:Bind PackageName}"/>
+                            <SymbolIcon Grid.Column="3"
+                                Visibility="{x:Bind IsOutOfDate}"
+                                Symbol="Refresh"
+                                ToolTipService.ToolTip="Out of date"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
@@ -96,7 +102,7 @@
         </ScrollViewer>
         <SplitButton
                 Content="Apply"
-                Grid.Row="3" Grid.ColumnSpan="3"
+                Grid.Row="3" Grid.ColumnSpan="4"
                 Margin="18,10,14,10"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"

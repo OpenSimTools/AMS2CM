@@ -17,8 +17,20 @@ public static class DictionaryExtensions
     }
 
     public static IReadOnlyDictionary<TKey, TValueOut> SelectValues<TKey, TValueIn, TValueOut>(this IReadOnlyDictionary<TKey, TValueIn> dict, Func<TValueIn, TValueOut> f)
-    where TKey : notnull
+        where TKey : notnull
     {
         return dict.ToDictionary(kv => kv.Key, kv => f(kv.Value));
+    }
+
+    public static IDictionary<TKey, TValueOut> SelectValues<TKey, TValueIn, TValueOut>(this IDictionary<TKey, TValueIn> dict, Func<TKey, TValueIn, TValueOut> f)
+        where TKey : notnull
+    {
+        return dict.ToDictionary(kv => kv.Key, kv => f(kv.Key, kv.Value));
+    }
+
+    public static IReadOnlyDictionary<TKey, TValueOut> SelectValues<TKey, TValueIn, TValueOut>(this IReadOnlyDictionary<TKey, TValueIn> dict, Func<TKey, TValueIn, TValueOut> f)
+        where TKey : notnull
+    {
+        return dict.ToDictionary(kv => kv.Key, kv => f(kv.Key, kv.Value));
     }
 }

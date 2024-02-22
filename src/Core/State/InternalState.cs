@@ -23,6 +23,10 @@ internal record InternalInstallationState(
 };
 
 internal record InternalModInstallationState(
+    // Unknown when partially installed or upgrading from a previous version
+    int? FsHash,
+    // TODO: needed for backward compatibility
+    // infer from null hash after the first install
     bool Partial,
     IReadOnlyCollection<string> Files
 );
