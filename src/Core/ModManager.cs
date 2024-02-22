@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Core.Games;
 using Core.Mods;
 using Core.Utils;
@@ -59,27 +58,14 @@ internal class ModManager : IModManager
         var disabledModPackages = modRepository.ListDisabledMods().ToDictionary(_ => _.PackageName);
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
-
-        var availableModPaths = availableModPackages.SelectValues(_ => _.FullPath);
         var bootfilesFailed = installedMods.Where(kv => IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
         var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
             modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
         );
-        var modsOutOfDate = installedMods.SelectValues((modName, modState) =>
+        var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
         {
-            var installed = availableModPackages.TryGetValue(modName, out var modRef);
-            if (availableModPaths.TryGetValue(modName, out var archivePath))
-            {
-                var installedHash = modState.Hash;
-                if (installedHash is null)
-                {
-                    // When partially installed or for state backwards compatibility
-                    return true;
-                }
-                var archiveHash = Hash(archivePath, installedHash);
-                return archiveHash is null || archiveHash != installedHash;
-            }
-            return false;
+            availableModPackages.TryGetValue(packageName, out var modPackage);
+            return IsOutOfDate(modPackage, modInstallationState);
         });
 
         var allPackageNames = installedMods.Keys
@@ -90,24 +76,30 @@ internal class ModManager : IModManager
 
         return allPackageNames
             .Select(packageName => {
-                string? packagePath;
-                bool? isInstalled;
-                bool isOutOfDate;
                 return new ModState(
                     ModName: Path.GetFileNameWithoutExtension(packageName),
                     PackageName: packageName,
-                    PackagePath: availableModPaths.TryGetValue(packageName, out packagePath) ? packagePath : null,
-                    IsInstalled: isModInstalled.TryGetValue(packageName, out isInstalled) ? isInstalled : false,
-                    IsEnabled: enabledModPackages.Keys.Contains(packageName),
-                    IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out isOutOfDate) ? isOutOfDate : false
+                    PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
+                    IsInstalled: isModInstalled.TryGetValue(packageName, out var isInstalled) ? isInstalled : false,
+                    IsEnabled: enabledModPackages.ContainsKey(packageName),
+                    IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
                 );
             }).ToList();
     }
 
-    // TODO move to class
-    public string? Hash(string archivePath, string? oldHash = null)
+    private static bool IsOutOfDate(ModPackage? modPackage, InternalModInstallationState? modInstallationState)
     {
-        return archivePath.StartsWith("F") ? "X" : "Y";
+        if (modPackage is null || modInstallationState is null)
+        {
+            return false;
+        }
+        var installedFsHash = modInstallationState.FsHash;
+        if (installedFsHash is null)
+        {
+            // When partially installed or for state backwards compatibility
+            return true;
+        }
+        return installedFsHash != modPackage.FsHash;
     }
 
     public ModState AddNewMod(string packageFullPath)
@@ -118,13 +110,15 @@ internal class ModManager : IModManager
         }
 
         var modPackage = modRepository.UploadMod(packageFullPath);
+        statePersistence.ReadState().Install.Mods.TryGetValue(modPackage.PackageName, out var modInstallationState);
+
         return new ModState(
                 ModName: modPackage.Name,
                 PackageName: modPackage.PackageName,
                 PackagePath: modPackage.FullPath,
                 IsEnabled: modPackage.Enabled,
                 IsInstalled: false,
-                IsOutOfDate: false // TODO ouch! we need to compute the two hashes
+                IsOutOfDate: IsOutOfDate(modPackage, modInstallationState)
             );
     }
 
@@ -198,7 +192,7 @@ internal class ModManager : IModManager
                         if (filesLeft.Any())
                         {
                             modsLeft[modName] = new InternalModInstallationState(
-                                Hash: null,
+                                FsHash: null,
                                 // Once partially uninstalled, it will stay that way unless fully uninstalled
                                 Partial: modInstallationState.Partial || filesLeft.Count != modInstallationState.Files.Count,
                                 Files: filesLeft
@@ -303,7 +297,7 @@ internal class ModManager : IModManager
                     finally
                     {
                         installedFilesByMod.Add(mod.PackageName, new(
-                            Hash: Hash(modPackage.FullPath),
+                            FsHash: modPackage.FsHash,
                             Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
                             Files: mod.InstalledFiles
                         ));
@@ -330,7 +324,7 @@ internal class ModManager : IModManager
                     finally
                     {
                         installedFilesByMod.Add(bootfilesMod.PackageName, new(
-                            Hash: null,
+                            FsHash: null,
                             Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled || !postProcessingDone,
                             Files: bootfilesMod.InstalledFiles
                         ));

@@ -14,18 +14,18 @@ internal class ModRepository
         disabledModArchivesDir = Path.Combine(modsDir, DisabledModsSubdir);
     }
 
-    public ModPackage UploadMod(string packageFullPath)
+    public ModPackage UploadMod(string sourceFilePath)
     {
-        var fileName = Path.GetFileName(packageFullPath);
+        var fileName = Path.GetFileName(sourceFilePath);
 
         var isDisabled = ListDisabledMods().Where(_ => _.PackageName == fileName).Any();
         var destinationDirectoryPath = isDisabled ? disabledModArchivesDir : enabledModArchivesDir;
         var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
 
         ExistingDirectoryOrCreate(destinationDirectoryPath);
-        File.Copy(packageFullPath, destinationFilePath, overwrite: true);
+        File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
 
-        return ModFrom(destinationDirectoryPath, packageFullPath);
+        return ModPackageFrom(destinationDirectoryPath, new FileInfo(destinationFilePath));
     }
 
     public string EnableMod(string packagePath)
@@ -38,7 +38,7 @@ internal class ModRepository
         return MoveMod(packagePath, disabledModArchivesDir);
     }
 
-    private string MoveMod(string packagePath, string destinationDirectoryPath)
+    private static string MoveMod(string packagePath, string destinationDirectoryPath)
     {
         ExistingDirectoryOrCreate(destinationDirectoryPath);
         var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
@@ -52,7 +52,8 @@ internal class ModRepository
 
     private IReadOnlyCollection<ModPackage> ListMods(string rootPath)
     {
-        if (Directory.Exists(rootPath))
+        var directoryInfo = new DirectoryInfo(rootPath);
+        if (directoryInfo.Exists)
         {
             var options = new EnumerationOptions()
             {
@@ -61,8 +62,8 @@ internal class ModRepository
                 AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
                 MaxRecursionDepth = 0,
             };
-            return Directory.EnumerateFiles(rootPath, "*", options)
-                .Select(modFullPath => ModFrom(rootPath, modFullPath))
+            return directoryInfo.GetFiles("*", options)
+                .Select(fileInfo => ModPackageFrom(rootPath, fileInfo))
                 .ToList();
         }
         else
@@ -71,17 +72,26 @@ internal class ModRepository
         }
     }
 
-    private static ModPackage ModFrom(string rootPath, string modFullPath)
+    private static ModPackage ModPackageFrom(string rootPath, FileInfo modFileInfo)
     {
-        var packageName = Path.GetRelativePath(rootPath, modFullPath);
-        var name = Path.GetFileNameWithoutExtension(packageName);
         return new ModPackage
         (
-            Name: name,
-            PackageName: packageName,
-            FullPath: modFullPath,
-            Enabled: Path.GetDirectoryName(rootPath) == EnabledModsDirName
+            Name: Path.GetFileNameWithoutExtension(modFileInfo.Name),
+            PackageName: modFileInfo.Name,
+            FullPath: modFileInfo.FullName,
+            Enabled: Path.GetDirectoryName(rootPath) == EnabledModsDirName,
+            FsHash: FsHash(modFileInfo)
         );
+    }
+
+    /// <summary>
+    /// Just a very simple has function to detect if the file might have changed.
+    /// </summary>
+    /// <param name="fileInfo"></param>
+    /// <returns></returns>
+    private static int FsHash(FileInfo fileInfo)
+    {
+        return unchecked((int)(fileInfo.LastWriteTimeUtc.Ticks ^ fileInfo.Length));
     }
 
     private static void ExistingDirectoryOrCreate(string directoryPath)
@@ -98,5 +108,6 @@ internal record ModPackage
     string Name,
     string PackageName, // TODO: rename to ID
     string FullPath, // TODO: remove once all references are gone
-    bool Enabled
+    bool Enabled,
+    int FsHash
 );
