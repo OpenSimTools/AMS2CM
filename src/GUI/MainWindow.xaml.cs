@@ -161,9 +161,9 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    public async void SignalErrorAsync(string message)
+    public async void SignalErrorAsync(Exception exception)
     {
-        var dialog = new ErrorDialog(Content.XamlRoot, message);
+        var dialog = new ErrorDialog(Content.XamlRoot, exception);
         await dialog.ShowAsync();
         Close();
     }

@@ -8,6 +8,8 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
     Style="{StaticResource DefaultContentDialogStyle}"
+    PrimaryButtonText="Copy Details"
+    PrimaryButtonClick="ContentDialog_PrimaryButtonClick"
     CloseButtonText="Exit"
     DefaultButton="Close">
 

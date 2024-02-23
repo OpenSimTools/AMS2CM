@@ -20,7 +20,7 @@ public partial class App : Application
         {
             return;
         }
-        window.SignalErrorAsync(args.Exception.Message);
+        window.SignalErrorAsync(args.Exception);
         args.Handled = true;
     }
 
