@@ -16,7 +16,7 @@ internal class GeneratedBootfiles : ExtractedMod
         Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
     public GeneratedBootfiles(string gamePath, string generationBasePath)
-        : base(VirtualPackageName, Path.Combine(generationBasePath, VirtualPackageName))
+        : base(VirtualPackageName, null, Path.Combine(generationBasePath, VirtualPackageName))
     {
         pakPath = Path.Combine(gamePath, PakfilesDirectory);
         GenerateBootfiles();

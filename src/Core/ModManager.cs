@@ -69,9 +69,9 @@ internal class ModManager : IModManager
         });
 
         var allPackageNames = installedMods.Keys
+            .Where(_ => !IsBootFiles(_))
             .Concat(enabledModPackages.Keys)
             .Concat(disabledModPackages.Keys)
-            .Where(_ => !IsBootFiles(_))
             .Distinct();
 
         return allPackageNames
@@ -297,7 +297,7 @@ internal class ModManager : IModManager
                     finally
                     {
                         installedFilesByMod.Add(mod.PackageName, new(
-                            FsHash: modPackage.FsHash,
+                            FsHash: mod.PackageFsHash,
                             Partial: mod.Installed == IMod.InstalledState.PartiallyInstalled,
                             Files: mod.InstalledFiles
                         ));
@@ -324,7 +324,7 @@ internal class ModManager : IModManager
                     finally
                     {
                         installedFilesByMod.Add(bootfilesMod.PackageName, new(
-                            FsHash: null,
+                            FsHash: bootfilesMod.PackageFsHash,
                             Partial: bootfilesMod.Installed == IMod.InstalledState.PartiallyInstalled || !postProcessingDone,
                             Files: bootfilesMod.InstalledFiles
                         ));
@@ -361,7 +361,7 @@ internal class ModManager : IModManager
         using var extractor = new SevenZipExtractor(modPackage.FullPath);
         extractor.ExtractArchive(extractionDir);
 
-        return modFactory.ManualInstallMod(modPackage.PackageName, extractionDir);
+        return modFactory.ManualInstallMod(modPackage.PackageName, modPackage.FsHash, extractionDir);
     }
 
     private IMod BootfilesMod()
