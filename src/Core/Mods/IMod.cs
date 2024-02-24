@@ -5,6 +5,7 @@ public interface IMod
     string PackageName { get; }
     InstalledState Installed { get; }
     IReadOnlyCollection<string> InstalledFiles { get; }
+    int? PackageFsHash { get; }
 
     ConfigEntries Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback);
 

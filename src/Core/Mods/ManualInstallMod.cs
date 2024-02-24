@@ -17,8 +17,8 @@ public class ManualInstallMod : ExtractedMod
     private readonly Matcher filesToConfigureMatcher;
     private readonly List<string> dirsAtRootLowerCase;
 
-    internal ManualInstallMod(string packageName, string extractedPath, IConfig config)
-        : base(packageName, extractedPath)
+    internal ManualInstallMod(string packageName, int packageFsHash, string extractedPath, IConfig config)
+        : base(packageName, packageFsHash, extractedPath)
     {
         dirsAtRootLowerCase = config.DirsAtRoot.Select(dir => dir.ToLowerInvariant()).ToList();
         filesToInstallMatcher = MatcherExcluding(config.ExcludedFromInstall);

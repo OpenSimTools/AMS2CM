@@ -5,13 +5,19 @@ public abstract class ExtractedMod : IMod
     protected readonly string extractedPath;
     protected readonly List<string> installedFiles = new();
 
-    internal ExtractedMod(string packageName, string extractedPath)
+    internal ExtractedMod(string packageName, int? packageFsHash, string extractedPath)
     {
         PackageName = packageName;
+        PackageFsHash = packageFsHash;
         this.extractedPath = extractedPath;
     }
 
     public string PackageName
+    {
+        get;
+    }
+
+    public int? PackageFsHash
     {
         get;
     }
