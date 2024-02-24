@@ -69,6 +69,7 @@ internal class ModManager : IModManager
         });
 
         var allPackageNames = installedMods.Keys
+            .Where(_ => !IsBootFiles(_))
             .Concat(enabledModPackages.Keys)
             .Concat(disabledModPackages.Keys)
             .Distinct();
