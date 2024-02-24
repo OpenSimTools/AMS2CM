@@ -71,7 +71,6 @@ internal class ModManager : IModManager
         var allPackageNames = installedMods.Keys
             .Concat(enabledModPackages.Keys)
             .Concat(disabledModPackages.Keys)
-            .Where(_ => !IsBootFiles(_))
             .Distinct();
 
         return allPackageNames
