@@ -30,7 +30,7 @@
 
 	<!-- 7zip -->
 	<ItemGroup>
-		<PackageReference Include="7z.Libs" Version="21.7.0" />
+		<PackageReference Include="7z.Libs" Version="23.1.0" />
 	</ItemGroup>
 	<Target Name="Organize7zLibs" AfterTargets="Build">
 		<Move SourceFiles="$(OutDir)\x64\7z.dll" DestinationFiles="$(OutDir)\7z64.dll" />

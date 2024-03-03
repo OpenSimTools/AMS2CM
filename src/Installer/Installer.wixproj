@@ -5,8 +5,8 @@
 		<GenerateGitVersionInformation>false</GenerateGitVersionInformation>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="WixToolset.Heat" Version="4.0.1" />
-		<PackageReference Include="WixToolset.UI.wixext" Version="4.0.1" />
+		<PackageReference Include="WixToolset.Heat" Version="4.0.4" />
+		<PackageReference Include="WixToolset.UI.wixext" Version="4.0.4" />
 		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
 	</ItemGroup>
 	<ItemGroup>

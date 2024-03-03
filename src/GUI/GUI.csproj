@@ -26,7 +26,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Core\Core.csproj" />
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
-		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
 		<PackageReference Include="WinUIEx" Version="2.1.0" />
 		<Manifest Include="$(ApplicationManifest)" />
 	</ItemGroup>
@@ -65,7 +65,7 @@
 
 	<!-- 7zip -->
 	<ItemGroup>
-		<PackageReference Include="7z.Libs" Version="21.7.0" />
+		<PackageReference Include="7z.Libs" Version="23.1.0" />
 	</ItemGroup>
 	<Target Name="Organize7zLibs" AfterTargets="Build">
 		<Move SourceFiles="$(OutDir)\x64\7z.dll" DestinationFiles="$(OutDir)\7z64.dll" />

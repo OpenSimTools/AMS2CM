@@ -27,12 +27,12 @@
         <PackageReference Include="Gameloop.Vdf.JsonConverter" Version="0.2.1" />
         <PackageReference Include="PCarsTools" Version="1.1.2.5" />
         <PackageReference Include="Squid-Box.SevenZipSharp.Lite" Version="1.6.1.23" />
-        <PackageReference Include="Octokit" Version="7.1.0" />
+        <PackageReference Include="Octokit" Version="10.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="7.0.4" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="7.0.0" />
-		<PackageReference Include="NetEscapades.Configuration.Yaml" Version="3.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
+		<PackageReference Include="NetEscapades.Configuration.Yaml" Version="3.1.0" />
 	</ItemGroup>
 </Project>
