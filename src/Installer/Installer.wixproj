@@ -12,7 +12,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\CLI\CLI.csproj" />
 		<ProjectReference Include="..\GUI\GUI.csproj" />
-		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net6.0-windows10.0.19041.0\">
+		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net8.0-windows10.0.19041.0\">
 			<PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
 			<ComponentGroupName>GUI</ComponentGroupName>
 			<DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>

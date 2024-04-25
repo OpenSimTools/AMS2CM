@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
 		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
@@ -9,9 +9,9 @@
 		<Authors>OpenSimTools Contributors</Authors>
 		<AssemblyName>AMS2CM.GUI</AssemblyName>
 		<RootNamespace>AMS2CM.GUI</RootNamespace>
-		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<Platforms>x64</Platforms>
-		<RuntimeIdentifiers>win10-x64</RuntimeIdentifiers>
+		<PublishProfile>win-$(Platform).pubxml</PublishProfile>
+		<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 		<UseWinUI>true</UseWinUI>
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 		<ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
@@ -25,10 +25,9 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Core\Core.csproj" />
-		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240404000" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
-		<PackageReference Include="WinUIEx" Version="2.1.0" />
-		<Manifest Include="$(ApplicationManifest)" />
+		<PackageReference Include="WinUIEx" Version="2.3.4" />
 	</ItemGroup>
 
 	<ItemGroup>
