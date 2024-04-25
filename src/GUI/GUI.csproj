@@ -9,8 +9,8 @@
 		<Authors>OpenSimTools Contributors</Authors>
 		<AssemblyName>AMS2CM.GUI</AssemblyName>
 		<RootNamespace>AMS2CM.GUI</RootNamespace>
-		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<Platforms>x64</Platforms>
+		<PublishProfile>win-$(Platform).pubxml</PublishProfile>
 		<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 		<UseWinUI>true</UseWinUI>
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
@@ -28,7 +28,6 @@
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240404000" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
 		<PackageReference Include="WinUIEx" Version="2.3.4" />
-		<Manifest Include="$(ApplicationManifest)" />
 	</ItemGroup>
 
 	<ItemGroup>
