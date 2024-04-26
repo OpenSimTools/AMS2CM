@@ -3,7 +3,7 @@
 /// <summary>
 /// OS-independent interface to the Desktop Trash/Recycling Bin.
 /// </summary>
-internal interface ISafeFileDelete
+public interface ISafeFileDelete
 {
     void SafeDelete(string filePath);
 }

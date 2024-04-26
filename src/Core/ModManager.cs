@@ -11,7 +11,7 @@ namespace Core;
 
 internal class ModManager : IModManager
 {
-    private static readonly string FileRemovedByBootfiles = Path.Combine(
+    internal static readonly string FileRemovedByBootfiles = Path.Combine(
         GeneratedBootfiles.PakfilesDirectory,
         GeneratedBootfiles.PhysicsPersistentPakFileName
     );
@@ -145,7 +145,9 @@ internal class ModManager : IModManager
 
         if (RestoreOriginalState(cancellationToken))
         {
+            // Clean what left by a previous failed installation
             tempDir.Cleanup();
+
             InstallAllModFiles(cancellationToken);
             tempDir.Cleanup();
         }

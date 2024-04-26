@@ -1,7 +1,7 @@
 ﻿
 namespace Core.Mods;
 
-internal interface IModRepository
+public interface IModRepository
 {
     ModPackage UploadMod(string sourceFilePath);
     string EnableMod(string packagePath);
@@ -10,7 +10,7 @@ internal interface IModRepository
     IReadOnlyCollection<ModPackage> ListDisabledMods();
 }
 
-internal record ModPackage
+public record ModPackage
 (
     string Name,
     string PackageName, // TODO: rename to ID

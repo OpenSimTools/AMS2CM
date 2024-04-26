@@ -2,7 +2,7 @@
 
 namespace Core.State;
 
-internal record InternalState(
+public record InternalState(
         InternalInstallationState Install
     )
 {
@@ -11,7 +11,7 @@ internal record InternalState(
     );
 };
 
-internal record InternalInstallationState(
+public record InternalInstallationState(
     DateTime? Time,
     IReadOnlyDictionary<string, InternalModInstallationState> Mods
 )
@@ -22,7 +22,7 @@ internal record InternalInstallationState(
     );
 };
 
-internal record InternalModInstallationState(
+public record InternalModInstallationState(
     // Unknown when partially installed or upgrading from a previous version
     int? FsHash,
     // TODO: needed for backward compatibility
