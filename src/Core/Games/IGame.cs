@@ -7,5 +7,8 @@ public interface IGame
         get;
     }
 
-    bool IsRunning();
+    bool IsRunning
+    {
+        get;
+    }
 }

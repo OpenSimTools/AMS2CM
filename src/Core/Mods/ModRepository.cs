@@ -1,6 +1,6 @@
 ﻿namespace Core.Mods;
 
-internal class ModRepository
+internal class ModRepository : IModRepository
 {
     private const string EnabledModsDirName = "Enabled";
     private const string DisabledModsSubdir = "Disabled";
@@ -102,12 +102,3 @@ internal class ModRepository
         }
     }
 }
-
-internal record ModPackage
-(
-    string Name,
-    string PackageName, // TODO: rename to ID
-    string FullPath, // TODO: remove once all references are gone
-    bool Enabled,
-    int FsHash
-);
