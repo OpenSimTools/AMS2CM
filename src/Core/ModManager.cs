@@ -16,28 +16,26 @@ internal class ModManager : IModManager
         GeneratedBootfiles.PhysicsPersistentPakFileName
     );
 
-    private const string TempDirName = "Temp";
     private const string BootfilesPrefix = "__bootfiles";
 
-    private readonly string tempDir;
     private readonly IGame game;
+    private readonly IModRepository modRepository;
     private readonly IModFactory modFactory;
     private readonly IStatePersistence statePersistence;
     private readonly ISafeFileDelete safeFileDelete;
-
-    private readonly ModRepository modRepository;
+    private readonly ITempDir tempDir;
 
     public event LogHandler? Logs;
     public event ProgressHandler? Progress;
 
-    internal ModManager(IGame game, string modsDir, IModFactory modFactory, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete)
+    internal ModManager(IGame game, IModRepository modRepository, IModFactory modFactory, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
+        this.modRepository = modRepository;
         this.modFactory = modFactory;
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
-        tempDir = Path.Combine(modsDir, TempDirName);
-        modRepository = new ModRepository(modsDir);
+        this.tempDir = tempDir;
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
@@ -147,9 +145,9 @@ internal class ModManager : IModManager
 
         if (RestoreOriginalState(cancellationToken))
         {
-            CleanupTemp();
+            tempDir.Cleanup();
             InstallAllModFiles(cancellationToken);
-            CleanupTemp();
+            tempDir.Cleanup();
         }
     }
 
@@ -157,14 +155,6 @@ internal class ModManager : IModManager
     {
         CheckGameNotRunning();
         RestoreOriginalState(cancellationToken);
-    }
-
-    private void CleanupTemp()
-    {
-        if (Directory.Exists(tempDir))
-        {
-            Directory.Delete(tempDir, recursive: true);
-        }
     }
 
     private bool RestoreOriginalState(CancellationToken cancellationToken)
@@ -251,7 +241,7 @@ internal class ModManager : IModManager
 
     private void CheckGameNotRunning()
     {
-        if (game.IsRunning())
+        if (game.IsRunning)
         {
             throw new Exception("The game is running.");
         }
@@ -357,7 +347,7 @@ internal class ModManager : IModManager
 
     private IMod ExtractMod(ModPackage modPackage)
     {
-        var extractionDir = Path.Combine(tempDir, modPackage.PackageName);
+        var extractionDir = Path.Combine(tempDir.BasePath, modPackage.PackageName);
         using var extractor = new SevenZipExtractor(modPackage.FullPath);
         extractor.ExtractArchive(extractionDir);
 
@@ -371,7 +361,7 @@ internal class ModManager : IModManager
         {
             case 0:
                 Logs?.Invoke("Extracting bootfiles from game");
-                return modFactory.GeneratedBootfiles(tempDir);
+                return modFactory.GeneratedBootfiles(tempDir.BasePath);
             case 1:
                 var modPackage = bootfilesPackages.First();
                 Logs?.Invoke($"Extracting bootfiles from {modPackage.PackageName}");

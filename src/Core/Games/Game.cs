@@ -42,7 +42,7 @@ public class Game : IGame
         init;
     }
 
-    public bool IsRunning() => Process.GetProcesses().Any(_ => _.ProcessName == config.ProcessName);
+    public bool IsRunning => Process.GetProcesses().Any(_ => _.ProcessName == config.ProcessName);
 
     private static string? FindInstallationDirectory(IConfig config)
     {
