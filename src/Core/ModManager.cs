@@ -201,7 +201,7 @@ internal class ModManager : IModManager
             {
                 statePersistence.WriteState(new InternalState(
                     Install: new(
-                        Time: DateTime.UtcNow,
+                        Time: modsLeft.Count > 0 ? previousInstallation.Time : null,
                         Mods: modsLeft
                     )
                 ));
