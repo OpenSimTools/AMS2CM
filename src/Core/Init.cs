@@ -13,7 +13,7 @@ public static class Init
     {
         var game = new Game(config.Game);
         var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
-        var tempDir = new ModSubdirectoryTempDir(modsDir);
+        var tempDir = new SubdirectoryTempDir(modsDir);
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var modRepository = new ModRepository(modsDir);
         var modFactory = new ModFactory(config.ModInstall, game);

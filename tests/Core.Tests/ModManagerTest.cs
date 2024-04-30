@@ -5,6 +5,7 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 using Moq;
+using SevenZip;
 using System;
 using System.Collections.Immutable;
 
@@ -12,34 +13,41 @@ public class ModManagerTest : IDisposable
 {
     #region Initialisation
 
-    private const string ModRootDir = "RootDir";
+    private const string DirAtRoot = "DirAtRoot";
 
     private readonly DirectoryInfo testDir;
     private readonly DirectoryInfo gameDir;
+    private readonly DirectoryInfo modsDir;
 
     private readonly Mock<IGame> gameMock = new();
     private readonly Mock<IModRepository> modRepositoryMock = new();
     private readonly Mock<ISafeFileDelete> safeFileDeleteMock = new();
-    private readonly Mock<ITempDir> tempDirMock = new();
 
-    private readonly AssertState persistedState = new AssertState();
+    private readonly AssertState persistedState;
+    private readonly ModFactory modFactory;
 
     private readonly ModManager modManager;
 
     public ModManagerTest()
     {
         testDir = Directory.CreateTempSubdirectory(GetType().Name);
-        gameDir = testDir.CreateSubdirectory("GameDir");
+        gameDir = testDir.CreateSubdirectory("Game");
+        modsDir = testDir.CreateSubdirectory("Packages");
+
+        var tempDir = new SubdirectoryTempDir(testDir.FullName);
+
+        persistedState = new AssertState();
+        modFactory = new ModFactory(
+            new ModInstallConfig { DirsAtRoot = [DirAtRoot] },
+            gameMock.Object);
 
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            new ModFactory(
-                new ModInstallConfig { DirsAtRoot = new[] { ModRootDir } },
-                gameMock.Object),
+            modFactory,
             persistedState,
             safeFileDeleteMock.Object,
-            tempDirMock.Object);
+            tempDir);
 
         gameMock.Setup(_ => _.InstallationDirectory).Returns(gameDir.FullName);
     }
@@ -65,9 +73,9 @@ public class ModManagerTest : IDisposable
     }
 
     [Fact]
-    public void Uninstall_FailsIfBootfilesInstalledByAnotherTool()
+    public void Uninstall_FailsIfBootfilesInstalledByAnotherToolAndNothingToUninstall()
     {
-        gameMock.Setup(_ => _.IsRunning).Returns(false);
+        persistedState.InitState(InternalState.Empty());
 
         var exception = Assert.Throws<Exception>(() => modManager.UninstallAllMods());
 
@@ -78,8 +86,7 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Uninstall_DeletesCreatedFilesAndDirectories()
     {
-        gameMock.Setup(_ => _.IsRunning).Returns(false);
-        persistedState.WriteState(new InternalState
+        persistedState.InitState(new InternalState
         (
             Install: new (
                 Time: null,
@@ -103,9 +110,8 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Uninstall_SkipsFilesCreatedAfterInstallation()
     {
-        var installationDateTime = DateTime.Now.AddDays(-1);
-        gameMock.Setup(_ => _.IsRunning).Returns(false);
-        persistedState.WriteState(new InternalState
+        var installationDateTime = DateTime.Now.Subtract(TimeSpan.FromDays(1));
+        persistedState.InitState(new InternalState
         (
             Install: new(
                 Time: installationDateTime,
@@ -128,8 +134,7 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Uninstall_StopsAfterAnyError()
     {
-        gameMock.Setup(_ => _.IsRunning).Returns(false);
-        persistedState.WriteState(new InternalState(
+        persistedState.InitState(new InternalState(
             Install: new(
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
@@ -158,6 +163,11 @@ public class ModManagerTest : IDisposable
             )));
     }
 
+    //[Fact]
+    //public void Uninstall_RestoresBackups()
+    //{
+    //}
+
     [Fact]
     public void Install_FailsIfGameRunning()
     {
@@ -174,15 +184,69 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Install_FailsIfBootfilesInstalledByAnotherTool()
     {
-        gameMock.Setup(_ => _.IsRunning).Returns(false);
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([]);
+        persistedState.InitState(InternalState.Empty());
 
         var exception = Assert.Throws<Exception>(() => modManager.InstallEnabledMods());
         Assert.Contains("another tool", exception.Message);
         persistedState.AssertNotWritten();
     }
 
+    [Fact]
+    public void Install_InstallsContentFromRootDirectories()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [$@"Foo\{DirAtRoot}\A", $@"Bar\{DirAtRoot}\B", @"Bar\C", @"Baz\D"])
+        ]);
+
+        modManager.InstallEnabledMods();
+
+        Assert.True(File.Exists(GamePath($@"{DirAtRoot}\A")));
+        Assert.True(File.Exists(GamePath($@"{DirAtRoot}\B")));
+        Assert.True(File.Exists(GamePath(@"C")));
+        Assert.False(File.Exists(GamePath(@"D")));
+        Assert.False(File.Exists(GamePath(@"Baz\D")));
+        persistedState.AssertEqual(new InternalState(
+            Install: new InternalInstallationState(
+                Time: DateTime.Now,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    ["Package100"] = new(FsHash: 100, Partial: false, Files: [$@"{DirAtRoot}\A", $@"{DirAtRoot}\B", @"C"]),
+                }
+            )));
+    }
+
+    [Fact]
+    public void Install_GivesPriotiryToFilesLaterInTheModList()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [$@"{DirAtRoot}\A"]),
+            CreateModArchive(200, [$@"Foo\{DirAtRoot}\A"])
+        ]);
+
+        modManager.InstallEnabledMods();
+
+        Assert.Equal("200", File.ReadAllText(GamePath($@"{DirAtRoot}\A")));
+    }
+
+    //[Fact]
+    //public void Install_PerformsBackups()
+    //{
+    //}
+
     #region Utility methods
+
+    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths)
+    {
+        var modName = $"Mod{fsHash}";
+        var modContentsDir = testDir.CreateSubdirectory(modName).FullName;
+        foreach (var relativePath in relativePaths)
+        {
+            CreateFile(Path.Combine(modContentsDir, relativePath), $"{fsHash}");
+        }
+        var archivePath = $@"{modsDir.FullName}\{modName}.7z";
+        new SevenZipCompressor().CompressDirectory(modContentsDir, archivePath);
+        return new ModPackage(modName, $"Package{fsHash}", archivePath, true, fsHash);
+    }
 
     private IDisposable CreateReadOnlyGameFile(string relativePath)
     {
@@ -191,9 +255,11 @@ public class ModManagerTest : IDisposable
         return Cleanup(() => fileInfo.Attributes &= ~FileAttributes.ReadOnly);
     }
 
-    private FileInfo CreateGameFile(string relativePath, string content = "")
+    private FileInfo CreateGameFile(string relativePath, string content = "") =>
+        CreateFile(GamePath(relativePath), content);
+
+    private FileInfo CreateFile(string fullPath, string content = "")
     {
-        var fullPath = GamePath(relativePath);
         var parentDirFullPath = Path.GetDirectoryName(fullPath);
         if (parentDirFullPath is not null)
         {
@@ -226,18 +292,34 @@ public class ModManagerTest : IDisposable
 
     private class AssertState : IStatePersistence
     {
+        private readonly static TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
+        // Avoids bootfiles checks on uninstall
+        private readonly static InternalState SkipBootfilesCheck = new InternalState(
+            Install: new (
+                Time: null,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    ["INIT"] = new (FsHash: null, Partial: false, Files: []),
+                }
+            ));
+
+        private InternalState initState = SkipBootfilesCheck;
         private InternalState? savedState;
 
-        public InternalState ReadState() =>
-            savedState ?? InternalState.Empty();
+        public void InitState(InternalState state) => initState = state;
 
-        public void WriteState(InternalState state) =>
-            savedState = state;
+        public InternalState ReadState() => savedState ?? initState;
+
+        public void WriteState(InternalState state) => savedState = state;
 
         internal void AssertEqual(InternalState expected)
         {
             Assert.NotNull(savedState);
-            Assert.Equal(expected.Install.Time, savedState.Install.Time);
+            // Not a great solution, but .NET doesn't natively provide support for mocking the clock
+            Assert.InRange(
+                savedState.Install.Time?.ToUniversalTime().Ticks ?? 0L,
+                expected.Install.Time?.ToUniversalTime().Subtract(TimeTolerance).Ticks ?? 0L,
+                expected.Install.Time?.ToUniversalTime().Add(TimeTolerance).Ticks ?? 0L);
             Assert.Equal(expected.Install.Mods.Keys, savedState.Install.Mods.Keys);
             foreach (var e in expected.Install.Mods)
             {
@@ -245,7 +327,7 @@ public class ModManagerTest : IDisposable
                 var expectedModState = e.Value;
                 Assert.Equal(expectedModState.FsHash, currentModState.FsHash);
                 Assert.Equal(expectedModState.Partial, currentModState.Partial);
-                Assert.Equal(expectedModState.Files.ToImmutableList(), currentModState.Files.ToImmutableList());
+                Assert.Equal(expectedModState.Files.ToImmutableHashSet(), currentModState.Files.ToImmutableHashSet());
             };
         }
 
