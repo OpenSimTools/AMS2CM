@@ -167,7 +167,22 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Uninstall_RestoresBackups()
     {
-        // TODO
+        persistedState.InitState(new InternalState(
+            Install: new(
+                Time: null,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    [""] = new(FsHash: null, Partial: false, Files: ["ModFile"])
+                }
+            )));
+
+        CreateGameFile("ModFile", "Mod");
+        CreateGameFile(BackupName("ModFile"), "Orig");
+
+        modManager.UninstallAllMods();
+
+        Assert.Equal("Orig", File.ReadAllText(GamePath("ModFile")));
+        Assert.False(File.Exists(GamePath(BackupName("ModFile"))));
     }
 
     [Fact]
@@ -218,6 +233,22 @@ public class ModManagerTest : IDisposable
     }
 
     [Fact]
+    public void Install_DeletesFilesWithSuffix()
+    {
+        var modFile = $@"{DirAtRoot}\A";
+
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [DeletionName(modFile)]),
+        ]);
+        CreateGameFile(modFile, "Orig");
+
+        modManager.InstallEnabledMods();
+
+        Assert.False(File.Exists(GamePath(modFile)));
+        Assert.Equal("Orig", File.ReadAllText(GamePath(BackupName(modFile))));
+    }
+
+    [Fact]
     public void Install_GivesPriotiryToFilesLaterInTheModList()
     {
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
@@ -252,15 +283,21 @@ public class ModManagerTest : IDisposable
     }
 
     [Fact]
-    public void Install_DeletesFilesWithSuffix()
-    {
-        // TODO
-    }
-
-    [Fact]
     public void Install_PerformsBackups()
     {
-        // TODO
+        var modFile = $@"{DirAtRoot}\A";
+        var toBeDeleted = "B";
+
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [modFile, DeletionName(toBeDeleted)]),
+        ]);
+        CreateGameFile(modFile, "OrigA");
+        CreateGameFile(toBeDeleted, "OrigB");
+
+        modManager.InstallEnabledMods();
+
+        Assert.Equal("OrigA", File.ReadAllText(GamePath(BackupName(modFile))));
+        Assert.Equal("OrigB", File.ReadAllText(GamePath(BackupName(toBeDeleted))));
     }
 
     [Fact]
@@ -318,6 +355,14 @@ public class ModManagerTest : IDisposable
         File.WriteAllText(fullPath, content);
         return new FileInfo(fullPath);
     }
+
+    // This can be removed once we introduce backup strategies
+    private string BackupName(string relativePath) =>
+        $"{relativePath}.orig";
+
+    // This can be removed once we hide it inside mod logic
+    private string DeletionName(string relativePath) =>
+        $"{relativePath}{JsgmeFileInstaller.RemoveFileSuffix}";
 
     private string GamePath(string relativePath) =>
         Path.GetFullPath(relativePath, gameDir.FullName);
