@@ -163,10 +163,12 @@ public class ModManagerTest : IDisposable
             )));
     }
 
-    //[Fact]
-    //public void Uninstall_RestoresBackups()
-    //{
-    //}
+
+    [Fact]
+    public void Uninstall_RestoresBackups()
+    {
+        // TODO
+    }
 
     [Fact]
     public void Install_FailsIfGameRunning()
@@ -226,12 +228,60 @@ public class ModManagerTest : IDisposable
         modManager.InstallEnabledMods();
 
         Assert.Equal("200", File.ReadAllText(GamePath($@"{DirAtRoot}\A")));
+        persistedState.AssertEqual(new InternalState(
+            Install: new InternalInstallationState(
+                Time: DateTime.Now,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
+                    ["Package200"] = new(FsHash: 200, Partial: false, Files: [$@"{DirAtRoot}\A"]),
+                }
+            )));
     }
 
-    //[Fact]
-    //public void Install_PerformsBackups()
-    //{
-    //}
+    [Fact]
+    public void Install_StopsAfterAnyError()
+    {
+        // TODO
+    }
+
+    [Fact]
+    public void Install_PreventsFileCreationTimeInTheFuture()
+    {
+        // TODO
+    }
+
+    [Fact]
+    public void Install_DeletesFilesWithSuffix()
+    {
+        // TODO
+    }
+
+    [Fact]
+    public void Install_PerformsBackups()
+    {
+        // TODO
+    }
+
+    [Fact]
+    public void Install_ConfiguresBootfilesIfRequired()
+    {
+        // TODO
+        // This includes new mod type not required, skins not required, cars and tracks required
+        // We should be able to create bootfiles without game libraries
+    }
+
+    [Fact]
+    public void Install_UsesCustomBootfilesIfPresentAndRequired()
+    {
+        // TODO
+    }
+
+    [Fact]
+    public void Install_RejectsMultipleCustomBootfiles()
+    {
+        // TODO
+    }
 
     #region Utility methods
 
@@ -320,7 +370,7 @@ public class ModManagerTest : IDisposable
                 savedState.Install.Time?.ToUniversalTime().Ticks ?? 0L,
                 expected.Install.Time?.ToUniversalTime().Subtract(TimeTolerance).Ticks ?? 0L,
                 expected.Install.Time?.ToUniversalTime().Add(TimeTolerance).Ticks ?? 0L);
-            Assert.Equal(expected.Install.Mods.Keys, savedState.Install.Mods.Keys);
+            Assert.Equal(expected.Install.Mods.Keys.ToImmutableHashSet(), savedState.Install.Mods.Keys.ToImmutableHashSet());
             foreach (var e in expected.Install.Mods)
             {
                 var currentModState = savedState.Install.Mods[e.Key];
