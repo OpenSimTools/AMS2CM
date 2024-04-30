@@ -14,6 +14,7 @@ public class ModManagerTest : IDisposable
     #region Initialisation
 
     private const string DirAtRoot = "DirAtRoot";
+    private readonly static TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
     private readonly DirectoryInfo testDir;
     private readonly DirectoryInfo gameDir;
@@ -147,10 +148,10 @@ public class ModManagerTest : IDisposable
 
         CreateGameFile("ModAFile");
         CreateGameFile("ModBFile1");
-        using var _ = CreateReadOnlyGameFile("ModBFile2");
+        using var _ = CreateGameFile("ModBFile2").OpenRead(); // Prevent deletion
         CreateGameFile("ModCFile");
 
-        Assert.Throws<UnauthorizedAccessException>(() => modManager.UninstallAllMods());
+        Assert.Throws<IOException>(() => modManager.UninstallAllMods());
 
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
@@ -273,13 +274,42 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Install_StopsAfterAnyError()
     {
-        // TODO
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [$@"{DirAtRoot}\A"]),
+            CreateModArchive(200, [$@"{DirAtRoot}\B1", $@"{DirAtRoot}\B2", $@"{DirAtRoot}\B3"]),
+            CreateModArchive(300, [$@"{DirAtRoot}\C"]),
+        ]);
+        using var _ = CreateGameFile($@"{DirAtRoot}\B2").OpenRead();  // Prevent overwrite
+
+        Assert.Throws<IOException>(() => modManager.InstallEnabledMods());
+
+        Assert.Equal("300", File.ReadAllText(GamePath($@"{DirAtRoot}\C")));
+        Assert.Equal("200", File.ReadAllText(GamePath($@"{DirAtRoot}\B1")));
+        Assert.False(File.Exists(GamePath($@"{DirAtRoot}\B3")));
+        Assert.False(File.Exists(GamePath($@"{DirAtRoot}\A")));
+        persistedState.AssertEqual(new InternalState(
+            Install: new InternalInstallationState(
+                Time: DateTime.Now,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    ["Package200"] = new(FsHash: 200, Partial: true, Files: [$@"{DirAtRoot}\B1"]),
+                    ["Package300"] = new(FsHash: 300, Partial: false, Files: [$@"{DirAtRoot}\C"]),
+                }
+            )));
     }
 
     [Fact]
     public void Install_PreventsFileCreationTimeInTheFuture()
     {
-        // TODO
+        var future = DateTime.Now.AddDays(1);
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [$@"{DirAtRoot}\A"],
+                extractedDir => File.SetCreationTime($@"{extractedDir}\{DirAtRoot}\A", future))
+        ]);
+
+        modManager.InstallEnabledMods();
+
+        AssertAboutNow(File.GetCreationTime(GamePath($@"{DirAtRoot}\A")));
     }
 
     [Fact]
@@ -322,7 +352,10 @@ public class ModManagerTest : IDisposable
 
     #region Utility methods
 
-    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths)
+    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
+        CreateModArchive(fsHash, relativePaths, _ => { });
+
+    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
     {
         var modName = $"Mod{fsHash}";
         var modContentsDir = testDir.CreateSubdirectory(modName).FullName;
@@ -330,16 +363,10 @@ public class ModManagerTest : IDisposable
         {
             CreateFile(Path.Combine(modContentsDir, relativePath), $"{fsHash}");
         }
+        callback(modContentsDir);
         var archivePath = $@"{modsDir.FullName}\{modName}.7z";
         new SevenZipCompressor().CompressDirectory(modContentsDir, archivePath);
         return new ModPackage(modName, $"Package{fsHash}", archivePath, true, fsHash);
-    }
-
-    private IDisposable CreateReadOnlyGameFile(string relativePath)
-    {
-        var fileInfo = CreateGameFile(relativePath);
-        fileInfo.Attributes |= FileAttributes.ReadOnly;
-        return Cleanup(() => fileInfo.Attributes &= ~FileAttributes.ReadOnly);
     }
 
     private FileInfo CreateGameFile(string relativePath, string content = "") =>
@@ -367,27 +394,16 @@ public class ModManagerTest : IDisposable
     private string GamePath(string relativePath) =>
         Path.GetFullPath(relativePath, gameDir.FullName);
 
-    private IDisposable Cleanup(Action action) => new DisposableAction(action);
+    private static void AssertAboutNow(DateTime actual) =>
+        AssertEqualWithinToleration(DateTime.Now, actual);
 
-    // Similar to Rx.NET Disposable.Create
-    private class DisposableAction : IDisposable
-    {
-        private readonly Action action;
-
-        public DisposableAction(Action action)
-        {
-            this.action = action;
-        }
-
-        public void Dispose()
-        {
-            action.Invoke();
-        }
-    }
+    private static void AssertEqualWithinToleration(DateTime? expected, DateTime? actual) =>
+        Assert.InRange(actual?.ToUniversalTime().Ticks ?? 0L,
+            expected?.ToUniversalTime().Subtract(TimeTolerance).Ticks ?? 0L,
+            expected?.ToUniversalTime().Add(TimeTolerance).Ticks ?? 0L);
 
     private class AssertState : IStatePersistence
     {
-        private readonly static TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
         // Avoids bootfiles checks on uninstall
         private readonly static InternalState SkipBootfilesCheck = new InternalState(
             Install: new (
@@ -411,10 +427,7 @@ public class ModManagerTest : IDisposable
         {
             Assert.NotNull(savedState);
             // Not a great solution, but .NET doesn't natively provide support for mocking the clock
-            Assert.InRange(
-                savedState.Install.Time?.ToUniversalTime().Ticks ?? 0L,
-                expected.Install.Time?.ToUniversalTime().Subtract(TimeTolerance).Ticks ?? 0L,
-                expected.Install.Time?.ToUniversalTime().Add(TimeTolerance).Ticks ?? 0L);
+            AssertEqualWithinToleration(expected.Install.Time, savedState.Install.Time);
             Assert.Equal(expected.Install.Mods.Keys.ToImmutableHashSet(), savedState.Install.Mods.Keys.ToImmutableHashSet());
             foreach (var e in expected.Install.Mods)
             {
