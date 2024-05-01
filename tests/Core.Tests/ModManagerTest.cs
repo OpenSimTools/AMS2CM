@@ -364,8 +364,11 @@ public class ModManagerTest : IDisposable
     {
         var future = DateTime.Now.AddDays(1);
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
-            CreateModArchive(100, [$@"{DirAtRoot}\A"],
-                extractedDir => File.SetCreationTime($@"{extractedDir}\{DirAtRoot}\A", future))
+            CreateModArchive(100, [
+                Path.Combine(DirAtRoot, "A")
+            ], extractedDir =>
+                File.SetCreationTime(Path.Combine(extractedDir, DirAtRoot, "A"), future)
+            )
         ]);
 
         modManager.InstallEnabledMods();
@@ -392,24 +395,71 @@ public class ModManagerTest : IDisposable
     }
 
     [Fact]
-    public void Install_UsesBootfilesIfRequired()
+    public void Install_OldVehiclesRequireBootfiles()
     {
-        // TODO
-        // This includes new mod type not required, skins not required, cars and tracks required
-        // We should be able to create bootfiles without game libraries
-    }
-
-    [Fact]
-    public void Install_UsesCustomBootfilesIfPresentAndRequired()
-    {
+        var drivelineRecord = $"RECORD foo";
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
-            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
+            CreateModArchive(100, [
+                Path.Combine("Foo", DirAtRoot, "Vehicle.crd")
+            ], extractedDir =>
+                File.WriteAllText(Path.Combine(extractedDir, "README.txt"), drivelineRecord)
+            ),
             CreateCustomBootfiles(900),
         ]);
 
         modManager.InstallEnabledMods();
 
         persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
+        Assert.Contains("Vehicle.crd", File.ReadAllText(GamePath(PostProcessor.VehicleListRelativePath)));
+        Assert.Contains(drivelineRecord, File.ReadAllText(GamePath(PostProcessor.DrivelineRelativePath)));
+    }
+
+    [Fact]
+    public void Install_NewVehiclesDoNotRequireBootfiles()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [
+                Path.Combine(DirAtRoot, "Vehicle.crd"),
+                ManualInstallMod.GameSupportedModDirectory
+            ]),
+            CreateCustomBootfiles(900),
+        ]);
+
+        modManager.InstallEnabledMods();
+
+        persistedState.AssertInstalled(["Package100"]);
+    }
+
+    [Fact]
+    public void Install_AllTracksRequireBootfiles()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [Path.Combine(DirAtRoot, "Track.trd")]),
+            CreateCustomBootfiles(900),
+        ]);
+
+        modManager.InstallEnabledMods();
+
+        persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
+        Assert.Contains("Track.trd", File.ReadAllText(GamePath(PostProcessor.TrackListRelativePath)));
+
+    }
+
+    [Fact]
+    public void Install_ExtractsBootfilesFromGameByDefault()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")])
+        ]);
+
+        // Unfortunately, there is no easy way to create pak files!
+        Assert.Throws<DirectoryNotFoundException>(() => modManager.InstallEnabledMods());
+
+        //CreateBootfileSources();
+        //
+        //modManager.InstallEnabledMods()
+        //
+        //persistedState.AssertInstalled(["Package100", "__bootfiles"]);
     }
 
     [Fact]
@@ -433,7 +483,7 @@ public class ModManagerTest : IDisposable
         CreateModArchive(fsHash, relativePaths, _ => { });
 
     private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
-        CreateModPackage("Package", fsHash, relativePaths, _ => { });
+        CreateModPackage("Package", fsHash, relativePaths, callback);
 
     private ModPackage CreateCustomBootfiles(int fsHash) =>
         CreateModPackage(ModManager.BootfilesPrefix, fsHash, [
@@ -441,7 +491,11 @@ public class ModManagerTest : IDisposable
                 PostProcessor.VehicleListRelativePath,
                 PostProcessor.TrackListRelativePath,
                 PostProcessor.DrivelineRelativePath,
-            ], _ => { });
+            ], extractedDir =>
+                File.AppendAllText(
+                    Path.Combine(extractedDir, PostProcessor.DrivelineRelativePath),
+                    $"{Environment.NewLine}END")
+            );
 
     private ModPackage CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
     {
