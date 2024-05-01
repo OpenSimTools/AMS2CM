@@ -93,18 +93,25 @@ public class ModManagerTest : IDisposable
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["A"] = new (FsHash: null, Partial: false, Files: [@"X\ModAFile", @"Y\ModAFile"]),
-                    ["B"] = new(FsHash: null, Partial: false, Files: [@"X\ModBFile"])
+                    ["A"] = new (
+                        FsHash: null, Partial: false, Files: [
+                            Path.Combine("X", "ModAFile"),
+                            Path.Combine("Y","ModAFile")
+                        ]),
+                    ["B"] = new(
+                        FsHash: null, Partial: false, Files: [
+                            Path.Combine("X", "ModBFile")
+                        ])
                 }
             )
         ));
-        CreateGameFile(@"Y\ExistingFile");
+        CreateGameFile(Path.Combine("Y", "ExistingFile"));
 
         modManager.UninstallAllMods();
 
-        Assert.False(Directory.Exists(GamePath(@"X")));
-        Assert.False(File.Exists(GamePath(@"Y\ModAFile")));
-        Assert.True(File.Exists(GamePath(@"Y\ExistingFile")));
+        Assert.False(Directory.Exists(GamePath("X")));
+        Assert.False(File.Exists(GamePath(Path.Combine("Y", "ModAFile"))));
+        Assert.True(File.Exists(GamePath(Path.Combine("Y", "ExistingFile"))));
         persistedState.AssertEmpty();
     }
 
@@ -118,7 +125,12 @@ public class ModManagerTest : IDisposable
                 Time: installationDateTime,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    [""] = new(FsHash: null, Partial: false, Files: ["ModFile", "RecreatedFile", "AlreadyDeletedFile"])
+                    [""] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModFile",
+                            "RecreatedFile",
+                            "AlreadyDeletedFile"
+                        ])
                 }
             )
         ));
@@ -140,9 +152,19 @@ public class ModManagerTest : IDisposable
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["A"] = new(FsHash: null, Partial: false, Files: ["ModAFile"]),
-                    ["B"] = new(FsHash: null, Partial: false, Files: ["ModBFile1", "ModBFile2"]),
-                    ["C"] = new(FsHash: null, Partial: false, Files: ["ModCFile"])
+                    ["A"] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModAFile"
+                        ]),
+                    ["B"] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModBFile1",
+                            "ModBFile2"
+                        ]),
+                    ["C"] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModCFile"
+                        ])
                 }
             )));
 
@@ -158,8 +180,14 @@ public class ModManagerTest : IDisposable
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["B"] = new(FsHash: null, Partial: true, Files: ["ModBFile2"]),
-                    ["C"] = new(FsHash: null, Partial: false, Files: ["ModCFile"])
+                    ["B"] = new(
+                        FsHash: null, Partial: true, Files: [
+                            "ModBFile2"
+                        ]),
+                    ["C"] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModCFile"
+                        ])
                 }
             )));
     }
@@ -173,7 +201,10 @@ public class ModManagerTest : IDisposable
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    [""] = new(FsHash: null, Partial: false, Files: ["ModFile"])
+                    [""] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModFile"
+                        ])
                 }
             )));
 
@@ -213,22 +244,32 @@ public class ModManagerTest : IDisposable
     public void Install_InstallsContentFromRootDirectories()
     {
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
-            CreateModArchive(100, [$@"Foo\{DirAtRoot}\A", $@"Bar\{DirAtRoot}\B", @"Bar\C", @"Baz\D"])
+            CreateModArchive(100, [
+                Path.Combine("Foo", DirAtRoot, "A"),
+                Path.Combine("Bar", DirAtRoot, "B"),
+                Path.Combine("Bar", "C"),
+                Path.Combine("Baz", "D")
+            ])
         ]);
 
         modManager.InstallEnabledMods();
 
-        Assert.True(File.Exists(GamePath($@"{DirAtRoot}\A")));
-        Assert.True(File.Exists(GamePath($@"{DirAtRoot}\B")));
-        Assert.True(File.Exists(GamePath(@"C")));
-        Assert.False(File.Exists(GamePath(@"D")));
-        Assert.False(File.Exists(GamePath(@"Baz\D")));
+        Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "A"))));
+        Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "B"))));
+        Assert.True(File.Exists(GamePath("C")));
+        Assert.False(File.Exists(GamePath("D")));
+        Assert.False(File.Exists(GamePath(Path.Combine("Baz", "D"))));
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
                 Time: DateTime.Now,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["Package100"] = new(FsHash: 100, Partial: false, Files: [$@"{DirAtRoot}\A", $@"{DirAtRoot}\B", @"C"]),
+                    ["Package100"] = new(
+                        FsHash: 100, Partial: false, Files: [
+                            Path.Combine(DirAtRoot, "A"),
+                            Path.Combine(DirAtRoot, "B"),
+                            "C"
+                        ]),
                 }
             )));
     }
@@ -236,7 +277,7 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Install_DeletesFilesWithSuffix()
     {
-        var modFile = $@"{DirAtRoot}\A";
+        var modFile = Path.Combine(DirAtRoot, "A");
 
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [DeletionName(modFile)]),
@@ -253,20 +294,26 @@ public class ModManagerTest : IDisposable
     public void Install_GivesPriotiryToFilesLaterInTheModList()
     {
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
-            CreateModArchive(100, [$@"{DirAtRoot}\A"]),
-            CreateModArchive(200, [$@"Foo\{DirAtRoot}\A"])
+            CreateModArchive(100, [
+                Path.Combine(DirAtRoot, "A")
+            ]),
+            CreateModArchive(200, [
+                Path.Combine("Foo", DirAtRoot, "A")
+            ])
         ]);
 
         modManager.InstallEnabledMods();
 
-        Assert.Equal("200", File.ReadAllText(GamePath($@"{DirAtRoot}\A")));
+        Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))));
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
                 Time: DateTime.Now,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
-                    ["Package200"] = new(FsHash: 200, Partial: false, Files: [$@"{DirAtRoot}\A"]),
+                    ["Package200"] = new(FsHash: 200, Partial: false, Files: [
+                        Path.Combine(DirAtRoot, "A")
+                    ]),
                 }
             )));
     }
@@ -275,25 +322,39 @@ public class ModManagerTest : IDisposable
     public void Install_StopsAfterAnyError()
     {
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
-            CreateModArchive(100, [$@"{DirAtRoot}\A"]),
-            CreateModArchive(200, [$@"{DirAtRoot}\B1", $@"{DirAtRoot}\B2", $@"{DirAtRoot}\B3"]),
-            CreateModArchive(300, [$@"{DirAtRoot}\C"]),
+            CreateModArchive(100, [
+                Path.Combine(DirAtRoot, "A")
+            ]),
+            CreateModArchive(200, [
+                Path.Combine(DirAtRoot, "B1"),
+                Path.Combine(DirAtRoot, "B2"),
+                Path.Combine(DirAtRoot, "B3")
+            ]),
+            CreateModArchive(300, [
+                Path.Combine(DirAtRoot, "C"),
+            ]),
         ]);
-        using var _ = CreateGameFile($@"{DirAtRoot}\B2").OpenRead();  // Prevent overwrite
+        using var _ = CreateGameFile(Path.Combine(DirAtRoot, "B2")).OpenRead();  // Prevent overwrite
 
         Assert.Throws<IOException>(() => modManager.InstallEnabledMods());
 
-        Assert.Equal("300", File.ReadAllText(GamePath($@"{DirAtRoot}\C")));
-        Assert.Equal("200", File.ReadAllText(GamePath($@"{DirAtRoot}\B1")));
-        Assert.False(File.Exists(GamePath($@"{DirAtRoot}\B3")));
-        Assert.False(File.Exists(GamePath($@"{DirAtRoot}\A")));
+        Assert.Equal("300", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "C"))));
+        Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "B1"))));
+        Assert.False(File.Exists(GamePath(Path.Combine(DirAtRoot, "B3"))));
+        Assert.False(File.Exists(GamePath(Path.Combine(DirAtRoot, "A"))));
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
                 Time: DateTime.Now,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["Package200"] = new(FsHash: 200, Partial: true, Files: [$@"{DirAtRoot}\B1"]),
-                    ["Package300"] = new(FsHash: 300, Partial: false, Files: [$@"{DirAtRoot}\C"]),
+                    ["Package200"] = new(
+                        FsHash: 200, Partial: true, Files: [
+                            Path.Combine(DirAtRoot, "B1")
+                        ]),
+                    ["Package300"] = new(
+                        FsHash: 300, Partial: false, Files: [
+                            Path.Combine(DirAtRoot, "C")
+                        ]),
                 }
             )));
     }
@@ -315,7 +376,7 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Install_PerformsBackups()
     {
-        var modFile = $@"{DirAtRoot}\A";
+        var modFile = Path.Combine(DirAtRoot, "A");
         var toBeDeleted = "B";
 
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
@@ -331,7 +392,7 @@ public class ModManagerTest : IDisposable
     }
 
     [Fact]
-    public void Install_ConfiguresBootfilesIfRequired()
+    public void Install_UsesBootfilesIfRequired()
     {
         // TODO
         // This includes new mod type not required, skins not required, cars and tracks required
@@ -341,13 +402,29 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Install_UsesCustomBootfilesIfPresentAndRequired()
     {
-        // TODO
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
+            CreateCustomBootfiles(900),
+        ]);
+
+        modManager.InstallEnabledMods();
+
+        persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
     }
 
     [Fact]
     public void Install_RejectsMultipleCustomBootfiles()
     {
-        // TODO
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
+            CreateCustomBootfiles(900),
+            CreateCustomBootfiles(901)
+        ]);
+
+        var exception = Assert.Throws<Exception>(() => modManager.InstallEnabledMods());
+
+        Assert.Contains("many bootfiles", exception.Message);
+        persistedState.AssertInstalled(["Package100"]);
     }
 
     #region Utility methods
@@ -355,18 +432,29 @@ public class ModManagerTest : IDisposable
     private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
         CreateModArchive(fsHash, relativePaths, _ => { });
 
-    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
+    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
+        CreateModPackage("Package", fsHash, relativePaths, _ => { });
+
+    private ModPackage CreateCustomBootfiles(int fsHash) =>
+        CreateModPackage(ModManager.BootfilesPrefix, fsHash, [
+                Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
+                PostProcessor.VehicleListRelativePath,
+                PostProcessor.TrackListRelativePath,
+                PostProcessor.DrivelineRelativePath,
+            ], _ => { });
+
+    private ModPackage CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
     {
         var modName = $"Mod{fsHash}";
         var modContentsDir = testDir.CreateSubdirectory(modName).FullName;
-        foreach (var relativePath in relativePaths)
+        foreach (var relativePath in relativePaths.DefaultIfEmpty("SevenZipRequiresAFile"))
         {
             CreateFile(Path.Combine(modContentsDir, relativePath), $"{fsHash}");
         }
         callback(modContentsDir);
         var archivePath = $@"{modsDir.FullName}\{modName}.7z";
         new SevenZipCompressor().CompressDirectory(modContentsDir, archivePath);
-        return new ModPackage(modName, $"Package{fsHash}", archivePath, true, fsHash);
+        return new ModPackage(modName, $"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
     private FileInfo CreateGameFile(string relativePath, string content = "") =>
@@ -428,7 +516,7 @@ public class ModManagerTest : IDisposable
             Assert.NotNull(savedState);
             // Not a great solution, but .NET doesn't natively provide support for mocking the clock
             AssertEqualWithinToleration(expected.Install.Time, savedState.Install.Time);
-            Assert.Equal(expected.Install.Mods.Keys.ToImmutableHashSet(), savedState.Install.Mods.Keys.ToImmutableHashSet());
+            AssertInstalled(expected.Install.Mods.Keys);
             foreach (var e in expected.Install.Mods)
             {
                 var currentModState = savedState.Install.Mods[e.Key];
@@ -437,6 +525,11 @@ public class ModManagerTest : IDisposable
                 Assert.Equal(expectedModState.Partial, currentModState.Partial);
                 Assert.Equal(expectedModState.Files.ToImmutableHashSet(), currentModState.Files.ToImmutableHashSet());
             };
+        }
+
+        internal void AssertInstalled(IEnumerable<string> expected)
+        {
+            Assert.Equal(expected.ToImmutableHashSet(), savedState?.Install.Mods.Keys.ToImmutableHashSet());
         }
 
         internal void AssertEmpty()

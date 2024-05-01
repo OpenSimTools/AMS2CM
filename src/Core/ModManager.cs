@@ -16,7 +16,7 @@ internal class ModManager : IModManager
         GeneratedBootfiles.PhysicsPersistentPakFileName
     );
 
-    private const string BootfilesPrefix = "__bootfiles";
+    internal const string BootfilesPrefix = "__bootfiles";
 
     private readonly IGame game;
     private readonly IModRepository modRepository;
