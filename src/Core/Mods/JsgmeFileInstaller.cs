@@ -18,15 +18,11 @@ public static class JsgmeFileInstaller
     /// </summary>
     /// <param name="srcPath">Directory containing extracted mod archive</param>
     /// <param name="dstPath">Game directory</param>
-    /// <param name="beforeFileCallback">Function to decide if a file should be installed</param>
-    /// <param name="afterFileCallback">Callback to allow partial file installation to be detected</param>
-    public static void InstallFiles(string srcPath, string dstPath, Predicate<string> beforeFileCallback, Action<string> afterFileCallback) =>
-        RecursiveMoveWithBackup(srcPath, dstPath,
-            absoluteSrcFilePath => beforeFileCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath)),
-            absoluteSrcFilePath => afterFileCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath))
-        );
+    /// <param name="callbacks">Relative file path processing callbacks</param>
+    public static void InstallFiles(string srcPath, string dstPath, ProcessingCallbacks<string> callbacks) =>
+        RecursiveMoveWithBackup(srcPath, srcPath, dstPath, callbacks);
 
-    private static void RecursiveMoveWithBackup(string srcPath, string dstPath, Predicate<string> beforeFileCallback, Action<string> afterFileCallback)
+    private static void RecursiveMoveWithBackup(string rootPath, string srcPath, string dstPath, ProcessingCallbacks<string> callbacks)
     {
         if (!Directory.Exists(dstPath))
         {
@@ -47,11 +43,12 @@ public static class JsgmeFileInstaller
             var dstSubPath = Path.Combine(dstPath, localName);
             if (Directory.Exists(srcSubPath)) // Is directory
             {
-                RecursiveMoveWithBackup(srcSubPath, dstSubPath, beforeFileCallback, afterFileCallback);
+                RecursiveMoveWithBackup(rootPath, srcSubPath, dstSubPath, callbacks);
                 continue;
             }
 
-            if (!beforeFileCallback(srcSubPath))
+            var relativePath = Path.GetRelativePath(rootPath, srcSubPath);
+            if (!callbacks.Accept(relativePath))
                 continue;
 
             if (File.Exists(dstSubPath))
@@ -64,7 +61,7 @@ public static class JsgmeFileInstaller
                 File.Move(srcSubPath, dstSubPath);
             }
 
-            afterFileCallback(srcSubPath);
+            callbacks.After(relativePath);
         }
     }
 
@@ -98,6 +95,9 @@ public static class JsgmeFileInstaller
     /// <param name="afterFileCallback">It is called for each uninstalled file</param>
     public static void UninstallFiles(string dstPath, IEnumerable<string> files, Predicate<string> beforeFileCallback, Action<string> afterFileCallback)
     {
+        // *****************************************************************************************************
+        // TODO All this should be moved to the ModManager since it simply restores the backup and deletes files
+        // *****************************************************************************************************
         var fileList = files.ToList(); // It must be enumerated twice
         foreach (var file in fileList)
         {

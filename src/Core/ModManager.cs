@@ -4,7 +4,6 @@ using Core.Utils;
 using Core.State;
 using SevenZip;
 using static Core.IModManager;
-using static Core.Mods.JsgmeFileInstaller;
 using Core.IO;
 
 namespace Core;
@@ -232,12 +231,12 @@ internal class ModManager : IModManager
 
         return path =>
         {
-            var include = File.GetCreationTimeUtc(path) <= dateTimeUtc;
-            if (!include)
+            var proceed = !File.Exists(path) || File.GetCreationTimeUtc(path) <= dateTimeUtc;
+            if (proceed)
             {
                 Logs?.Invoke($"  Skipping modified file {path}");
             }
-            return include;
+            return proceed;
         };
     }
 
@@ -264,6 +263,7 @@ internal class ModManager : IModManager
         var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
         var installedFiles = new HashSet<string>();
         bool SkipAlreadyInstalled(string file) => installedFiles.Add(file.ToLowerInvariant());
+        var installCallbacks = new ProcessingCallbacks<string> { Accept = SkipAlreadyInstalled };
         try
         {
             if (modPackages.Any())
@@ -283,7 +283,7 @@ internal class ModManager : IModManager
                     var mod = ExtractMod(modPackage);
                     try
                     {
-                        var modConfig = mod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
+                        var modConfig = mod.Install(game.InstallationDirectory, installCallbacks);
                         modConfigs.Add(modConfig);
                     }
                     finally
@@ -303,7 +303,7 @@ internal class ModManager : IModManager
                     var postProcessingDone = false;
                     try
                     {
-                        bootfilesMod.Install(game.InstallationDirectory, SkipAlreadyInstalled);
+                        bootfilesMod.Install(game.InstallationDirectory, installCallbacks);
                         Logs?.Invoke("Post-processing:");
                         Logs?.Invoke("- Appending crd file entries");
                         PostProcessor.AppendCrdFileEntries(game.InstallationDirectory, modConfigs.SelectMany(_ => _.CrdFileEntries));

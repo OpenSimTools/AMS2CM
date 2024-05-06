@@ -30,7 +30,7 @@ public abstract class ExtractedMod : IMod
 
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
-    public ConfigEntries Install(string dstPath, Predicate<string> beforeFileCallback)
+    public ConfigEntries Install(string dstPath, ProcessingCallbacks<string> callbacks)
     {
         if (Installed != IMod.InstalledState.NotInstalled)
         {
@@ -42,18 +42,18 @@ public abstract class ExtractedMod : IMod
         foreach (var rootPath in ExtractedRootDirs())
         {
             JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
-                relativePath =>
-                    FileShouldBeInstalled(relativePath) &&
-                    beforeFileCallback(relativePath),
-                relativePath =>
-                {
-                    installedFiles.Add(relativePath);
-                    var fullPath = Path.Combine(dstPath, relativePath);
-                    if (File.Exists(fullPath) && File.GetCreationTimeUtc(fullPath) > now)
+                callbacks
+                    .AndAccept(FileShouldBeInstalled)
+                    .AndAfter(relativePath =>
                     {
-                        File.SetCreationTimeUtc(fullPath, now);
-                    }
-                }
+                        installedFiles.Add(relativePath);
+                        // TODO This should be moved out to where we skip backup if created after
+                        var fullPath = Path.Combine(dstPath, relativePath);
+                        if (File.Exists(fullPath) && File.GetCreationTimeUtc(fullPath) > now)
+                        {
+                            File.SetCreationTimeUtc(fullPath, now);
+                        }
+                    })
             );
         }
         Installed = IMod.InstalledState.Installed;
@@ -65,5 +65,8 @@ public abstract class ExtractedMod : IMod
 
     protected abstract ConfigEntries GenerateConfig();
 
+    // **********************************************************************************
+    // TODO this should be moved to the ModManager since it's only about config exclusion
+    // **********************************************************************************
     protected virtual bool FileShouldBeInstalled(string relativePath) => true;
 }
