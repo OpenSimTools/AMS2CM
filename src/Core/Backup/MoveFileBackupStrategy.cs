@@ -2,7 +2,7 @@
 
 namespace Core.Backup;
 
-public class MoveFileBackupStrategy : IBackupStrategy
+public class MoveFileBackupStrategy
 {
 
     private readonly IFileSystem fs;
@@ -16,14 +16,11 @@ public class MoveFileBackupStrategy : IBackupStrategy
 
     public void PerformBackup(string fullPath)
     {
-        if (fs.File.Exists(fullPath))
+        if (!fs.File.Exists(fullPath))
         {
-            BackupFile(fullPath);
+            return;
         }
-    }
 
-    private void BackupFile(string fullPath)
-    {
         var backupFilePath = generateBackupFilePath(fullPath);
         if (fs.File.Exists(backupFilePath))
         {

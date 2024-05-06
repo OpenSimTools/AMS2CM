@@ -9,11 +9,6 @@ public static class JsgmeFileInstaller
 
     public const string RemoveFileSuffix = "-remove";
 
-    private static readonly string[] ExcludeCopySuffix =
-    {
-        SuffixBackupStrategy.BackupSuffix
-    };
-
     /// <summary>
     /// Install mod directory.
     /// </summary>
@@ -35,11 +30,6 @@ public static class JsgmeFileInstaller
             var (srcSubPath, remove) = NeedsRemoving(maybeSrcSubPath);
 
             var localName = Path.GetFileName(srcSubPath);
-            if (ExcludeCopySuffix.Any(suffix => localName.EndsWith(suffix)))
-            {
-                // TODO message: blacklisted
-                continue;
-            }
 
             var dstSubPath = Path.Combine(dstPath, localName);
             if (Directory.Exists(srcSubPath)) // Is directory
@@ -48,9 +38,16 @@ public static class JsgmeFileInstaller
                 continue;
             }
 
+            if (backupStrategy.IsBackupFile(srcSubPath))
+            {
+                continue;
+            }
+
             var relativePath = Path.GetRelativePath(rootPath, srcSubPath);
             if (!callbacks.Accept(relativePath))
+            {
                 continue;
+            }
 
             backupStrategy.PerformBackup(dstSubPath);
 

@@ -2,7 +2,7 @@
 
 namespace Core.Backup;
 
-public class SuffixBackupStrategy : MoveFileBackupStrategy
+public class SuffixBackupStrategy : MoveFileBackupStrategy, IBackupStrategy
 {
     public const string BackupSuffix = ".orig";
 
@@ -10,4 +10,7 @@ public class SuffixBackupStrategy : MoveFileBackupStrategy
         base(new FileSystem(), _ => $"{_}{BackupSuffix}")
     {
     }
+
+    public bool IsBackupFile(string fullPath) =>
+        fullPath.EndsWith(BackupSuffix);
 }
