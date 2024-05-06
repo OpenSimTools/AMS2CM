@@ -216,14 +216,14 @@ internal class ModManager : IModManager
         }
     }
 
-    private void UninstallFiles(ISet<string> files, BeforeFileCallback beforeFileCallback) =>
+    private void UninstallFiles(ISet<string> files, Predicate<string> beforeFileCallback) =>
         JsgmeFileInstaller.UninstallFiles(
                 game.InstallationDirectory,
                 files,
                 beforeFileCallback,
                 p => files.Remove(p));
 
-    private BeforeFileCallback SkipCreatedAfter(DateTime? dateTimeUtc)
+    private Predicate<string> SkipCreatedAfter(DateTime? dateTimeUtc)
     {
         if (dateTimeUtc is null)
         {

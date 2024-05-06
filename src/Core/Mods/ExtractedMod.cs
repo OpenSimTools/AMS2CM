@@ -30,7 +30,7 @@ public abstract class ExtractedMod : IMod
 
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
-    public ConfigEntries Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback)
+    public ConfigEntries Install(string dstPath, Predicate<string> beforeFileCallback)
     {
         if (Installed != IMod.InstalledState.NotInstalled)
         {

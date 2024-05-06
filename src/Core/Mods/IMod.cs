@@ -7,7 +7,7 @@ public interface IMod
     IReadOnlyCollection<string> InstalledFiles { get; }
     int? PackageFsHash { get; }
 
-    ConfigEntries Install(string dstPath, JsgmeFileInstaller.BeforeFileCallback beforeFileCallback);
+    ConfigEntries Install(string dstPath, Predicate<string> beforeFileCallback);
 
     public enum InstalledState
     {

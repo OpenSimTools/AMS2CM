@@ -4,8 +4,6 @@ namespace Core.Mods;
 
 public static class JsgmeFileInstaller
 {
-    public delegate void AfterFileCallback(string relativePath);
-    public delegate bool BeforeFileCallback(string relativePath);
 
     private const string BackupFileSuffix = ".orig";
     public const string RemoveFileSuffix = "-remove";
@@ -22,13 +20,13 @@ public static class JsgmeFileInstaller
     /// <param name="dstPath">Game directory</param>
     /// <param name="beforeFileCallback">Function to decide if a file should be installed</param>
     /// <param name="afterFileCallback">Callback to allow partial file installation to be detected</param>
-    public static void InstallFiles(string srcPath, string dstPath, BeforeFileCallback beforeFileCallback, AfterFileCallback afterFileCallback) =>
+    public static void InstallFiles(string srcPath, string dstPath, Predicate<string> beforeFileCallback, Action<string> afterFileCallback) =>
         RecursiveMoveWithBackup(srcPath, dstPath,
             absoluteSrcFilePath => beforeFileCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath)),
             absoluteSrcFilePath => afterFileCallback(Path.GetRelativePath(srcPath, absoluteSrcFilePath))
         );
 
-    private static void RecursiveMoveWithBackup(string srcPath, string dstPath, BeforeFileCallback beforeFileCallback, AfterFileCallback afterFileCallback)
+    private static void RecursiveMoveWithBackup(string srcPath, string dstPath, Predicate<string> beforeFileCallback, Action<string> afterFileCallback)
     {
         if (!Directory.Exists(dstPath))
         {
@@ -98,7 +96,7 @@ public static class JsgmeFileInstaller
     /// <param name="files">Perviously installed mod files</param>
     /// <param name="beforeFileCallback">Function to decide if a file backup should be restored</param>
     /// <param name="afterFileCallback">It is called for each uninstalled file</param>
-    public static void UninstallFiles(string dstPath, IEnumerable<string> files, BeforeFileCallback beforeFileCallback, AfterFileCallback afterFileCallback)
+    public static void UninstallFiles(string dstPath, IEnumerable<string> files, Predicate<string> beforeFileCallback, Action<string> afterFileCallback)
     {
         var fileList = files.ToList(); // It must be enumerated twice
         foreach (var file in fileList)
