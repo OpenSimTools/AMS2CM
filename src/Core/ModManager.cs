@@ -11,12 +11,12 @@ namespace Core;
 
 internal class ModManager : IModManager
 {
-    private static readonly string FileRemovedByBootfiles = Path.Combine(
+    internal static readonly string FileRemovedByBootfiles = Path.Combine(
         GeneratedBootfiles.PakfilesDirectory,
         GeneratedBootfiles.PhysicsPersistentPakFileName
     );
 
-    private const string BootfilesPrefix = "__bootfiles";
+    internal const string BootfilesPrefix = "__bootfiles";
 
     private readonly IGame game;
     private readonly IModRepository modRepository;
@@ -145,7 +145,9 @@ internal class ModManager : IModManager
 
         if (RestoreOriginalState(cancellationToken))
         {
+            // Clean what left by a previous failed installation
             tempDir.Cleanup();
+
             InstallAllModFiles(cancellationToken);
             tempDir.Cleanup();
         }
@@ -199,7 +201,7 @@ internal class ModManager : IModManager
             {
                 statePersistence.WriteState(new InternalState(
                     Install: new(
-                        Time: DateTime.UtcNow,
+                        Time: modsLeft.Count > 0 ? previousInstallation.Time : null,
                         Mods: modsLeft
                     )
                 ));

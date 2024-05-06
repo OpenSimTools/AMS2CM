@@ -4,7 +4,7 @@ namespace Core.Mods;
 
 public class ManualInstallMod : ExtractedMod
 {
-    private static readonly string GameSupportedModDirectory = Path.Combine("UserData", "Mods");
+    internal static readonly string GameSupportedModDirectory = Path.Combine("UserData", "Mods");
 
     public interface IConfig
     {

@@ -1,12 +1,12 @@
 ﻿namespace Core;
 
-public class ModSubdirectoryTempDir : ITempDir
+public class SubdirectoryTempDir : ITempDir
 {
     private const string TempDirName = "Temp";
 
-    public ModSubdirectoryTempDir(string modsDir)
+    public SubdirectoryTempDir(string parentPath)
     {
-        BasePath = Path.Combine(modsDir, TempDirName);
+        BasePath = Path.Combine(parentPath, TempDirName);
     }
 
     public string BasePath

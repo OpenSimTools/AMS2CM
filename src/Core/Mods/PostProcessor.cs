@@ -4,16 +4,19 @@ namespace Core.Mods;
 
 internal static class PostProcessor
 {
+    internal readonly static string VehicleListRelativePath = Path.Combine("vehicles", "vehiclelist.lst");
+    internal readonly static string TrackListRelativePath = Path.Combine("tracks", "_data", "tracklist.lst");
+    internal readonly static string DrivelineRelativePath = Path.Combine("vehicles", "physics", "driveline", "driveline.rg");
 
     public static void AppendCrdFileEntries(string gamePath, IEnumerable<string> crdFileEntries)
     {
-        var vehicleListFilePath = Path.Combine(gamePath, "vehicles", "vehiclelist.lst");
+        var vehicleListFilePath = Path.Combine(gamePath, VehicleListRelativePath);
         AppendEntryList(vehicleListFilePath, crdFileEntries);
     }
 
     public static void AppendTrdFileEntries(string gamePath, IEnumerable<string> trdFileEntries)
     {
-        var trackListFilePath = Path.Combine(gamePath, "tracks", "_data", "tracklist.lst");
+        var trackListFilePath = Path.Combine(gamePath, TrackListRelativePath);
         AppendEntryList(trackListFilePath, trdFileEntries);
     }
 
@@ -39,7 +42,7 @@ internal static class PostProcessor
             return;
         }
 
-        var driveLineFilePath = Path.Combine(gamePath, "vehicles", "physics", "driveline", "driveline.rg");
+        var driveLineFilePath = Path.Combine(gamePath, DrivelineRelativePath);
         var contents = File.ReadAllText(driveLineFilePath);
         var endIndex = contents.LastIndexOf("END", StringComparison.Ordinal);
         if (endIndex < 0)
