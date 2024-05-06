@@ -1,16 +1,17 @@
-﻿using Core.Utils;
+﻿using Core.Backup;
+using Core.Utils;
 
 namespace Core.Mods;
 
 public static class JsgmeFileInstaller
 {
+    private static readonly IBackupStrategy backupStrategy = new SuffixBackupStrategy();
 
-    private const string BackupFileSuffix = ".orig";
     public const string RemoveFileSuffix = "-remove";
 
     private static readonly string[] ExcludeCopySuffix =
     {
-        BackupFileSuffix
+        SuffixBackupStrategy.BackupSuffix
     };
 
     /// <summary>
@@ -51,10 +52,7 @@ public static class JsgmeFileInstaller
             if (!callbacks.Accept(relativePath))
                 continue;
 
-            if (File.Exists(dstSubPath))
-            {
-                BackupFile(dstSubPath);
-            }
+            backupStrategy.PerformBackup(dstSubPath);
 
             if (!remove)
             {
@@ -70,20 +68,6 @@ public static class JsgmeFileInstaller
         return filePath.EndsWith(RemoveFileSuffix) ?
             (filePath.RemoveSuffix(RemoveFileSuffix).Trim(), true) :
             (filePath, false);
-    }
-
-    private static void BackupFile(string path)
-    {
-        var backupFile = BackupFileName(path);
-        if (File.Exists(backupFile))
-        {
-            // TODO message: overwriting already installed file
-            File.Delete(path);
-        }
-        else
-        {
-            File.Move(path, backupFile);
-        }
     }
 
     /// <summary>
@@ -107,14 +91,14 @@ public static class JsgmeFileInstaller
             {
                 if (!beforeFileCallback(path))
                 {
-                    DeleteBackup(path);
+                    backupStrategy.DeleteBackup(path);
                     afterFileCallback(file);
                     continue;
                 }
                 File.Delete(path);
             }
 
-            RestoreFile(path);
+            backupStrategy.RestoreBackup(path);
             afterFileCallback(file);
         }
         DeleteEmptyDirectories(dstPath, fileList);
@@ -145,24 +129,4 @@ public static class JsgmeFileInstaller
         }
         return ancestors;
     }
-
-    private static void RestoreFile(string path)
-    {
-        var backupFilePath = BackupFileName(path);
-        if (File.Exists(backupFilePath))
-        {
-            File.Move(backupFilePath, path);
-        }
-    }
-
-    private static void DeleteBackup(string path)
-    {
-        var backupFilePath = BackupFileName(path);
-        if (File.Exists(backupFilePath))
-        {
-            File.Delete(backupFilePath);
-        }
-    }
-
-    private static string BackupFileName(string originalFileName) => $"{originalFileName}{BackupFileSuffix}";
 }
