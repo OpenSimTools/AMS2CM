@@ -22,7 +22,7 @@ public abstract class ExtractedMod : IMod
         get;
     }
 
-    public IMod.InstalledState Installed
+    public IModInstallation.State Installed
     {
         get;
         private set;
@@ -32,11 +32,11 @@ public abstract class ExtractedMod : IMod
 
     public ConfigEntries Install(string dstPath, ProcessingCallbacks<string> callbacks)
     {
-        if (Installed != IMod.InstalledState.NotInstalled)
+        if (Installed != IModInstallation.State.NotInstalled)
         {
             throw new InvalidOperationException();
         }
-        Installed = IMod.InstalledState.PartiallyInstalled;
+        Installed = IModInstallation.State.PartiallyInstalled;
 
         var now = DateTime.UtcNow;
         foreach (var rootPath in ExtractedRootDirs())
@@ -56,7 +56,7 @@ public abstract class ExtractedMod : IMod
                     })
             );
         }
-        Installed = IMod.InstalledState.Installed;
+        Installed = IModInstallation.State.Installed;
 
         return GenerateConfig();
     }

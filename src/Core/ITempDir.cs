@@ -2,9 +2,6 @@
 
 public interface ITempDir
 {
-    string BasePath
-    {
-        get;
-    }
+    string BasePath { get; }
     void Cleanup();
 }

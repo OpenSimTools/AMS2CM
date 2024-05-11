@@ -1,18 +1,6 @@
 ﻿namespace Core.Mods;
 
-public interface IMod
+public interface IMod : IModInstallation
 {
-    string PackageName { get; }
-    InstalledState Installed { get; }
-    IReadOnlyCollection<string> InstalledFiles { get; }
-    int? PackageFsHash { get; }
-
     ConfigEntries Install(string dstPath, ProcessingCallbacks<string> callbacks);
-
-    public enum InstalledState
-    {
-        NotInstalled = 0,
-        PartiallyInstalled = 1,
-        Installed = 2
-    }
 }

@@ -1,6 +1,6 @@
 ﻿namespace Core.Mods;
 
-internal class ModRepository : IModRepository
+public class ModRepository : IModRepository
 {
     private const string EnabledModsDirName = "Enabled";
     private const string DisabledModsSubdir = "Disabled";

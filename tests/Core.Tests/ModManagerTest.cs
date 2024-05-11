@@ -14,7 +14,7 @@ public class ModManagerTest : IDisposable
     #region Initialisation
 
     private const string DirAtRoot = "DirAtRoot";
-    private readonly static TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
     private readonly DirectoryInfo testDir;
     private readonly DirectoryInfo gameDir;
@@ -23,6 +23,7 @@ public class ModManagerTest : IDisposable
     private readonly Mock<IGame> gameMock = new();
     private readonly Mock<IModRepository> modRepositoryMock = new();
     private readonly Mock<ISafeFileDelete> safeFileDeleteMock = new();
+    private readonly Mock<IModManager.IEventHandler> eventHandlerMock = new();
 
     private readonly AssertState persistedState;
     private readonly ModFactory modFactory;
@@ -66,21 +67,10 @@ public class ModManagerTest : IDisposable
         gameMock.Setup(_ => _.IsRunning).Returns(true);
 
         var exception = Assert.Throws<Exception>(() =>
-            modManager.UninstallAllMods()
+            modManager.UninstallAllMods(eventHandlerMock.Object)
         );
 
         Assert.Contains("running", exception.Message);
-        persistedState.AssertNotWritten();
-    }
-
-    [Fact]
-    public void Uninstall_FailsIfBootfilesInstalledByAnotherToolAndNothingToUninstall()
-    {
-        persistedState.InitState(InternalState.Empty());
-
-        var exception = Assert.Throws<Exception>(() => modManager.UninstallAllMods());
-
-        Assert.Contains("another tool", exception.Message);
         persistedState.AssertNotWritten();
     }
 
@@ -107,7 +97,7 @@ public class ModManagerTest : IDisposable
         ));
         CreateGameFile(Path.Combine("Y", "ExistingFile"));
 
-        modManager.UninstallAllMods();
+        modManager.UninstallAllMods(eventHandlerMock.Object);
 
         Assert.False(Directory.Exists(GamePath("X")));
         Assert.False(File.Exists(GamePath(Path.Combine("Y", "ModAFile"))));
@@ -137,7 +127,7 @@ public class ModManagerTest : IDisposable
         CreateGameFile("ModFile").CreationTime = installationDateTime;
         CreateGameFile("RecreatedFile");
 
-        modManager.UninstallAllMods();
+        modManager.UninstallAllMods(eventHandlerMock.Object);
 
         Assert.False(File.Exists(GamePath("ModFile")));
         Assert.True(File.Exists(GamePath("RecreatedFile")));
@@ -147,9 +137,11 @@ public class ModManagerTest : IDisposable
     [Fact]
     public void Uninstall_StopsAfterAnyError()
     {
+        // It must be after files are created
+        var installationDateTime = DateTime.Now.AddDays(1);
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: null,
+                Time: installationDateTime,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["A"] = new(
@@ -173,11 +165,11 @@ public class ModManagerTest : IDisposable
         using var _ = CreateGameFile("ModBFile2").OpenRead(); // Prevent deletion
         CreateGameFile("ModCFile");
 
-        Assert.Throws<IOException>(() => modManager.UninstallAllMods());
+        Assert.Throws<IOException>(() => modManager.UninstallAllMods(eventHandlerMock.Object));
 
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
-                Time: null,
+                Time: installationDateTime,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["B"] = new(
@@ -211,7 +203,7 @@ public class ModManagerTest : IDisposable
         CreateGameFile("ModFile", "Mod");
         CreateGameFile(BackupName("ModFile"), "Orig");
 
-        modManager.UninstallAllMods();
+        modManager.UninstallAllMods(eventHandlerMock.Object);
 
         Assert.Equal("Orig", File.ReadAllText(GamePath("ModFile")));
         Assert.False(File.Exists(GamePath(BackupName("ModFile"))));
@@ -223,20 +215,10 @@ public class ModManagerTest : IDisposable
         gameMock.Setup(_ => _.IsRunning).Returns(true);
 
         var exception = Assert.Throws<Exception>(() =>
-            modManager.InstallEnabledMods()
+            modManager.InstallEnabledMods(eventHandlerMock.Object)
         );
 
         Assert.Contains("running", exception.Message);
-        persistedState.AssertNotWritten();
-    }
-
-    [Fact]
-    public void Install_FailsIfBootfilesInstalledByAnotherTool()
-    {
-        persistedState.InitState(InternalState.Empty());
-
-        var exception = Assert.Throws<Exception>(() => modManager.InstallEnabledMods());
-        Assert.Contains("another tool", exception.Message);
         persistedState.AssertNotWritten();
     }
 
@@ -252,7 +234,7 @@ public class ModManagerTest : IDisposable
             ])
         ]);
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "A"))));
         Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "B"))));
@@ -284,7 +266,7 @@ public class ModManagerTest : IDisposable
         ]);
         CreateGameFile(modFile, "Orig");
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         Assert.False(File.Exists(GamePath(modFile)));
         Assert.Equal("Orig", File.ReadAllText(GamePath(BackupName(modFile))));
@@ -302,7 +284,7 @@ public class ModManagerTest : IDisposable
             ])
         ]);
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))));
         persistedState.AssertEqual(new InternalState(
@@ -336,7 +318,7 @@ public class ModManagerTest : IDisposable
         ]);
         using var _ = CreateGameFile(Path.Combine(DirAtRoot, "B2")).OpenRead();  // Prevent overwrite
 
-        Assert.Throws<IOException>(() => modManager.InstallEnabledMods());
+        Assert.Throws<IOException>(() => modManager.InstallEnabledMods(eventHandlerMock.Object));
 
         Assert.Equal("300", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "C"))));
         Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "B1"))));
@@ -371,7 +353,7 @@ public class ModManagerTest : IDisposable
             )
         ]);
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         AssertAboutNow(File.GetCreationTime(GamePath($@"{DirAtRoot}\A")));
     }
@@ -388,7 +370,7 @@ public class ModManagerTest : IDisposable
         CreateGameFile(modFile, "OrigA");
         CreateGameFile(toBeDeleted, "OrigB");
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         Assert.Equal("OrigA", File.ReadAllText(GamePath(BackupName(modFile))));
         Assert.Equal("OrigB", File.ReadAllText(GamePath(BackupName(toBeDeleted))));
@@ -407,7 +389,7 @@ public class ModManagerTest : IDisposable
             CreateCustomBootfiles(900),
         ]);
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
         Assert.Contains("Vehicle.crd", File.ReadAllText(GamePath(PostProcessor.VehicleListRelativePath)));
@@ -425,7 +407,7 @@ public class ModManagerTest : IDisposable
             CreateCustomBootfiles(900),
         ]);
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.AssertInstalled(["Package100"]);
     }
@@ -438,7 +420,7 @@ public class ModManagerTest : IDisposable
             CreateCustomBootfiles(900),
         ]);
 
-        modManager.InstallEnabledMods();
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
         Assert.Contains("Track.trd", File.ReadAllText(GamePath(PostProcessor.TrackListRelativePath)));
@@ -453,7 +435,7 @@ public class ModManagerTest : IDisposable
         ]);
 
         // Unfortunately, there is no easy way to create pak files!
-        Assert.Throws<DirectoryNotFoundException>(() => modManager.InstallEnabledMods());
+        Assert.Throws<DirectoryNotFoundException>(() => modManager.InstallEnabledMods(eventHandlerMock.Object));
 
         //CreateBootfileSources();
         //
@@ -471,7 +453,7 @@ public class ModManagerTest : IDisposable
             CreateCustomBootfiles(901)
         ]);
 
-        var exception = Assert.Throws<Exception>(() => modManager.InstallEnabledMods());
+        var exception = Assert.Throws<Exception>(() => modManager.InstallEnabledMods(eventHandlerMock.Object));
 
         Assert.Contains("many bootfiles", exception.Message);
         persistedState.AssertInstalled(["Package100"]);
@@ -486,7 +468,7 @@ public class ModManagerTest : IDisposable
         CreateModPackage("Package", fsHash, relativePaths, callback);
 
     private ModPackage CreateCustomBootfiles(int fsHash) =>
-        CreateModPackage(ModManager.BootfilesPrefix, fsHash, [
+        CreateModPackage(BootfilesManager.BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
                 PostProcessor.VehicleListRelativePath,
                 PostProcessor.TrackListRelativePath,
@@ -547,7 +529,7 @@ public class ModManagerTest : IDisposable
     private class AssertState : IStatePersistence
     {
         // Avoids bootfiles checks on uninstall
-        private readonly static InternalState SkipBootfilesCheck = new InternalState(
+        private static readonly InternalState SkipBootfilesCheck = new InternalState(
             Install: new (
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>

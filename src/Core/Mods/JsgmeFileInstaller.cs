@@ -77,7 +77,7 @@ public static class JsgmeFileInstaller
     public static void UninstallFiles(string dstPath, IEnumerable<string> files, Predicate<string> beforeFileCallback, Action<string> afterFileCallback)
     {
         // *****************************************************************************************************
-        // TODO All this should be moved to the ModManager since it simply restores the backup and deletes files
+        // TODO All this should be moved to the ModInstaller since it simply restores the backup and deletes files
         // *****************************************************************************************************
         var fileList = files.ToList(); // It must be enumerated twice
         foreach (var file in fileList)
