@@ -1,12 +1,9 @@
-﻿using Core.Backup;
-using Core.Utils;
+﻿using Core.Utils;
 
 namespace Core.Mods;
 
 public static class JsgmeFileInstaller
 {
-    private static readonly IBackupStrategy backupStrategy = new SuffixBackupStrategy();
-
     public const string RemoveFileSuffix = "-remove";
 
     /// <summary>
@@ -38,18 +35,14 @@ public static class JsgmeFileInstaller
                 continue;
             }
 
-            if (backupStrategy.IsBackupFile(srcSubPath))
-            {
-                continue;
-            }
-
             var relativePath = Path.GetRelativePath(rootPath, srcSubPath);
             if (!callbacks.Accept(relativePath))
             {
+                callbacks.NotAccepted(relativePath);
                 continue;
             }
 
-            backupStrategy.PerformBackup(dstSubPath);
+            callbacks.Before(relativePath);
 
             if (!remove)
             {
@@ -72,31 +65,32 @@ public static class JsgmeFileInstaller
     /// </summary>
     /// <param name="dstPath">Game directory</param>
     /// <param name="files">Perviously installed mod files</param>
-    /// <param name="beforeFileCallback">Function to decide if a file backup should be restored</param>
-    /// <param name="afterFileCallback">It is called for each uninstalled file</param>
-    public static void UninstallFiles(string dstPath, IEnumerable<string> files, Predicate<string> beforeFileCallback, Action<string> afterFileCallback)
+    /// <param name="callbacks">Relative file path processing callbacks</param>
+    public static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<string> callbacks)
     {
         // *****************************************************************************************************
         // TODO All this should be moved to the ModInstaller since it simply restores the backup and deletes files
         // *****************************************************************************************************
         var fileList = files.ToList(); // It must be enumerated twice
-        foreach (var file in fileList)
+        foreach (var relativePath in fileList)
         {
-            var path = Path.Combine(dstPath, file);
-            // Some mods have duplicate entries, so files might have been removed already
-            if (File.Exists(path))
+            var fullPath = Path.Combine(dstPath, relativePath);
+
+            if (!callbacks.Accept(relativePath))
             {
-                if (!beforeFileCallback(path))
-                {
-                    backupStrategy.DeleteBackup(path);
-                    afterFileCallback(file);
-                    continue;
-                }
-                File.Delete(path);
+                callbacks.NotAccepted(relativePath);
+                continue;
             }
 
-            backupStrategy.RestoreBackup(path);
-            afterFileCallback(file);
+            callbacks.Before(relativePath);
+
+            // Delete will fail if the parent directory does not exist
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+
+            callbacks.After(relativePath);
         }
         DeleteEmptyDirectories(dstPath, fileList);
     }

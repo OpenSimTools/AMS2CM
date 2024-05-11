@@ -35,29 +35,51 @@ public struct ProcessingCallbacks<T>
         set => after = value;
     }
 
-    public ProcessingCallbacks<T> AndAccept(Predicate<T> additionalAccept) =>
+    private Action<T>? notAccepted;
+    /// <summary>
+    /// Called if not processing an entry.
+    /// </summary>
+    public Action<T> NotAccepted
+    {
+        get => notAccepted ?? EmptyAction;
+        set => notAccepted = value;
+    }
+
+    public ProcessingCallbacks<T> AndAccept(Predicate<T> additional) =>
         new()
         {
-            accept = Combine(accept, additionalAccept),
+            accept = Combine(accept, additional),
             before = before,
-            after = after
+            after = after,
+            notAccepted = notAccepted
         };
 
-    public ProcessingCallbacks<T> AndBefore(Action<T> additionalBefore) =>
+    public ProcessingCallbacks<T> AndBefore(Action<T> additional) =>
         new()
         {
             accept = accept,
-            before = Combine(before, additionalBefore),
-            after = after
+            before = Combine(before, additional),
+            after = after,
+            notAccepted = notAccepted
         };
 
-    public ProcessingCallbacks<T> AndAfter(Action<T> additionalAfter) =>
+    public ProcessingCallbacks<T> AndAfter(Action<T> additional) =>
         new()
         {
             accept = accept,
             before = before,
-            after = Combine(after, additionalAfter)
+            after = Combine(after, additional),
+            notAccepted = notAccepted
         };
+
+    public ProcessingCallbacks<T> AndNotAccepted(Action<T> additional) =>
+    new()
+    {
+        accept = accept,
+        before = before,
+        after = after,
+        notAccepted = Combine(notAccepted, additional)
+    };
 
     private static Predicate<T>? Combine(Predicate<T>? p1, Predicate<T> p2) =>
         p1 is null ? p2 : key => p1(key) && p2(key);

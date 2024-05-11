@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using Core.Backup;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
@@ -38,11 +39,13 @@ public class ModInstaller
 
     private readonly IModFactory modFactory;
     private readonly ITempDir tempDir;
+    private readonly IBackupStrategy backupStrategy;
 
     public ModInstaller(IModFactory modFactory, ITempDir tempDir)
     {
         this.modFactory = modFactory;
         this.tempDir = tempDir;
+        backupStrategy = new SuffixBackupStrategy();
     }
 
     public void UninstallPackages(
@@ -55,6 +58,25 @@ public class ModInstaller
         if (currentState.Mods.Any())
         {
             eventHandler.UninstallStart();
+            var skipCreatedAfter = SkipCreatedAfter(eventHandler, currentState.Time);
+            var uninstallCallbacks = new ProcessingCallbacks<string>
+            {
+                Accept = relativePath =>
+                {
+                    var fullDstPath = Path.Combine(installDir, relativePath);
+                    return skipCreatedAfter(fullDstPath);
+                },
+                After = relativePath =>
+                {
+                    var fullDstPath = Path.Combine(installDir, relativePath);
+                    backupStrategy.RestoreBackup(fullDstPath);
+                },
+                NotAccepted = relativePath =>
+                {
+                    var fullDstPath = Path.Combine(installDir, relativePath);
+                    backupStrategy.DeleteBackup(fullDstPath);
+                }
+            };
             foreach (var (packageName, modInstallationState) in currentState.Mods)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -68,8 +90,10 @@ public class ModInstaller
                     JsgmeFileInstaller.UninstallFiles(
                         installDir,
                         filesLeft,
-                        SkipCreatedAfter(eventHandler, currentState.Time),
-                        p => filesLeft.Remove(p));
+                        uninstallCallbacks
+                            .AndAfter(_ => filesLeft.Remove(_))
+                            .AndNotAccepted(_ => filesLeft.Remove(_))
+                    );
                 }
                 finally
                 {
@@ -103,19 +127,19 @@ public class ModInstaller
         }
     }
 
-    private Predicate<string> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
+    private static Predicate<string> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
     {
         if (dateTimeUtc is null)
         {
             return _ => true;
         }
 
-        return path =>
+        return fullPath =>
         {
-            var proceed = !File.Exists(path) || File.GetCreationTimeUtc(path) <= dateTimeUtc;
+            var proceed = !File.Exists(fullPath) || File.GetCreationTimeUtc(fullPath) <= dateTimeUtc;
             if (!proceed)
             {
-                eventHandler.UninstallSkipModified(path);
+                eventHandler.UninstallSkipModified(fullPath);
             }
             return proceed;
         };
@@ -132,11 +156,17 @@ public class ModInstaller
 
         var modConfigs = new List<ConfigEntries>();
         var installedFiles = new HashSet<string>();
-        bool SkipAlreadyInstalled(string file) => installedFiles.Add(file.ToLowerInvariant());
         var installCallbacks = new ProcessingCallbacks<string>
         {
-            Accept = SkipAlreadyInstalled,
-            //Before = TODO move backup here!
+            Accept = relativePath =>
+                !backupStrategy.IsBackupFile(relativePath) &&
+                !installedFiles.Contains(relativePath.ToLowerInvariant()),
+            Before = relativePath =>
+            {
+                var fullDstPath = Path.Combine(installDir, relativePath);
+                backupStrategy.PerformBackup(fullDstPath);
+                installedFiles.Add(relativePath.ToLowerInvariant());
+            }
         };
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
