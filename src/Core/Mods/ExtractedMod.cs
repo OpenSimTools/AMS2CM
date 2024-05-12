@@ -1,7 +1,11 @@
-﻿namespace Core.Mods;
+﻿using Core.Utils;
+
+namespace Core.Mods;
 
 public abstract class ExtractedMod : IMod
 {
+    public const string RemoveFileSuffix = "-remove";
+
     protected readonly string extractedPath;
     protected readonly List<string> installedFiles = new();
 
@@ -41,7 +45,7 @@ public abstract class ExtractedMod : IMod
         var now = DateTime.UtcNow;
         foreach (var rootPath in ExtractedRootDirs())
         {
-            JsgmeFileInstaller.InstallFiles(rootPath, dstPath,
+            InstallFiles(rootPath, dstPath,
                 callbacks
                     .AndAccept(FileShouldBeInstalled)
                     .AndAfter(relativePath =>
@@ -60,6 +64,55 @@ public abstract class ExtractedMod : IMod
 
         return GenerateConfig();
     }
+
+    private static void InstallFiles(string srcPath, string dstPath, ProcessingCallbacks<string> callbacks) =>
+        RecursiveMoveWithBackup(srcPath, srcPath, dstPath, callbacks);
+
+    private static void RecursiveMoveWithBackup(string rootPath, string srcPath, string dstPath, ProcessingCallbacks<string> callbacks)
+    {
+        if (!Directory.Exists(dstPath))
+        {
+            Directory.CreateDirectory(dstPath);
+        }
+
+        foreach (var maybeSrcSubPath in Directory.GetFileSystemEntries(srcPath))
+        {
+            var (srcSubPath, remove) = NeedsRemoving(maybeSrcSubPath);
+
+            var localName = Path.GetFileName(srcSubPath);
+
+            var dstSubPath = Path.Combine(dstPath, localName);
+            if (Directory.Exists(srcSubPath)) // Is directory
+            {
+                RecursiveMoveWithBackup(rootPath, srcSubPath, dstSubPath, callbacks);
+                continue;
+            }
+
+            var relativePath = Path.GetRelativePath(rootPath, srcSubPath);
+            if (!callbacks.Accept(relativePath))
+            {
+                callbacks.NotAccepted(relativePath);
+                continue;
+            }
+
+            callbacks.Before(relativePath);
+
+            if (!remove)
+            {
+                File.Move(srcSubPath, dstSubPath);
+            }
+
+            callbacks.After(relativePath);
+        }
+    }
+
+    private static (string, bool) NeedsRemoving(string filePath)
+    {
+        return filePath.EndsWith(RemoveFileSuffix) ?
+            (filePath.RemoveSuffix(RemoveFileSuffix).Trim(), true) :
+            (filePath, false);
+    }
+
 
     protected abstract IEnumerable<string> ExtractedRootDirs();
 

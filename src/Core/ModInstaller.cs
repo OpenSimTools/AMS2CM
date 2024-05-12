@@ -87,7 +87,7 @@ public class ModInstaller
                 var filesLeft = modInstallationState.Files.ToHashSet();
                 try
                 {
-                    JsgmeFileInstaller.UninstallFiles(
+                    UninstallFiles(
                         installDir,
                         filesLeft,
                         uninstallCallbacks
@@ -143,6 +143,59 @@ public class ModInstaller
             }
             return proceed;
         };
+    }
+
+    private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<string> callbacks)
+    {
+        var fileList = files.ToList(); // It must be enumerated twice
+        foreach (var relativePath in fileList)
+        {
+            var fullPath = Path.Combine(dstPath, relativePath);
+
+            if (!callbacks.Accept(relativePath))
+            {
+                callbacks.NotAccepted(relativePath);
+                continue;
+            }
+
+            callbacks.Before(relativePath);
+
+            // Delete will fail if the parent directory does not exist
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+
+            callbacks.After(relativePath);
+        }
+        DeleteEmptyDirectories(dstPath, fileList);
+    }
+
+    private static void DeleteEmptyDirectories(string dstRootPath, IEnumerable<string> filePaths)
+    {
+        var dirs = filePaths
+            .Select(file => Path.Combine(dstRootPath, file))
+            .SelectMany(dstFilePath => AncestorsUpTo(dstRootPath, dstFilePath))
+            .Distinct()
+            .OrderByDescending(name => name.Length);
+        foreach (var dir in dirs)
+        {
+            // Some mods have duplicate entries, so files might have been removed already
+            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+            {
+                Directory.Delete(dir);
+            }
+        }
+    }
+
+    private static IEnumerable<string> AncestorsUpTo(string root, string path)
+    {
+        var ancestors = new List<string>();
+        for (var dir = Directory.GetParent(path); dir is not null && dir.FullName != root; dir = dir.Parent)
+        {
+            ancestors.Add(dir.FullName);
+        }
+        return ancestors;
     }
 
     public void InstallPackages(

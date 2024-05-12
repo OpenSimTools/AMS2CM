@@ -513,7 +513,7 @@ public class ModManagerTest : IDisposable
 
     // This can be removed once we hide it inside mod logic
     private string DeletionName(string relativePath) =>
-        $"{relativePath}{JsgmeFileInstaller.RemoveFileSuffix}";
+        $"{relativePath}{ExtractedMod.RemoveFileSuffix}";
 
     private string GamePath(string relativePath) =>
         Path.GetFullPath(relativePath, gameDir.FullName);

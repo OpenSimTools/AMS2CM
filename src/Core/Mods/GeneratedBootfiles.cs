@@ -26,7 +26,7 @@ internal class GeneratedBootfiles : ExtractedMod
     {
         ExtractPakFileFromGame(BootFlowPakFileName);
         ExtractPakFileFromGame(PhysicsPersistentPakFileName);
-        CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{JsgmeFileInstaller.RemoveFileSuffix}"));
+        CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{RemoveFileSuffix}"));
         File.Copy(Path.Combine(pakPath, BootSplashPakFileName), ExtractedPakPath(BootFlowPakFileName));
         DeleteFromExtractedFiles(BmtFilesWildcard);
     }
