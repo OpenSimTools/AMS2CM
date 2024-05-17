@@ -34,7 +34,7 @@ public abstract class ExtractedMod : IMod
 
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
-    public ConfigEntries Install(string dstPath, ProcessingCallbacks<string> callbacks)
+    public ConfigEntries Install(string dstPath, ProcessingCallbacks<GamePath> callbacks)
     {
         if (Installed != IModInstallation.State.NotInstalled)
         {
@@ -48,14 +48,13 @@ public abstract class ExtractedMod : IMod
             InstallFiles(rootPath, dstPath,
                 callbacks
                     .AndAccept(FileShouldBeInstalled)
-                    .AndAfter(relativePath =>
+                    .AndAfter(gamePath =>
                     {
-                        installedFiles.Add(relativePath);
+                        installedFiles.Add(gamePath.Relative);
                         // TODO This should be moved out to where we skip backup if created after
-                        var fullPath = Path.Combine(dstPath, relativePath);
-                        if (File.Exists(fullPath) && File.GetCreationTimeUtc(fullPath) > now)
+                        if (File.Exists(gamePath.Full) && File.GetCreationTimeUtc(gamePath.Full) > now)
                         {
-                            File.SetCreationTimeUtc(fullPath, now);
+                            File.SetCreationTimeUtc(gamePath.Full, now);
                         }
                     })
             );
@@ -65,44 +64,40 @@ public abstract class ExtractedMod : IMod
         return GenerateConfig();
     }
 
-    private static void InstallFiles(string srcPath, string dstPath, ProcessingCallbacks<string> callbacks) =>
-        RecursiveMoveWithBackup(srcPath, srcPath, dstPath, callbacks);
+    protected static IEnumerable<FileSystemInfo> AllFiles(string path) =>
+        new DirectoryInfo(path).EnumerateFiles("*", new EnumerationOptions()
+            {
+                MatchType = MatchType.Win32,
+                IgnoreInaccessible = false,
+                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                RecurseSubdirectories = true,
+            });
 
-    private static void RecursiveMoveWithBackup(string rootPath, string srcPath, string dstPath, ProcessingCallbacks<string> callbacks)
+    private static void InstallFiles(string modPath, string gameRootPath, ProcessingCallbacks<GamePath> callbacks)
     {
-        if (!Directory.Exists(dstPath))
+        foreach (var modFileInfo in AllFiles(modPath))
         {
-            Directory.CreateDirectory(dstPath);
-        }
+            var relativePathMaybeSuffixed = Path.GetRelativePath(modPath, modFileInfo.FullName);
+            var (relativePath, removeFile) = NeedsRemoving(relativePathMaybeSuffixed);
 
-        foreach (var maybeSrcSubPath in Directory.GetFileSystemEntries(srcPath))
-        {
-            var (srcSubPath, remove) = NeedsRemoving(maybeSrcSubPath);
-
-            var localName = Path.GetFileName(srcSubPath);
-
-            var dstSubPath = Path.Combine(dstPath, localName);
-            if (Directory.Exists(srcSubPath)) // Is directory
+            var gamePath = new GamePath(gameRootPath, relativePath);
+            if (!callbacks.Accept(gamePath))
             {
-                RecursiveMoveWithBackup(rootPath, srcSubPath, dstSubPath, callbacks);
+                callbacks.NotAccepted(gamePath);
                 continue;
             }
 
-            var relativePath = Path.GetRelativePath(rootPath, srcSubPath);
-            if (!callbacks.Accept(relativePath))
+            callbacks.Before(gamePath);
+
+            if (!removeFile)
             {
-                callbacks.NotAccepted(relativePath);
-                continue;
+                Directory.GetParent(gamePath.Full)?.Create();
+
+                File.Move(modFileInfo.FullName, gamePath.Full);
             }
 
-            callbacks.Before(relativePath);
+            callbacks.After(gamePath);
 
-            if (!remove)
-            {
-                File.Move(srcSubPath, dstSubPath);
-            }
-
-            callbacks.After(relativePath);
         }
     }
 
@@ -121,5 +116,5 @@ public abstract class ExtractedMod : IMod
     // **********************************************************************************
     // TODO this should be moved to the ModManager since it's only about config exclusion
     // **********************************************************************************
-    protected virtual bool FileShouldBeInstalled(string relativePath) => true;
+    protected virtual bool FileShouldBeInstalled(GamePath path) => true;
 }

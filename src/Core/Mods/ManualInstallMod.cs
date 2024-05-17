@@ -117,6 +117,6 @@ public class ManualInstallMod : ExtractedMod
         return recordBlocks;
     }
 
-    protected override bool FileShouldBeInstalled(string relativePath) =>
-        filesToInstallMatcher.Match(relativePath).HasMatches;
+    protected override bool FileShouldBeInstalled(GamePath path) =>
+        filesToInstallMatcher.Match(path.Relative).HasMatches;
 }

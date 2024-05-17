@@ -60,7 +60,7 @@ public class ModRepository : IModRepository
                 MatchType = MatchType.Win32,
                 IgnoreInaccessible = false,
                 AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                MaxRecursionDepth = 0,
+                RecurseSubdirectories = false,
             };
             return directoryInfo.GetFiles("*", options)
                 .Select(fileInfo => ModPackageFrom(rootPath, fileInfo))

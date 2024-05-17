@@ -2,5 +2,5 @@
 
 public interface IMod : IModInstallation
 {
-    ConfigEntries Install(string dstPath, ProcessingCallbacks<string> callbacks);
+    ConfigEntries Install(string dstPath, ProcessingCallbacks<GamePath> callbacks);
 }

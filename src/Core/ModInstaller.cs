@@ -59,22 +59,19 @@ public class ModInstaller
         {
             eventHandler.UninstallStart();
             var skipCreatedAfter = SkipCreatedAfter(eventHandler, currentState.Time);
-            var uninstallCallbacks = new ProcessingCallbacks<string>
+            var uninstallCallbacks = new ProcessingCallbacks<GamePath>
             {
-                Accept = relativePath =>
+                Accept = gamePath =>
                 {
-                    var fullDstPath = Path.Combine(installDir, relativePath);
-                    return skipCreatedAfter(fullDstPath);
+                    return skipCreatedAfter(gamePath);
                 },
-                After = relativePath =>
+                After = gamePath =>
                 {
-                    var fullDstPath = Path.Combine(installDir, relativePath);
-                    backupStrategy.RestoreBackup(fullDstPath);
+                    backupStrategy.RestoreBackup(gamePath.Full);
                 },
-                NotAccepted = relativePath =>
+                NotAccepted = gamePath =>
                 {
-                    var fullDstPath = Path.Combine(installDir, relativePath);
-                    backupStrategy.DeleteBackup(fullDstPath);
+                    backupStrategy.DeleteBackup(gamePath.Full);
                 }
             };
             foreach (var (packageName, modInstallationState) in currentState.Mods)
@@ -84,15 +81,15 @@ public class ModInstaller
                     break;
                 }
                 eventHandler.UninstallCurrent(packageName);
-                var filesLeft = modInstallationState.Files.ToHashSet();
+                var filesLeft = modInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 try
                 {
                     UninstallFiles(
                         installDir,
                         filesLeft,
                         uninstallCallbacks
-                            .AndAfter(_ => filesLeft.Remove(_))
-                            .AndNotAccepted(_ => filesLeft.Remove(_))
+                            .AndAfter(_ => filesLeft.Remove(_.Relative))
+                            .AndNotAccepted(_ => filesLeft.Remove(_.Relative))
                     );
                 }
                 finally
@@ -127,46 +124,46 @@ public class ModInstaller
         }
     }
 
-    private static Predicate<string> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
+    private static Predicate<GamePath> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
     {
         if (dateTimeUtc is null)
         {
             return _ => true;
         }
 
-        return fullPath =>
+        return gamePath =>
         {
-            var proceed = !File.Exists(fullPath) || File.GetCreationTimeUtc(fullPath) <= dateTimeUtc;
+            var proceed = !File.Exists(gamePath.Full) || File.GetCreationTimeUtc(gamePath.Full) <= dateTimeUtc;
             if (!proceed)
             {
-                eventHandler.UninstallSkipModified(fullPath);
+                eventHandler.UninstallSkipModified(gamePath.Full);
             }
             return proceed;
         };
     }
 
-    private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<string> callbacks)
+    private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<GamePath> callbacks)
     {
         var fileList = files.ToList(); // It must be enumerated twice
         foreach (var relativePath in fileList)
         {
-            var fullPath = Path.Combine(dstPath, relativePath);
+            var gamePath = new GamePath(dstPath, relativePath);
 
-            if (!callbacks.Accept(relativePath))
+            if (!callbacks.Accept(gamePath))
             {
-                callbacks.NotAccepted(relativePath);
+                callbacks.NotAccepted(gamePath);
                 continue;
             }
 
-            callbacks.Before(relativePath);
+            callbacks.Before(gamePath);
 
             // Delete will fail if the parent directory does not exist
-            if (File.Exists(fullPath))
+            if (File.Exists(gamePath.Full))
             {
-                File.Delete(fullPath);
+                File.Delete(gamePath.Full);
             }
 
-            callbacks.After(relativePath);
+            callbacks.After(gamePath);
         }
         DeleteEmptyDirectories(dstPath, fileList);
     }
@@ -208,17 +205,16 @@ public class ModInstaller
         var modPackages = packages.Where(_ => !BootfilesManager.IsBootFiles(_.PackageName)).Reverse();
 
         var modConfigs = new List<ConfigEntries>();
-        var installedFiles = new HashSet<string>();
-        var installCallbacks = new ProcessingCallbacks<string>
+        var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var installCallbacks = new ProcessingCallbacks<GamePath>
         {
-            Accept = relativePath =>
-                !backupStrategy.IsBackupFile(relativePath) &&
-                !installedFiles.Contains(relativePath.ToLowerInvariant()),
-            Before = relativePath =>
+            Accept = gamePath =>
+                !backupStrategy.IsBackupFile(gamePath.Relative) &&
+                !installedFiles.Contains(gamePath.Relative),
+            Before = gamePath =>
             {
-                var fullDstPath = Path.Combine(installDir, relativePath);
-                backupStrategy.PerformBackup(fullDstPath);
-                installedFiles.Add(relativePath.ToLowerInvariant());
+                backupStrategy.PerformBackup(gamePath.Full);
+                installedFiles.Add(gamePath.Relative);
             }
         };
 
@@ -328,7 +324,7 @@ public class ModInstaller
 
         public int? PackageFsHash => inner.PackageFsHash;
 
-        public ConfigEntries Install(string dstPath, ProcessingCallbacks<string> callbacks) => inner.Install(dstPath, callbacks);
+        public ConfigEntries Install(string dstPath, ProcessingCallbacks<GamePath> callbacks) => inner.Install(dstPath, callbacks);
 
         public void PostProcessing(string dstPath, IReadOnlyList<ConfigEntries> modConfigs, IEventHandler eventHandler)
         {
