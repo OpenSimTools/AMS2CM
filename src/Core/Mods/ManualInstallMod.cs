@@ -15,12 +15,12 @@ public class ManualInstallMod : ExtractedMod
 
     private readonly Matcher filesToInstallMatcher;
     private readonly Matcher filesToConfigureMatcher;
-    private readonly List<string> dirsAtRootLowerCase;
+    private readonly IRootFinder rootFinder;
 
     internal ManualInstallMod(string packageName, int packageFsHash, string extractedPath, IConfig config)
         : base(packageName, packageFsHash, extractedPath)
     {
-        dirsAtRootLowerCase = config.DirsAtRoot.Select(dir => dir.ToLowerInvariant()).ToList();
+        rootFinder = new RootFinderFromContainedDirs(config.DirsAtRoot);
         filesToInstallMatcher = MatcherExcluding(config.ExcludedFromInstall);
         filesToConfigureMatcher = MatcherExcluding(config.ExcludedFromConfig);
     }
@@ -33,26 +33,8 @@ public class ManualInstallMod : ExtractedMod
         return matcher;
     }
 
-    protected override IEnumerable<string> ExtractedRootDirs()
-    {
-        return FindRootContaining(extractedPath, dirsAtRootLowerCase);
-    }
-
-    private static List<string> FindRootContaining(string path, IEnumerable<string> contained)
-    {
-        var roots = new List<string>();
-        foreach (var subdir in Directory.GetDirectories(path))
-        {
-            var localName = Path.GetFileName(subdir).ToLowerInvariant();
-            if (contained.Contains(localName))
-            {
-                return new List<string> { path };
-            }
-            roots.AddRange(FindRootContaining(subdir, contained));
-        }
-
-        return roots;
-    }
+    protected override IEnumerable<string> ExtractedRootDirs() =>
+        rootFinder.FromFileList(AllFiles(extractedPath).Select(_ => _.FullName));
 
     protected override ConfigEntries GenerateConfig()
     {
