@@ -14,6 +14,8 @@ public class ModManagerTest : IDisposable
     #region Initialisation
 
     private const string DirAtRoot = "DirAtRoot";
+    private const string FileExcludedFromInstall = "Excluded";
+
     private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
     private readonly DirectoryInfo testDir;
@@ -40,7 +42,10 @@ public class ModManagerTest : IDisposable
 
         persistedState = new AssertState();
         modFactory = new ModFactory(
-            new ModInstallConfig { DirsAtRoot = [DirAtRoot] },
+            new ModInstallConfig {
+                DirsAtRoot = [DirAtRoot],
+                ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
+            },
             gameMock.Object);
 
         modManager = new ModManager(
@@ -251,6 +256,33 @@ public class ModManagerTest : IDisposable
                             Path.Combine(DirAtRoot, "A"),
                             Path.Combine(DirAtRoot, "B"),
                             "C"
+                        ]),
+                }
+            )));
+    }
+
+    [Fact]
+    public void Install_SkipsBlacklistedFiles()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [
+                Path.Combine("A", FileExcludedFromInstall),
+                Path.Combine(DirAtRoot, "B"),
+            ])
+        ]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        Assert.False(File.Exists(GamePath(Path.Combine("A", FileExcludedFromInstall))));
+        Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "B"))));
+        persistedState.AssertEqual(new InternalState(
+            Install: new InternalInstallationState(
+                Time: DateTime.Now,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    ["Package100"] = new(
+                        FsHash: 100, Partial: false, Files: [
+                            Path.Combine(DirAtRoot, "B")
                         ]),
                 }
             )));
