@@ -20,16 +20,16 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly ModInstaller modInstaller;
+    private readonly IModInstaller modInstaller;
 
-    internal ModManager(IGame game, IModRepository modRepository, IModFactory modFactory, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(IGame game, IModRepository modRepository, IModInstaller modInstaller, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
         this.modRepository = modRepository;
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
-        modInstaller = new ModInstaller(modFactory, tempDir);
+        this.modInstaller = modInstaller;
     }
 
     private static void AddToEnvionmentPath(string additionalPath)

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.FileSystemGlobbing;
+﻿using Core.Utils;
+using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Mods;
 
@@ -9,11 +10,9 @@ public class ManualInstallMod : ExtractedMod
     public interface IConfig
     {
         IEnumerable<string> DirsAtRoot { get; }
-        IEnumerable<string> ExcludedFromInstall { get; }
         IEnumerable<string> ExcludedFromConfig { get; }
     }
 
-    private readonly Matcher filesToInstallMatcher;
     private readonly Matcher filesToConfigureMatcher;
     private readonly IRootFinder rootFinder;
 
@@ -21,16 +20,7 @@ public class ManualInstallMod : ExtractedMod
         : base(packageName, packageFsHash, extractedPath)
     {
         rootFinder = new RootFinderFromContainedDirs(config.DirsAtRoot);
-        filesToInstallMatcher = MatcherExcluding(config.ExcludedFromInstall);
-        filesToConfigureMatcher = MatcherExcluding(config.ExcludedFromConfig);
-    }
-
-    private static Matcher MatcherExcluding(IEnumerable<string> exclusions)
-    {
-        var matcher = new Matcher();
-        matcher.AddInclude(@"**\*");
-        matcher.AddExcludePatterns(exclusions);
-        return matcher;
+        filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
     protected override IEnumerable<string> ExtractedRootDirs() =>
@@ -98,7 +88,4 @@ public class ManualInstallMod : ExtractedMod
 
         return recordBlocks;
     }
-
-    protected override bool FileShouldBeInstalled(GamePath path) =>
-        filesToInstallMatcher.Match(path.Relative).HasMatches;
 }

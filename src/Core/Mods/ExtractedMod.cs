@@ -47,7 +47,6 @@ public abstract class ExtractedMod : IMod
         {
             InstallFiles(rootPath, dstPath,
                 callbacks
-                    .AndAccept(FileShouldBeInstalled)
                     .AndAfter(gamePath =>
                     {
                         installedFiles.Add(gamePath.Relative);
@@ -112,9 +111,4 @@ public abstract class ExtractedMod : IMod
     protected abstract IEnumerable<string> ExtractedRootDirs();
 
     protected abstract ConfigEntries GenerateConfig();
-
-    // **********************************************************************************
-    // TODO this should be moved to the ModManager since it's only about config exclusion
-    // **********************************************************************************
-    protected virtual bool FileShouldBeInstalled(GamePath path) => true;
 }

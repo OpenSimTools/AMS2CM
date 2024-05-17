@@ -18,6 +18,7 @@ public static class Init
         var modRepository = new ModRepository(modsDir);
         var modFactory = new ModFactory(config.ModInstall, game);
         var safeFileDelete = new WindowsRecyclingBin();
-        return new ModManager(game, modRepository, modFactory, statePersistence, safeFileDelete, tempDir);
+        var modInstaller = new ModInstaller(modFactory, tempDir, config.ModInstall);
+        return new ModManager(game, modRepository, modInstaller, statePersistence, safeFileDelete, tempDir);
     }
 }

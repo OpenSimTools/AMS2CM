@@ -41,17 +41,19 @@ public class ModManagerTest : IDisposable
         var tempDir = new SubdirectoryTempDir(testDir.FullName);
 
         persistedState = new AssertState();
+        var modInstallConfig = new ModInstallConfig
+        {
+            DirsAtRoot = [DirAtRoot],
+            ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
+        };
         modFactory = new ModFactory(
-            new ModInstallConfig {
-                DirsAtRoot = [DirAtRoot],
-                ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
-            },
+            modInstallConfig,
             gameMock.Object);
 
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            modFactory,
+            new ModInstaller(modFactory, tempDir, modInstallConfig),
             persistedState,
             safeFileDeleteMock.Object,
             tempDir);

@@ -3,12 +3,18 @@ using Core.Backup;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
+using Microsoft.Extensions.FileSystemGlobbing;
 using SevenZip;
 
 namespace Core;
 
-public class ModInstaller
+public class ModInstaller : IModInstaller
 {
+    public interface IConfig
+    {
+        IEnumerable<string> ExcludedFromInstall { get; }
+    }
+
     public interface IEventHandler : IProgress
     {
         void InstallNoMods();
@@ -39,12 +45,14 @@ public class ModInstaller
 
     private readonly IModFactory modFactory;
     private readonly ITempDir tempDir;
+    private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
 
-    public ModInstaller(IModFactory modFactory, ITempDir tempDir)
+    public ModInstaller(IModFactory modFactory, ITempDir tempDir, IConfig config)
     {
         this.modFactory = modFactory;
         this.tempDir = tempDir;
+        filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         backupStrategy = new SuffixBackupStrategy();
     }
 
@@ -209,6 +217,7 @@ public class ModInstaller
         var installCallbacks = new ProcessingCallbacks<GamePath>
         {
             Accept = gamePath =>
+                Whitelisted(gamePath) &&
                 !backupStrategy.IsBackupFile(gamePath.Relative) &&
                 !installedFiles.Contains(gamePath.Relative),
             Before = gamePath =>
@@ -272,6 +281,9 @@ public class ModInstaller
         }
         eventHandler.ProgressUpdate(progress.DoneAll());
     }
+
+    private Predicate<GamePath> Whitelisted =>
+        gamePath => filesToInstallMatcher.Match(gamePath.Relative).HasMatches;
 
     private BootfilesMod CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
     {
