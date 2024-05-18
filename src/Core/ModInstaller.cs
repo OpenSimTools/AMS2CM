@@ -132,24 +132,6 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private static Predicate<GamePath> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
-    {
-        if (dateTimeUtc is null)
-        {
-            return _ => true;
-        }
-
-        return gamePath =>
-        {
-            var proceed = !File.Exists(gamePath.Full) || File.GetCreationTimeUtc(gamePath.Full) <= dateTimeUtc;
-            if (!proceed)
-            {
-                eventHandler.UninstallSkipModified(gamePath.Full);
-            }
-            return proceed;
-        };
-    }
-
     private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<GamePath> callbacks)
     {
         var fileList = files.ToList(); // It must be enumerated twice
@@ -224,7 +206,8 @@ public class ModInstaller : IModInstaller
             {
                 backupStrategy.PerformBackup(gamePath.Full);
                 installedFiles.Add(gamePath.Relative);
-            }
+            },
+            After = gamePath => EnsureNotCreatedAfter(DateTime.UtcNow)
         };
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
@@ -284,6 +267,32 @@ public class ModInstaller : IModInstaller
 
     private Predicate<GamePath> Whitelisted =>
         gamePath => filesToInstallMatcher.Match(gamePath.Relative).HasMatches;
+
+    private static Predicate<GamePath> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
+    {
+        if (dateTimeUtc is null)
+        {
+            return _ => true;
+        }
+
+        return gamePath =>
+        {
+            var proceed = !File.Exists(gamePath.Full) || File.GetCreationTimeUtc(gamePath.Full) <= dateTimeUtc;
+            if (!proceed)
+            {
+                eventHandler.UninstallSkipModified(gamePath.Full);
+            }
+            return proceed;
+        };
+    }
+
+    private static Action<GamePath> EnsureNotCreatedAfter(DateTime dateTimeUtc) => gamePath =>
+    {
+        if (File.Exists(gamePath.Full) && File.GetCreationTimeUtc(gamePath.Full) > dateTimeUtc)
+        {
+            File.SetCreationTimeUtc(gamePath.Full, dateTimeUtc);
+        }
+    };
 
     private BootfilesMod CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
     {

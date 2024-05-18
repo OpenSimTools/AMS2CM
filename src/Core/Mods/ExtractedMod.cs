@@ -51,20 +51,10 @@ public abstract class ExtractedMod : IMod
         }
         Installed = IModInstallation.State.PartiallyInstalled;
 
-        var now = DateTime.UtcNow;
         foreach (var rootPath in ExtractedRootDirs())
         {
             InstallFiles(rootPath, dstPath,
-                callbacks
-                    .AndAfter(gamePath =>
-                    {
-                        installedFiles.Add(gamePath.Relative);
-                        // TODO This should be moved out to where we skip backup if created after
-                        if (File.Exists(gamePath.Full) && File.GetCreationTimeUtc(gamePath.Full) > now)
-                        {
-                            File.SetCreationTimeUtc(gamePath.Full, now);
-                        }
-                    })
+                callbacks.AndAfter(gamePath => installedFiles.Add(gamePath.Relative))
             );
         }
         Installed = IModInstallation.State.Installed;
