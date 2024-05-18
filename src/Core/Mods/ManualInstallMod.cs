@@ -1,4 +1,5 @@
-﻿using Core.Utils;
+﻿using System.IO;
+using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Mods;
@@ -19,12 +20,14 @@ public class ManualInstallMod : ExtractedMod
     internal ManualInstallMod(string packageName, int packageFsHash, string extractedPath, IConfig config)
         : base(packageName, packageFsHash, extractedPath)
     {
-        rootFinder = new RootFinderFromContainedDirs(config.DirsAtRoot);
+        rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
-    protected override IEnumerable<string> ExtractedRootDirs() =>
-        rootFinder.FromFileList(AllFiles(extractedPath).Select(_ => _.FullName));
+    protected override IEnumerable<string> ExtractedRootDirs() => rootFinder.FromDirectoryList(
+        new DirectoryInfo(extractedPath)
+            .EnumerateDirectories("*", RecursiveEnumeration)
+            .Select(_ => _.FullName));
 
     protected override ConfigEntries GenerateConfig()
     {

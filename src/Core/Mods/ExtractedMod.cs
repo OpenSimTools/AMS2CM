@@ -1,10 +1,19 @@
-﻿using Core.Utils;
+﻿using System.IO;
+using Core.Utils;
 
 namespace Core.Mods;
 
 public abstract class ExtractedMod : IMod
 {
     public const string RemoveFileSuffix = "-remove";
+
+    protected static readonly EnumerationOptions RecursiveEnumeration = new()
+    {
+        MatchType = MatchType.Win32,
+        IgnoreInaccessible = false,
+        AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+        RecurseSubdirectories = true,
+    };
 
     protected readonly string extractedPath;
     protected readonly List<string> installedFiles = new();
@@ -63,18 +72,9 @@ public abstract class ExtractedMod : IMod
         return GenerateConfig();
     }
 
-    protected static IEnumerable<FileSystemInfo> AllFiles(string path) =>
-        new DirectoryInfo(path).EnumerateFiles("*", new EnumerationOptions()
-            {
-                MatchType = MatchType.Win32,
-                IgnoreInaccessible = false,
-                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                RecurseSubdirectories = true,
-            });
-
     private static void InstallFiles(string modPath, string gameRootPath, ProcessingCallbacks<GamePath> callbacks)
     {
-        foreach (var modFileInfo in AllFiles(modPath))
+        foreach (var modFileInfo in new DirectoryInfo(modPath).EnumerateFiles("*", RecursiveEnumeration))
         {
             var relativePathMaybeSuffixed = Path.GetRelativePath(modPath, modFileInfo.FullName);
             var (relativePath, removeFile) = NeedsRemoving(relativePathMaybeSuffixed);

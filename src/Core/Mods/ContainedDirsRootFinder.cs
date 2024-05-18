@@ -2,22 +2,23 @@
 
 namespace Core.Mods;
 
-internal class RootFinderFromContainedDirs : IRootFinder
+internal class ContainedDirsRootFinder : IRootFinder
 {
     private readonly ImmutableHashSet<string> rootDirs;
 
-    internal RootFinderFromContainedDirs(IEnumerable<string> rootDirs)
+    internal ContainedDirsRootFinder(IEnumerable<string> rootDirs)
     {
         this.rootDirs = rootDirs.ToImmutableHashSet();
     }
 
-    public IImmutableSet<string> FromFileList(IEnumerable<string> files) =>
-        files
+    // Simplistic implementation. Not the best performance, but short and readable.
+    public IImmutableSet<string> FromDirectoryList(IEnumerable<string> directories) =>
+        directories
             .SelectMany(file =>
             {
-                var dirSegments = file.Split(Path.DirectorySeparatorChar).SkipLast(1);
+                var dirSegments = file.Split(Path.DirectorySeparatorChar);
                 var segmentsUntilRoot = dirSegments.TakeWhile(_ => !rootDirs.Contains(_));
-                if (dirSegments.Count() == segmentsUntilRoot.Count())
+                if (dirSegments.Length == segmentsUntilRoot.Count())
                 {
                     return Array.Empty<string>();
                 }

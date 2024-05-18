@@ -3,11 +3,11 @@
 public interface IModInstallation
 {
     string PackageName { get; }
-    State Installed { get; }
-    IReadOnlyCollection<string> InstalledFiles { get; }
     int? PackageFsHash { get; }
 
-    public enum State
+    IReadOnlyCollection<string> InstalledFiles { get; }
+    State Installed { get; }
+    enum State
     {
         NotInstalled = 0,
         PartiallyInstalled = 1,
