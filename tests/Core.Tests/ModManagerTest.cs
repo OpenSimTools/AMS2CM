@@ -28,7 +28,7 @@ public class ModManagerTest : IDisposable
     private readonly Mock<IModManager.IEventHandler> eventHandlerMock = new();
 
     private readonly AssertState persistedState;
-    private readonly ModFactory modFactory;
+    private readonly InstallationFactory installationFactory;
 
     private readonly ModManager modManager;
 
@@ -46,14 +46,15 @@ public class ModManagerTest : IDisposable
             DirsAtRoot = [DirAtRoot],
             ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
         };
-        modFactory = new ModFactory(
-            modInstallConfig,
-            gameMock.Object);
+        installationFactory = new InstallationFactory(
+            gameMock.Object,
+            tempDir,
+            modInstallConfig);
 
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            new ModInstaller(modFactory, tempDir, modInstallConfig),
+            new ModInstaller(installationFactory, tempDir, modInstallConfig),
             persistedState,
             safeFileDeleteMock.Object,
             tempDir);
@@ -436,7 +437,7 @@ public class ModManagerTest : IDisposable
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
-                ManualInstallMod.GameSupportedModDirectory
+                BaseInstaller.GameSupportedModDirectory
             ]),
             CreateCustomBootfiles(900),
         ]);
@@ -523,7 +524,9 @@ public class ModManagerTest : IDisposable
         }
         callback(modContentsDir);
         var archivePath = $@"{modsDir.FullName}\{modName}.7z";
-        new SevenZipCompressor().CompressDirectory(modContentsDir, archivePath);
+        var compressor = new SevenZipCompressor();
+        compressor.ArchiveFormat = OutArchiveFormat.Zip; // TODO 7z is solid and not working at the moment
+        compressor.CompressDirectory(modContentsDir, archivePath);
         return new ModPackage(modName, $"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
@@ -547,7 +550,7 @@ public class ModManagerTest : IDisposable
 
     // This can be removed once we hide it inside mod logic
     private string DeletionName(string relativePath) =>
-        $"{relativePath}{ExtractedMod.RemoveFileSuffix}";
+        $"{relativePath}{BaseInstaller.RemoveFileSuffix}";
 
     private string GamePath(string relativePath) =>
         Path.GetFullPath(relativePath, gameDir.FullName);

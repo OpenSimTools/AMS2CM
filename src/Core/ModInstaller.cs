@@ -4,7 +4,6 @@ using Core.Mods;
 using Core.State;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
-using SevenZip;
 
 namespace Core;
 
@@ -43,14 +42,14 @@ public class ModInstaller : IModInstaller
         public void ProgressUpdate(IPercent? progress);
     }
 
-    private readonly IModFactory modFactory;
+    private readonly IInstallationFactory installationFactory;
     private readonly ITempDir tempDir;
     private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
 
-    public ModInstaller(IModFactory modFactory, ITempDir tempDir, IConfig config)
+    public ModInstaller(IInstallationFactory installationFactory, ITempDir tempDir, IConfig config)
     {
-        this.modFactory = modFactory;
+        this.installationFactory = installationFactory;
         this.tempDir = tempDir;
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         backupStrategy = new SuffixBackupStrategy();
@@ -59,7 +58,7 @@ public class ModInstaller : IModInstaller
     public void UninstallPackages(
         InternalInstallationState currentState,
         string installDir,
-        Action<IModInstallation> afterUninstall,
+        Action<IInstallation> afterUninstall,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
@@ -67,7 +66,7 @@ public class ModInstaller : IModInstaller
         {
             eventHandler.UninstallStart();
             var skipCreatedAfter = SkipCreatedAfter(eventHandler, currentState.Time);
-            var uninstallCallbacks = new ProcessingCallbacks<GamePath>
+            var uninstallCallbacks = new ProcessingCallbacks<RootedPath>
             {
                 Accept = gamePath =>
                 {
@@ -102,17 +101,17 @@ public class ModInstaller : IModInstaller
                 }
                 finally
                 {
-                    var installationState = IModInstallation.State.NotInstalled;
+                    var installationState = IInstallation.State.NotInstalled;
                     if (filesLeft.Count != 0)
                     {
                         // Once partially uninstalled, it will stay that way unless fully uninstalled
                         if (modInstallationState.Partial || filesLeft.Count != modInstallationState.Files.Count)
                         {
-                            installationState = IModInstallation.State.PartiallyInstalled;
+                            installationState = IInstallation.State.PartiallyInstalled;
                         }
                         else
                         {
-                            installationState = IModInstallation.State.Installed;
+                            installationState = IInstallation.State.Installed;
                         }
                     }
 
@@ -132,12 +131,12 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<GamePath> callbacks)
+    private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<RootedPath> callbacks)
     {
         var fileList = files.ToList(); // It must be enumerated twice
         foreach (var relativePath in fileList)
         {
-            var gamePath = new GamePath(dstPath, relativePath);
+            var gamePath = new RootedPath(dstPath, relativePath);
 
             if (!callbacks.Accept(gamePath))
             {
@@ -188,7 +187,7 @@ public class ModInstaller : IModInstaller
     public void InstallPackages(
         IReadOnlyCollection<ModPackage> packages,
         string installDir,
-        Action<IModInstallation> afterInstall,
+        Action<IInstallation> afterInstall,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
@@ -196,7 +195,7 @@ public class ModInstaller : IModInstaller
 
         var modConfigs = new List<ConfigEntries>();
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var installCallbacks = new ProcessingCallbacks<GamePath>
+        var installCallbacks = new ProcessingCallbacks<RootedPath>
         {
             Accept = gamePath =>
                 Whitelisted(gamePath) &&
@@ -224,7 +223,7 @@ public class ModInstaller : IModInstaller
                     break;
                 }
                 eventHandler.InstallCurrent(modPackage.PackageName);
-                var mod = ExtractMod(modPackage);
+                using var mod = installationFactory.ModInstaller(modPackage);
                 try
                 {
                     var modConfig = mod.Install(installDir, installCallbacks);
@@ -240,7 +239,7 @@ public class ModInstaller : IModInstaller
             if (modConfigs.Where(_ => _.NotEmpty()).Any())
             {
                 eventHandler.PostProcessingStart();
-                var bootfilesMod = CreateBootfilesMod(packages, eventHandler);
+                using var bootfilesMod = CreateBootfilesMod(packages, eventHandler);
                 try
                 {
                     bootfilesMod.Install(installDir, installCallbacks);
@@ -265,10 +264,10 @@ public class ModInstaller : IModInstaller
         eventHandler.ProgressUpdate(progress.DoneAll());
     }
 
-    private Predicate<GamePath> Whitelisted =>
+    private Predicate<RootedPath> Whitelisted =>
         gamePath => filesToInstallMatcher.Match(gamePath.Relative).HasMatches;
 
-    private static Predicate<GamePath> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
+    private static Predicate<RootedPath> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
     {
         if (dateTimeUtc is null)
         {
@@ -286,7 +285,7 @@ public class ModInstaller : IModInstaller
         };
     }
 
-    private static Action<GamePath> EnsureNotCreatedAfter(DateTime dateTimeUtc) => gamePath =>
+    private static Action<RootedPath> EnsureNotCreatedAfter(DateTime dateTimeUtc) => gamePath =>
     {
         if (File.Exists(gamePath.Full) && File.GetCreationTimeUtc(gamePath.Full) > dateTimeUtc)
         {
@@ -302,11 +301,11 @@ public class ModInstaller : IModInstaller
         {
             case 0:
                 eventHandler.ExtractingBootfiles(null);
-                return new BootfilesMod(modFactory.GeneratedBootfiles(tempDir.BasePath));
+                return new BootfilesMod(installationFactory.GeneratedBootfilesInstaller());
             case 1:
                 var modPackage = bootfilesPackages.First();
                 eventHandler.ExtractingBootfiles(modPackage.PackageName);
-                return new BootfilesMod(ExtractMod(modPackage));
+                return new BootfilesMod(installationFactory.ModInstaller(modPackage));
             default:
                 var bootfilesPackageNames = bootfilesPackages.Select(_ => _.PackageName).ToImmutableList();
                 eventHandler.ExtractingBootfilesErrorMultiple(bootfilesPackageNames);
@@ -314,21 +313,12 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private IMod ExtractMod(ModPackage modPackage)
+    private class BootfilesMod : IInstaller
     {
-        var extractionDir = Path.Combine(tempDir.BasePath, modPackage.PackageName);
-        using var extractor = new SevenZipExtractor(modPackage.FullPath);
-        extractor.ExtractArchive(extractionDir);
-        return modFactory.ManualInstallMod(modPackage.PackageName, modPackage.FsHash, extractionDir);
-    }
-
-    private class BootfilesMod : IMod
-    {
-        private readonly IMod inner;
+        private readonly IInstaller inner;
         private bool postProcessingDone;
 
-
-        public BootfilesMod(IMod inner)
+        public BootfilesMod(IInstaller inner)
         {
             this.inner = inner;
             postProcessingDone = false;
@@ -336,16 +326,19 @@ public class ModInstaller : IModInstaller
 
         public string PackageName => inner.PackageName;
 
-        public IModInstallation.State Installed =>
-            inner.Installed == IModInstallation.State.Installed && !postProcessingDone
-                ? IModInstallation.State.PartiallyInstalled
+        public IInstallation.State Installed =>
+            inner.Installed == IInstallation.State.Installed && !postProcessingDone
+                ? IInstallation.State.PartiallyInstalled
                 : inner.Installed;
 
         public IReadOnlyCollection<string> InstalledFiles => inner.InstalledFiles;
 
         public int? PackageFsHash => inner.PackageFsHash;
 
-        public ConfigEntries Install(string dstPath, ProcessingCallbacks<GamePath> callbacks) => inner.Install(dstPath, callbacks);
+        public ConfigEntries Install(string dstPath, ProcessingCallbacks<RootedPath> callbacks) {
+            inner.Install(dstPath, callbacks);
+            return ConfigEntries.Empty;
+        }
 
         public void PostProcessing(string dstPath, IReadOnlyList<ConfigEntries> modConfigs, IEventHandler eventHandler)
         {
@@ -356,6 +349,10 @@ public class ModInstaller : IModInstaller
             eventHandler.PostProcessingDrivelines();
             PostProcessor.AppendDrivelineRecords(dstPath, modConfigs.SelectMany(_ => _.DrivelineRecords));
             postProcessingDone = true;
+        }
+
+        public void Dispose() {
+            inner.Dispose();
         }
     }
 }

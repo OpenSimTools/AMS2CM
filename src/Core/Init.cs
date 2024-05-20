@@ -16,9 +16,9 @@ public static class Init
         var tempDir = new SubdirectoryTempDir(modsDir);
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var modRepository = new ModRepository(modsDir);
-        var modFactory = new ModFactory(config.ModInstall, game);
+        var installationFactory = new InstallationFactory(game, tempDir, config.ModInstall);
         var safeFileDelete = new WindowsRecyclingBin();
-        var modInstaller = new ModInstaller(modFactory, tempDir, config.ModInstall);
+        var modInstaller = new ModInstaller(installationFactory, tempDir, config.ModInstall);
         return new ModManager(game, modRepository, modInstaller, statePersistence, safeFileDelete, tempDir);
     }
 }

@@ -4,9 +4,9 @@ namespace Core.Mods;
 
 internal static class PostProcessor
 {
-    internal readonly static string VehicleListRelativePath = Path.Combine("vehicles", "vehiclelist.lst");
-    internal readonly static string TrackListRelativePath = Path.Combine("tracks", "_data", "tracklist.lst");
-    internal readonly static string DrivelineRelativePath = Path.Combine("vehicles", "physics", "driveline", "driveline.rg");
+    internal static readonly string VehicleListRelativePath = Path.Combine("vehicles", "vehiclelist.lst");
+    internal static readonly string TrackListRelativePath = Path.Combine("tracks", "_data", "tracklist.lst");
+    internal static readonly string DrivelineRelativePath = Path.Combine("vehicles", "physics", "driveline", "driveline.rg");
 
     public static void AppendCrdFileEntries(string gamePath, IEnumerable<string> crdFileEntries)
     {

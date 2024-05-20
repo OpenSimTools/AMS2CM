@@ -1,6 +1,6 @@
 ﻿﻿namespace Core.Mods;
 
-public interface IModInstallation
+public interface IInstallation
 {
     string PackageName { get; }
     int? PackageFsHash { get; }

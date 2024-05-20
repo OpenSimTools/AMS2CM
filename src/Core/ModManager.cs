@@ -10,8 +10,8 @@ namespace Core;
 internal class ModManager : IModManager
 {
     internal static readonly string FileRemovedByBootfiles = Path.Combine(
-        GeneratedBootfiles.PakfilesDirectory,
-        GeneratedBootfiles.PhysicsPersistentPakFileName
+        GeneratedBootfilesInstaller.PakfilesDirectory,
+        GeneratedBootfilesInstaller.PhysicsPersistentPakFileName
     );
 
     private readonly IGame game;
@@ -163,7 +163,7 @@ internal class ModManager : IModManager
                 game.InstallationDirectory,
                 modInstallation =>
                 {
-                    if (modInstallation.Installed == IModInstallation.State.NotInstalled)
+                    if (modInstallation.Installed == IInstallation.State.NotInstalled)
                     {
                         modsLeft.Remove(modInstallation.PackageName);
                     }
@@ -171,7 +171,7 @@ internal class ModManager : IModManager
                     {
                         modsLeft[modInstallation.PackageName] = new InternalModInstallationState(
                             FsHash: modInstallation.PackageFsHash,
-                            Partial: modInstallation.Installed == IModInstallation.State.PartiallyInstalled,
+                            Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
                             Files: modInstallation.InstalledFiles
                         );
                     }
@@ -210,7 +210,7 @@ internal class ModManager : IModManager
                 game.InstallationDirectory,
                 modInstallation => installedFilesByMod.Add(modInstallation.PackageName, new(
                                 FsHash: modInstallation.PackageFsHash,
-                                Partial: modInstallation.Installed == IModInstallation.State.PartiallyInstalled,
+                                Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
                                 Files: modInstallation.InstalledFiles
                             )),
                 eventHandler,

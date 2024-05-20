@@ -3,7 +3,7 @@
 internal record ModInstallation
 (
     string PackageName,
-    IModInstallation.State Installed,
+    IInstallation.State Installed,
     IReadOnlyCollection<string> InstalledFiles,
     int? PackageFsHash
-) : IModInstallation;
+) : IInstallation;
