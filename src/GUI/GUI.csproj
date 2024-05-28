@@ -62,17 +62,8 @@
 		<RemoveDir Directories="@(LangDirsToRemove)" />
 	</Target>
 
-	<!-- 7zip -->
-	<ItemGroup>
-		<PackageReference Include="7z.Libs" Version="23.1.0" />
-	</ItemGroup>
-	<Target Name="Organize7zLibs" AfterTargets="Build">
-		<Move SourceFiles="$(OutDir)\x64\7z.dll" DestinationFiles="$(OutDir)\7z64.dll" />
-		<RemoveDir Directories="$(OutDir)\x86;$(OutDir)\x64" />
-	</Target>
-
 	<!-- Remove files for unsupported platforms -->
 	<Target Name="RemoveUnsupportedPlatformFiles" AfterTargets="Build">
-		<RemoveDir Directories="$(OutDir)\runtimes\win10-arm64;$(OutDir)\runtimes\win10-x86" />
+		<RemoveDir Directories="$(OutDir)\runtimes\win10-arm64;$(OutDir)\runtimes\win10-x86;$(OutDir)\runtimes\osx-any64;$(OutDir)\runtimes\linux-x64" />
 	</Target>
 </Project>

@@ -5,9 +5,9 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 using Moq;
-using SevenZip;
 using System;
 using System.Collections.Immutable;
+using System.IO.Compression;
 
 public class ModManagerTest : IDisposable
 {
@@ -523,10 +523,9 @@ public class ModManagerTest : IDisposable
             CreateFile(Path.Combine(modContentsDir, relativePath), $"{fsHash}");
         }
         callback(modContentsDir);
-        var archivePath = $@"{modsDir.FullName}\{modName}.7z";
-        var compressor = new SevenZipCompressor();
-        compressor.ArchiveFormat = OutArchiveFormat.Zip; // TODO 7z is solid and not working at the moment
-        compressor.CompressDirectory(modContentsDir, archivePath);
+        var archivePath = $@"{modsDir.FullName}\{modName}.zip";
+        // TODO LibArchive.Net does not support compression yet
+        ZipFile.CreateFromDirectory(modContentsDir, archivePath);
         return new ModPackage(modName, $"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
