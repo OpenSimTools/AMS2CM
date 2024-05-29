@@ -49,4 +49,17 @@ public class ContainedDirsRootFinderTest
                 Path.Combine("D1", "R1")
             ]));
     }
+
+    [Fact]
+    public void FromFileList_IsCaseInsensitive()
+    {
+        Assert.Equal(
+            [
+                "d1",
+            ],
+            rootFinder.FromDirectoryList(
+            [
+                Path.Combine("d1", "r1"),
+            ]));
+    }
 }

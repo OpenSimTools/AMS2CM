@@ -8,7 +8,7 @@ internal class ContainedDirsRootFinder : IRootFinder
 
     internal ContainedDirsRootFinder(IEnumerable<string> rootDirs)
     {
-        this.rootDirs = rootDirs.ToImmutableHashSet();
+        this.rootDirs = rootDirs.ToImmutableHashSet(StringComparer.InvariantCultureIgnoreCase);
     }
 
     // Simplistic implementation. Not the best performance, but short and readable.
