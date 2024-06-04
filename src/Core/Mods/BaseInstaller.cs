@@ -38,7 +38,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         }
         Installed = IInstallation.State.PartiallyInstalled;
 
-        var rootPaths = rootFinder.FromDirectoryList(SourceDirectoryRelativePaths);
+        var rootPaths = rootFinder.FromDirectoryList(RelativeDirectoryPaths);
 
         InstalAllFiles((string pathInMod, TPassthrough context) =>
         {
@@ -97,9 +97,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     }
 
     /// <summary>
-    /// Directories at the source. They must be relative to the mod root.
+    /// Mod directories, relative to the source root.
     /// </summary>
-    protected abstract IEnumerable<string> SourceDirectoryRelativePaths { get; }
+    protected abstract IEnumerable<string> RelativeDirectoryPaths { get; }
 
     /// <summary>
     /// Installation loop.

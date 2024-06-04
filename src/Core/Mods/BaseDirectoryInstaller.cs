@@ -17,7 +17,7 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
 
     protected abstract DirectoryInfo Source { get; }
 
-    protected override IEnumerable<string> SourceDirectoryRelativePaths =>
+    protected override IEnumerable<string> RelativeDirectoryPaths =>
         Source.EnumerateDirectories("*", RecursiveEnumeration)
             .Select(_ => Path.GetRelativePath(Source.FullName, _.FullName));
 
