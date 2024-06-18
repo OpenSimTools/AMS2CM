@@ -9,7 +9,7 @@ using System;
 using System.Collections.Immutable;
 using System.IO.Compression;
 
-public class ModManagerTest : IDisposable
+public class ModManagerTest : AbstractFilesystemTest
 {
     #region Initialisation
 
@@ -18,7 +18,6 @@ public class ModManagerTest : IDisposable
 
     private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
-    private readonly DirectoryInfo testDir;
     private readonly DirectoryInfo gameDir;
     private readonly DirectoryInfo modsDir;
 
@@ -32,9 +31,8 @@ public class ModManagerTest : IDisposable
 
     private readonly ModManager modManager;
 
-    public ModManagerTest()
+    public ModManagerTest() : base()
     {
-        testDir = Directory.CreateTempSubdirectory(GetType().Name);
         gameDir = testDir.CreateSubdirectory("Game");
         modsDir = testDir.CreateSubdirectory("Packages");
 
@@ -60,11 +58,6 @@ public class ModManagerTest : IDisposable
             tempDir);
 
         gameMock.Setup(_ => _.InstallationDirectory).Returns(gameDir.FullName);
-    }
-
-    public void Dispose()
-    {
-        testDir.Delete(recursive: true);
     }
 
     #endregion
@@ -539,17 +532,6 @@ public class ModManagerTest : IDisposable
 
     private FileInfo CreateGameFile(string relativePath, string content = "") =>
         CreateFile(GamePath(relativePath), content);
-
-    private FileInfo CreateFile(string fullPath, string content = "")
-    {
-        var parentDirFullPath = Path.GetDirectoryName(fullPath);
-        if (parentDirFullPath is not null)
-        {
-            Directory.CreateDirectory(parentDirFullPath);
-        }
-        File.WriteAllText(fullPath, content);
-        return new FileInfo(fullPath);
-    }
 
     // This can be removed once we introduce backup strategies
     private string BackupName(string relativePath) =>

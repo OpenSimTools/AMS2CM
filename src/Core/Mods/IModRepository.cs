@@ -16,5 +16,5 @@ public record ModPackage
     string PackageName, // TODO: rename to ID
     string FullPath,
     bool Enabled,
-    int FsHash
+    int? FsHash
 );
