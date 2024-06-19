@@ -21,7 +21,9 @@ public class InstallationFactory : IInstallationFactory
     }
 
     public IInstaller ModInstaller(ModPackage modPackage) =>
-        new ModArchiveInstaller(modPackage.PackageName, modPackage.FsHash, tempDir, config, modPackage.FullPath);
+        Directory.Exists(modPackage.FullPath)
+            ? new ModDirectoryInstaller(modPackage.PackageName, modPackage.FsHash, tempDir, config, modPackage.FullPath)
+            : new ModArchiveInstaller(modPackage.PackageName, modPackage.FsHash, tempDir, config, modPackage.FullPath);
 
     public IInstaller GeneratedBootfilesInstaller() =>
         new GeneratedBootfilesInstaller(tempDir, config, game);
