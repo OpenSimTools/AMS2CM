@@ -249,19 +249,15 @@ public class ModManagerTest : IDisposable
         Assert.True(File.Exists(GamePath("C")));
         Assert.False(File.Exists(GamePath("D")));
         Assert.False(File.Exists(GamePath(Path.Combine("Baz", "D"))));
-        persistedState.AssertEqual(new InternalState(
-            Install: new InternalInstallationState(
-                Time: DateTime.Now,
-                Mods: new Dictionary<string, InternalModInstallationState>
-                {
-                    ["Package100"] = new(
-                        FsHash: 100, Partial: false, Files: [
-                            Path.Combine(DirAtRoot, "A"),
-                            Path.Combine(DirAtRoot, "B"),
-                            "C"
-                        ]),
-                }
-            )));
+        persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
+            {
+                ["Package100"] = new(
+                    FsHash: 100, Partial: false, Files: [
+                        Path.Combine(DirAtRoot, "A"),
+                        Path.Combine(DirAtRoot, "B"),
+                        "C"
+                    ]),
+            });
     }
 
     [Fact]
@@ -278,17 +274,13 @@ public class ModManagerTest : IDisposable
 
         Assert.False(File.Exists(GamePath(Path.Combine("A", FileExcludedFromInstall))));
         Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "B"))));
-        persistedState.AssertEqual(new InternalState(
-            Install: new InternalInstallationState(
-                Time: DateTime.Now,
-                Mods: new Dictionary<string, InternalModInstallationState>
-                {
-                    ["Package100"] = new(
-                        FsHash: 100, Partial: false, Files: [
-                            Path.Combine(DirAtRoot, "B")
-                        ]),
-                }
-            )));
+        persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
+            {
+                ["Package100"] = new(
+                    FsHash: 100, Partial: false, Files: [
+                        Path.Combine(DirAtRoot, "B")
+                    ]),
+            });
     }
 
     [Fact]
@@ -315,24 +307,40 @@ public class ModManagerTest : IDisposable
                 Path.Combine(DirAtRoot, "A")
             ]),
             CreateModArchive(200, [
-                Path.Combine("Foo", DirAtRoot, "A")
-            ])
+                Path.Combine("X", DirAtRoot, "a")
+            ]),
         ]);
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))));
-        persistedState.AssertEqual(new InternalState(
-            Install: new InternalInstallationState(
-                Time: DateTime.Now,
-                Mods: new Dictionary<string, InternalModInstallationState>
-                {
-                    ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
-                    ["Package200"] = new(FsHash: 200, Partial: false, Files: [
-                        Path.Combine(DirAtRoot, "A")
-                    ]),
-                }
-            )));
+        persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
+            {
+                ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
+                ["Package200"] = new(FsHash: 200, Partial: false, Files: [
+                    Path.Combine(DirAtRoot, "a")
+                ]),
+            });
+    }
+
+    [Fact]
+    public void Install_DuplicatesAreCaseInsensitive()
+    {
+        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+            CreateModArchive(100, [
+                Path.Combine("X", DirAtRoot, "A"),
+                Path.Combine("Y", DirAtRoot, "a")
+            ])
+        ]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
+            {
+                ["Package100"] = new(FsHash: 100, Partial: false, Files: [
+                    Path.Combine(DirAtRoot, "A")
+                ]),
+            });
     }
 
     [Fact]
@@ -426,7 +434,7 @@ public class ModManagerTest : IDisposable
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
+        persistedState.AssertModsInstalled(["Package100", "__bootfiles900"]);
         Assert.Contains("Vehicle.crd", File.ReadAllText(GamePath(PostProcessor.VehicleListRelativePath)));
         Assert.Contains(drivelineRecord, File.ReadAllText(GamePath(PostProcessor.DrivelineRelativePath)));
     }
@@ -444,7 +452,7 @@ public class ModManagerTest : IDisposable
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.AssertInstalled(["Package100"]);
+        persistedState.AssertModsInstalled(["Package100"]);
     }
 
     [Fact]
@@ -457,7 +465,7 @@ public class ModManagerTest : IDisposable
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.AssertInstalled(["Package100", "__bootfiles900"]);
+        persistedState.AssertModsInstalled(["Package100", "__bootfiles900"]);
         Assert.Contains("Track.trd", File.ReadAllText(GamePath(PostProcessor.TrackListRelativePath)));
 
     }
@@ -491,7 +499,7 @@ public class ModManagerTest : IDisposable
         var exception = Assert.Throws<Exception>(() => modManager.InstallEnabledMods(eventHandlerMock.Object));
 
         Assert.Contains("many bootfiles", exception.Message);
-        persistedState.AssertInstalled(["Package100"]);
+        persistedState.AssertModsInstalled(["Package100"]);
     }
 
     #region Utility methods
@@ -588,8 +596,14 @@ public class ModManagerTest : IDisposable
             Assert.NotNull(savedState);
             // Not a great solution, but .NET doesn't natively provide support for mocking the clock
             AssertEqualWithinToleration(expected.Install.Time, savedState.Install.Time);
-            AssertInstalled(expected.Install.Mods.Keys);
-            foreach (var e in expected.Install.Mods)
+            AssertModsInstalled(expected.Install.Mods.Keys);
+            AssertModsEqual(expected.Install.Mods);
+        }
+
+        internal void AssertModsEqual(IReadOnlyDictionary<string, InternalModInstallationState> expected)
+        {
+            Assert.NotNull(savedState);
+            foreach (var e in expected)
             {
                 var currentModState = savedState.Install.Mods[e.Key];
                 var expectedModState = e.Value;
@@ -599,7 +613,7 @@ public class ModManagerTest : IDisposable
             };
         }
 
-        internal void AssertInstalled(IEnumerable<string> expected)
+        internal void AssertModsInstalled(IEnumerable<string> expected)
         {
             Assert.Equal(expected.ToImmutableHashSet(), savedState?.Install.Mods.Keys.ToImmutableHashSet());
         }
