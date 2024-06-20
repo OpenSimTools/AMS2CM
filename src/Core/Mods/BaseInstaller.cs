@@ -42,7 +42,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
         InstalAllFiles((string pathInMod, TPassthrough context) =>
         {
-            var relativePathInMod = GetPathFromRoot(rootPaths, pathInMod);
+            var relativePathInMod = rootPaths.GetPathFromRoot(pathInMod);
             // If not part of any game root
             if (relativePathInMod is null)
             {
@@ -79,21 +79,6 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         Installed = IInstallation.State.Installed;
 
         return GenerateConfig();
-    }
-
-    private static string? GetPathFromRoot(IEnumerable<string> rootPaths, string path)
-    {
-        foreach (var root in rootPaths) {
-            if (root.Length == 0)
-            {
-                return path;
-            }
-            if (path.StartsWith(root))
-            {
-                return Path.GetRelativePath(root, path);
-            }
-        }
-        return null;
     }
 
     /// <summary>

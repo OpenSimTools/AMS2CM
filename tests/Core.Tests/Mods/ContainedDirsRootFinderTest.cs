@@ -8,7 +8,7 @@ public class ContainedDirsRootFinderTest
     private readonly ContainedDirsRootFinder rootFinder = new(RootDirs);
 
     [Fact]
-    public void FromFileList_FindsDirsAtRoot()
+    public void FromDirectoryList_FindsDirsAtRoot()
     {
         Assert.Equal(
             [
@@ -17,11 +17,66 @@ public class ContainedDirsRootFinderTest
             rootFinder.FromDirectoryList(
             [
                 Path.Combine("R1"),
-            ]));
+            ]).Roots);
     }
 
     [Fact]
-    public void FromFileList_FindsDirsInSubDirs()
+    public void FromDirectoryList_FindsDirsWhenNamePrefixOfOtherDirs()
+    {
+        Assert.Equal(
+            [
+                "D1",
+                "D11"
+            ],
+            rootFinder.FromDirectoryList(
+            [
+                Path.Combine("D1", "R1"),
+                Path.Combine("D11", "R1")
+            ]).Roots);
+    }
+
+    [Fact]
+    public void FromDirectoryList_IgnoresNestedRoots()
+    {
+        Assert.Equal(
+            [
+                "D1"
+            ],
+            rootFinder.FromDirectoryList(
+            [
+                Path.Combine("D1", "D2", "R1"),
+                Path.Combine("D1", "R1"),
+                Path.Combine("D1", "D3", "R1")
+            ]).Roots);
+
+        // Empty path is a special case
+        Assert.Equal(
+            [
+                ""
+            ],
+            rootFinder.FromDirectoryList(
+            [
+                Path.Combine("D1", "R1"),
+                Path.Combine("R1"),
+                Path.Combine("D2", "R2")
+            ]).Roots);
+    }
+
+    [Fact]
+    public void FromDirectoryList_IsCaseInsensitive()
+    {
+        Assert.Equal(
+            [
+                "d1",
+            ],
+            rootFinder.FromDirectoryList(
+            [
+                Path.Combine("d1", "r1"),
+            ]).Roots);
+    }
+
+    [Fact]
+    public void FromDirectoryList_FindsDirsInSubDirs()
     {
         Assert.Equal(
             [
@@ -33,33 +88,6 @@ public class ContainedDirsRootFinderTest
                 Path.Combine("D1", "R1"),
                 Path.Combine("D2", "D3", "R2"),
                 Path.Combine("D4")
-            ]));
-    }
-
-    [Fact]
-    public void FromFileList_IgnoresNestedRoots()
-    {
-        Assert.Equal(
-            [
-                "D1"
-            ],
-            rootFinder.FromDirectoryList(
-            [
-                Path.Combine("D1", "D2", "R2"),
-                Path.Combine("D1", "R1")
-            ]));
-    }
-
-    [Fact]
-    public void FromFileList_IsCaseInsensitive()
-    {
-        Assert.Equal(
-            [
-                "d1",
-            ],
-            rootFinder.FromDirectoryList(
-            [
-                Path.Combine("d1", "r1"),
-            ]));
+            ]).Roots);
     }
 }

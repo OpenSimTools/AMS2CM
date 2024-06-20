@@ -12,7 +12,7 @@ internal class ContainedDirsRootFinder : IRootFinder
     }
 
     // Simplistic implementation. Not the best performance, but short and readable.
-    public IImmutableSet<string> FromDirectoryList(IEnumerable<string> directories) =>
+    public IRootFinder.RootPaths FromDirectoryList(IEnumerable<string> directories) =>
         directories
             .SelectMany(file =>
             {
@@ -28,13 +28,7 @@ internal class ContainedDirsRootFinder : IRootFinder
                 }
             })
             .ToImmutableSortedSet()
-            .Aggregate(new List<string>(), (roots, potentialRoot) =>
-            {
-                if (!roots.Any(_ => potentialRoot.StartsWith(_)))
-                {
-                    roots.Add(potentialRoot);
-                }
-                return roots;
-            })
-            .ToImmutableHashSet();
+            .Aggregate(new IRootFinder.RootPaths(), (roots, potentialRoot) =>
+                roots.AddIfAncestorNotPresent(potentialRoot)
+            );
 }
