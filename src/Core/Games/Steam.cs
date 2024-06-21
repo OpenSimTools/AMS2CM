@@ -2,7 +2,6 @@
 using Gameloop.Vdf;
 using Gameloop.Vdf.JsonConverter;
 using Microsoft.Win32;
-using System.IO;
 
 namespace Core.Games;
 
@@ -15,7 +14,8 @@ public static class Steam
 
     public static string MainInstallationPath()
     {
-        try {
+        try
+        {
             return RegistryPaths
                 .SelectNotNull(registryPath =>
                     Registry.GetValue(registryPath, "InstallPath", null) as string

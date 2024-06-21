@@ -12,7 +12,7 @@ public class PostProcessorTest
             @"RECORDGROUP foo
                 last"
         },
-        PostProcessor.DedupeRecordBlocks(new []
+        PostProcessor.DedupeRecordBlocks(new[]
         {
             @"RECORDGROUP foo
                 first",

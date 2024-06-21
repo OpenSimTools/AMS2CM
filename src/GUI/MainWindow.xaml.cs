@@ -1,12 +1,12 @@
 using System.Collections.ObjectModel;
 using Core;
+using Core.SoftwareUpdates;
+using Core.Utils;
 using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
-using WinUIEx;
 using Windows.Storage.Pickers;
-using Core.Utils;
-using Core.SoftwareUpdates;
+using WinUIEx;
 
 namespace AMS2CM.GUI;
 

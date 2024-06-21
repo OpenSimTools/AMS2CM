@@ -11,107 +11,107 @@
     TaskBarIcon="AMS2CM.ico"
     Width="600" Height="600">
 
-    <Grid Loaded="Root_Loaded">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="40"/>
-            <ColumnDefinition Width="40"/>
-            <ColumnDefinition Width="40"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <RichTextBlock Grid.ColumnSpan="4"
-            x:Name="NewVersionBlock"
-            Margin="18,10,14,10"
-            Visibility="Collapsed"
-            Loaded="NewVersionBlock_Loaded">
-            <Paragraph>
-                A new version of AMS2CM is available for download on
-                <Hyperlink NavigateUri="https://www.racedepartment.com/downloads/automobilista-2-content-manager.59727/">RaceDepartment</Hyperlink>.
-            </Paragraph>
-        </RichTextBlock>
-        <SymbolIcon Grid.Row="1"
-            Margin="15,10,0,10"
-            Symbol="Download"
-            ToolTipService.ToolTip="Installed"/>
-        <SymbolIcon Grid.Row="1" Grid.Column="1"
-            Margin="15,10,0,10"
-            Symbol="Import"
-            ToolTipService.ToolTip="To Install"/>
-        <ScrollViewer Grid.Row="2" Grid.ColumnSpan="4">
-            <ListView
-                x:Name="ModListView"
-                SelectionMode="Extended"
-                AllowDrop="True"
-                RightTapped="ModListView_RightTapped"
-                DragOver="ModListView_DragOver"
-                Drop="ModListView_Drop"
-                CanDragItems="True"
-                DragItemsStarting="ModListView_DragItemsStarting"
-                DragItemsCompleted="ModListView_DragItemsCompleted">
-                <ListView.ContextFlyout>
-                    <MenuFlyout x:Name="ModListMenu">
-                        <MenuFlyoutItem Text="Enable" Click="ModListMenuEnable_Click"/>
-                        <MenuFlyoutItem Text="Disable" Click="ModListMenuDisable_Click"/>
-                        <MenuFlyoutItem Text="Add" Click="ModListMenuAdd_Click"/>
-                        <MenuFlyoutItem Text="Delete" Click="ModListMenuDelete_Click">
-                            <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="Delete" />
-                            </MenuFlyoutItem.KeyboardAccelerators>
-                        </MenuFlyoutItem>
-                    </MenuFlyout>
-                </ListView.ContextFlyout>
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="local:ModVM">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <CheckBox
-                                MinWidth="0"
-                                IsThreeState="True"
-                                IsChecked="{x:Bind IsInstalled}"
-                                IsEnabled="False"/>
-                            <CheckBox
-                                Grid.Column="1"
-                                MinWidth="0"
-                                IsThreeState="False"
-                                IsChecked="{x:Bind IsEnabled}"
-                                IsEnabled="{x:Bind IsAvailable}"
-                                x:DefaultBindMode="TwoWay"/>
-                            <TextBlock
-                                Grid.Column="2"
-                                VerticalAlignment="Center"
-                                Text="{x:Bind DisplayName}"
-                                ToolTipService.ToolTip="{x:Bind PackageName}"/>
-                            <SymbolIcon Grid.Column="3"
-                                Visibility="{x:Bind IsOutOfDate}"
-                                Symbol="Refresh"
-                                ToolTipService.ToolTip="Out of date"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-        </ScrollViewer>
-        <SplitButton
-                Content="Apply"
-                Grid.Row="3" Grid.ColumnSpan="4"
-                Margin="18,10,14,10"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Click="ApplyButton_Click">
-            <SplitButton.Flyout>
-                <MenuFlyout Placement="Bottom">
-                    <MenuFlyoutItem Text="Uninstall All" Click="UninstallAllItem_Click"/>
-                </MenuFlyout>
-            </SplitButton.Flyout>
-        </SplitButton>
-    </Grid>
+  <Grid Loaded="Root_Loaded">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="40"/>
+      <ColumnDefinition Width="40"/>
+      <ColumnDefinition Width="40"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <RichTextBlock Grid.ColumnSpan="4"
+        x:Name="NewVersionBlock"
+        Margin="18,10,14,10"
+        Visibility="Collapsed"
+        Loaded="NewVersionBlock_Loaded">
+      <Paragraph>
+        A new version of AMS2CM is available for download on
+        <Hyperlink NavigateUri="https://www.racedepartment.com/downloads/automobilista-2-content-manager.59727/">RaceDepartment</Hyperlink> .
+      </Paragraph>
+    </RichTextBlock>
+    <SymbolIcon Grid.Row="1"
+        Margin="15,10,0,10"
+        Symbol="Download"
+        ToolTipService.ToolTip="Installed"/>
+    <SymbolIcon Grid.Row="1" Grid.Column="1"
+        Margin="15,10,0,10"
+        Symbol="Import"
+        ToolTipService.ToolTip="To Install"/>
+    <ScrollViewer Grid.Row="2" Grid.ColumnSpan="4">
+      <ListView
+          x:Name="ModListView"
+          SelectionMode="Extended"
+          AllowDrop="True"
+          RightTapped="ModListView_RightTapped"
+          DragOver="ModListView_DragOver"
+          Drop="ModListView_Drop"
+          CanDragItems="True"
+          DragItemsStarting="ModListView_DragItemsStarting"
+          DragItemsCompleted="ModListView_DragItemsCompleted">
+        <ListView.ContextFlyout>
+          <MenuFlyout x:Name="ModListMenu">
+            <MenuFlyoutItem Text="Enable" Click="ModListMenuEnable_Click"/>
+            <MenuFlyoutItem Text="Disable" Click="ModListMenuDisable_Click"/>
+            <MenuFlyoutItem Text="Add" Click="ModListMenuAdd_Click"/>
+            <MenuFlyoutItem Text="Delete" Click="ModListMenuDelete_Click">
+              <MenuFlyoutItem.KeyboardAccelerators>
+                <KeyboardAccelerator Key="Delete" />
+              </MenuFlyoutItem.KeyboardAccelerators>
+            </MenuFlyoutItem>
+          </MenuFlyout>
+        </ListView.ContextFlyout>
+        <ListView.ItemTemplate>
+          <DataTemplate x:DataType="local:ModVM">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="40"/>
+              </Grid.ColumnDefinitions>
+              <CheckBox
+                  MinWidth="0"
+                  IsThreeState="True"
+                  IsChecked="{x:Bind IsInstalled}"
+                  IsEnabled="False"/>
+              <CheckBox
+                  Grid.Column="1"
+                  MinWidth="0"
+                  IsThreeState="False"
+                  IsChecked="{x:Bind IsEnabled}"
+                  IsEnabled="{x:Bind IsAvailable}"
+                  x:DefaultBindMode="TwoWay"/>
+              <TextBlock
+                  Grid.Column="2"
+                  VerticalAlignment="Center"
+                  Text="{x:Bind DisplayName}"
+                  ToolTipService.ToolTip="{x:Bind PackageName}"/>
+              <SymbolIcon Grid.Column="3"
+                  Visibility="{x:Bind IsOutOfDate}"
+                  Symbol="Refresh"
+                  ToolTipService.ToolTip="Out of date"/>
+            </Grid>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+    </ScrollViewer>
+    <SplitButton
+        Content="Apply"
+        Grid.Row="3" Grid.ColumnSpan="4"
+        Margin="18,10,14,10"
+        HorizontalAlignment="Center"
+        VerticalAlignment="Center"
+        Click="ApplyButton_Click">
+      <SplitButton.Flyout>
+        <MenuFlyout Placement="Bottom">
+          <MenuFlyoutItem Text="Uninstall All" Click="UninstallAllItem_Click"/>
+        </MenuFlyout>
+      </SplitButton.Flyout>
+    </SplitButton>
+  </Grid>
 </winex:WindowEx>

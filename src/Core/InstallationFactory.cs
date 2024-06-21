@@ -1,5 +1,5 @@
-﻿using Core.Mods;
-using Core.Games;
+﻿using Core.Games;
+using Core.Mods;
 
 namespace Core;
 

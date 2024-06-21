@@ -1,32 +1,32 @@
 ﻿<Project Sdk="WixToolset.Sdk/4.0.1">
-	<PropertyGroup>
-		<OutputName>AMS2CM</OutputName>
-		<UpdateAssemblyInfo>false</UpdateAssemblyInfo>
-		<GenerateGitVersionInformation>false</GenerateGitVersionInformation>
-	</PropertyGroup>
-	<ItemGroup>
-		<PackageReference Include="WixToolset.Heat" Version="4.0.4" />
-		<PackageReference Include="WixToolset.UI.wixext" Version="4.0.4" />
-		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
-	</ItemGroup>
-	<ItemGroup>
-		<ProjectReference Include="..\CLI\CLI.csproj" />
-		<ProjectReference Include="..\GUI\GUI.csproj" />
-		<HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net8.0-windows10.0.19041.0\">
-			<PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
-			<ComponentGroupName>GUI</ComponentGroupName>
-			<DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>
-			<SuppressRootDirectory>true</SuppressRootDirectory>
-			<SuppressRegistry>true</SuppressRegistry>
-			<SuppressCom>true</SuppressCom>
-		</HarvestDirectory>
-	</ItemGroup>
-	<ItemGroup>
-		<None Include="Sandbox.wsb" />
-	</ItemGroup>
-	<Target Name="SetUpSandbox" AfterTargets="Build">
-		<!-- ItemGroup/Content seems to be ignored -->
-		<Copy SourceFiles="Sandbox.wsb" DestinationFolder="$(TargetDir)" />
-		<XmlPoke XmlInputPath="$(TargetDir)Sandbox.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
-	</Target>
+  <PropertyGroup>
+    <OutputName>AMS2CM</OutputName>
+    <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
+    <GenerateGitVersionInformation>false</GenerateGitVersionInformation>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Heat" Version="4.0.4" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.4" />
+    <PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CLI\CLI.csproj" />
+    <ProjectReference Include="..\GUI\GUI.csproj" />
+    <HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net8.0-windows10.0.19041.0\">
+      <PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
+      <ComponentGroupName>GUI</ComponentGroupName>
+      <DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <SuppressRegistry>true</SuppressRegistry>
+      <SuppressCom>true</SuppressCom>
+    </HarvestDirectory>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Sandbox.wsb" />
+  </ItemGroup>
+  <Target Name="SetUpSandbox" AfterTargets="Build">
+    <!-- ItemGroup/Content seems to be ignored -->
+    <Copy SourceFiles="Sandbox.wsb" DestinationFolder="$(TargetDir)" />
+    <XmlPoke XmlInputPath="$(TargetDir)Sandbox.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
+  </Target>
 </Project>

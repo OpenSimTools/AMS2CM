@@ -1,4 +1,4 @@
-﻿﻿namespace Core.Mods;
+﻿namespace Core.Mods;
 
 public interface IInstallation
 {

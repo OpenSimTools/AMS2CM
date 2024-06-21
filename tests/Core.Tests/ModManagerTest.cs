@@ -1,13 +1,13 @@
 namespace Core.Tests;
 
+using System;
+using System.Collections.Immutable;
+using System.IO.Compression;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
 using Moq;
-using System;
-using System.Collections.Immutable;
-using System.IO.Compression;
 
 public class ModManagerTest : AbstractFilesystemTest
 {
@@ -80,14 +80,14 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         persistedState.InitState(new InternalState
         (
-            Install: new (
+            Install: new(
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["A"] = new (
+                    ["A"] = new(
                         FsHash: null, Partial: false, Files: [
                             Path.Combine("X", "ModAFile"),
-                            Path.Combine("Y","ModAFile")
+                            Path.Combine("Y", "ModAFile")
                         ]),
                     ["B"] = new(
                         FsHash: null, Partial: false, Files: [
@@ -243,14 +243,14 @@ public class ModManagerTest : AbstractFilesystemTest
         Assert.False(File.Exists(GamePath("D")));
         Assert.False(File.Exists(GamePath(Path.Combine("Baz", "D"))));
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
-            {
-                ["Package100"] = new(
+        {
+            ["Package100"] = new(
                     FsHash: 100, Partial: false, Files: [
                         Path.Combine(DirAtRoot, "A"),
                         Path.Combine(DirAtRoot, "B"),
                         "C"
                     ]),
-            });
+        });
     }
 
     [Fact]
@@ -268,12 +268,12 @@ public class ModManagerTest : AbstractFilesystemTest
         Assert.False(File.Exists(GamePath(Path.Combine("A", FileExcludedFromInstall))));
         Assert.True(File.Exists(GamePath(Path.Combine(DirAtRoot, "B"))));
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
-            {
-                ["Package100"] = new(
+        {
+            ["Package100"] = new(
                     FsHash: 100, Partial: false, Files: [
                         Path.Combine(DirAtRoot, "B")
                     ]),
-            });
+        });
     }
 
     [Fact]
@@ -308,12 +308,12 @@ public class ModManagerTest : AbstractFilesystemTest
 
         Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))));
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
-            {
-                ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
-                ["Package200"] = new(FsHash: 200, Partial: false, Files: [
+        {
+            ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
+            ["Package200"] = new(FsHash: 200, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "a")
                 ]),
-            });
+        });
     }
 
     [Fact]
@@ -329,11 +329,11 @@ public class ModManagerTest : AbstractFilesystemTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
-            {
-                ["Package100"] = new(FsHash: 100, Partial: false, Files: [
+        {
+            ["Package100"] = new(FsHash: 100, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "A")
                 ]),
-            });
+        });
     }
 
     [Fact]
@@ -506,13 +506,13 @@ public class ModManagerTest : AbstractFilesystemTest
     private ModPackage CreateCustomBootfiles(int fsHash) =>
         CreateModPackage(BootfilesManager.BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
-                PostProcessor.VehicleListRelativePath,
-                PostProcessor.TrackListRelativePath,
-                PostProcessor.DrivelineRelativePath,
-            ], extractedDir =>
-                File.AppendAllText(
-                    Path.Combine(extractedDir, PostProcessor.DrivelineRelativePath),
-                    $"{Environment.NewLine}END")
+            PostProcessor.VehicleListRelativePath,
+            PostProcessor.TrackListRelativePath,
+            PostProcessor.DrivelineRelativePath,
+        ], extractedDir =>
+            File.AppendAllText(
+                Path.Combine(extractedDir, PostProcessor.DrivelineRelativePath),
+                $"{Environment.NewLine}END")
             );
 
     private ModPackage CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
@@ -556,11 +556,11 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         // Avoids bootfiles checks on uninstall
         private static readonly InternalState SkipBootfilesCheck = new InternalState(
-            Install: new (
+            Install: new(
                 Time: null,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["INIT"] = new (FsHash: null, Partial: false, Files: []),
+                    ["INIT"] = new(FsHash: null, Partial: false, Files: []),
                 }
             ));
 

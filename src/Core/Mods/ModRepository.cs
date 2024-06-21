@@ -12,7 +12,7 @@ public class ModRepository : IModRepository
     {
         var modsDirFullPath = Path.GetFullPath(modsDir);
         enabledModsDir = Path.Combine(modsDirFullPath, EnabledModsDirName);
-        disabledModsDir =  Path.Combine(modsDirFullPath, DisabledModsSubdir);
+        disabledModsDir = Path.Combine(modsDirFullPath, DisabledModsSubdir);
     }
 
     public ModPackage UploadMod(string sourceFilePath)

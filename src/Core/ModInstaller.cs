@@ -335,7 +335,8 @@ public class ModInstaller : IModInstaller
 
         public int? PackageFsHash => inner.PackageFsHash;
 
-        public ConfigEntries Install(string dstPath, ProcessingCallbacks<RootedPath> callbacks) {
+        public ConfigEntries Install(string dstPath, ProcessingCallbacks<RootedPath> callbacks)
+        {
             inner.Install(dstPath, callbacks);
             return ConfigEntries.Empty;
         }
@@ -351,7 +352,8 @@ public class ModInstaller : IModInstaller
             postProcessingDone = true;
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
             inner.Dispose();
         }
     }

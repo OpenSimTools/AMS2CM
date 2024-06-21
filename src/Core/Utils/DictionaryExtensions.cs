@@ -1,6 +1,4 @@
-﻿using YamlDotNet.Core.Tokens;
-
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 public static class DictionaryExtensions
 {

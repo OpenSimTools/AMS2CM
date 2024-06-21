@@ -1,69 +1,69 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-	<PropertyGroup>
-		<OutputType>WinExe</OutputType>
-		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<Company>OpenSimTools</Company>
-		<Authors>OpenSimTools Contributors</Authors>
-		<AssemblyName>AMS2CM.GUI</AssemblyName>
-		<RootNamespace>AMS2CM.GUI</RootNamespace>
-		<Platforms>x64</Platforms>
-		<PublishProfile>win-$(Platform).pubxml</PublishProfile>
-		<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-		<UseWinUI>true</UseWinUI>
-		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-		<ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
-	</PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Company>OpenSimTools</Company>
+    <Authors>OpenSimTools Contributors</Authors>
+    <AssemblyName>AMS2CM.GUI</AssemblyName>
+    <RootNamespace>AMS2CM.GUI</RootNamespace>
+    <Platforms>x64</Platforms>
+    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <ApplicationIcon>..\Shared\AMS2CM.ico</ApplicationIcon>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="GitVersion.MsBuild" Version="5.12.*">
-			<PrivateAssets>All</PrivateAssets>
-		</PackageReference>
-	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="GitVersion.MsBuild" Version="5.12.*">
+      <PrivateAssets>All</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\Core\Core.csproj" />
-		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240404000" />
-		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
-		<PackageReference Include="WinUIEx" Version="2.3.4" />
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240404000" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
+    <PackageReference Include="WinUIEx" Version="2.3.4" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<Content Include="..\Shared\Config.yaml">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</Content>
-		<Content Include="..\Shared\AMS2CM.ico">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>
+  <ItemGroup>
+    <Content Include="..\Shared\Config.yaml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Shared\AMS2CM.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
-	<ItemGroup>
-		<None Remove="ErrorDialog.xaml" />
-		<None Remove="SyncDialog.xaml" />
-	</ItemGroup>
+  <ItemGroup>
+    <None Remove="ErrorDialog.xaml" />
+    <None Remove="SyncDialog.xaml" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<Page Update="ErrorDialog.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Update="SyncDialog.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</Page>
-	</ItemGroup>
+  <ItemGroup>
+    <Page Update="ErrorDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="SyncDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
 
-	<!-- From https://youtu.be/LHNahJi21Vg -->
-	<Target Name="RemoveUnsupportedLanguages" AfterTargets="Build">
-		<ItemGroup>
-			<LangFilesToRemove Include="$(OutDir)*\*.mui" Exclude="$(OutDir)en-us\*.mui" />
-			<LangDirsToRemove Include="@(LangFilesToRemove->'%(RootDir)%(Directory)')" />
-		</ItemGroup>
-		<RemoveDir Directories="@(LangDirsToRemove)" />
-	</Target>
+  <!-- From https://youtu.be/LHNahJi21Vg -->
+  <Target Name="RemoveUnsupportedLanguages" AfterTargets="Build">
+    <ItemGroup>
+      <LangFilesToRemove Include="$(OutDir)*\*.mui" Exclude="$(OutDir)en-us\*.mui" />
+      <LangDirsToRemove Include="@(LangFilesToRemove->'%(RootDir)%(Directory)')" />
+    </ItemGroup>
+    <RemoveDir Directories="@(LangDirsToRemove)" />
+  </Target>
 
-	<!-- Remove files for unsupported platforms -->
-	<Target Name="RemoveUnsupportedPlatformFiles" AfterTargets="Build">
-		<RemoveDir Directories="$(OutDir)\runtimes\win10-arm64;$(OutDir)\runtimes\win10-x86;$(OutDir)\runtimes\osx-any64;$(OutDir)\runtimes\linux-x64" />
-	</Target>
+  <!-- Remove files for unsupported platforms -->
+  <Target Name="RemoveUnsupportedPlatformFiles" AfterTargets="Build">
+    <RemoveDir Directories="$(OutDir)\runtimes\win10-arm64;$(OutDir)\runtimes\win10-x86;$(OutDir)\runtimes\osx-any64;$(OutDir)\runtimes\linux-x64" />
+  </Target>
 </Project>

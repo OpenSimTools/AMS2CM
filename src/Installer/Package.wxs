@@ -1,39 +1,39 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
 	 xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-	<Package Name="AMS2CM"
+  <Package Name="AMS2CM"
 			 Manufacturer="OpenSimTools"
 			 Version="$(var.GitVersion_AssemblySemFileVer)"
 			 UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
-		<MajorUpgrade AllowDowngrades="yes" />
+    <MajorUpgrade AllowDowngrades="yes" />
 
-		<MediaTemplate EmbedCab="yes" />
+    <MediaTemplate EmbedCab="yes" />
 
-		<Feature Id="ApplicationFeature" Title="Content Manager" ConfigurableDirectory="APPLICATIONFOLDER" AllowAdvertise="no">
-			<ComponentGroupRef Id="GUI" />
-			<Feature Id="CLI" Title="Command Line Interface" Level="1000" AllowAdvertise="no">
-				<ComponentRef Id="CLI" />
-			</Feature>
-			<Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut" AllowAdvertise="no">
-				<ComponentRef Id="DesktopShortcut" />
-			</Feature>
-			<Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut" AllowAdvertise="no">
-				<ComponentRef Id="StartMenuShortcut" />
-			</Feature>
-			<Feature Id="DesktopBetaShortcutFeature" Title="Beta Desktop Shortcut" Level="1000" AllowAdvertise="no">
-				<ComponentRef Id="DesktopBetaShortcut" />
-			</Feature>
-			<Feature Id="StartMenuBetaShortcutFeature" Title="Beta Start Menu Shortcut" Level="1000" AllowAdvertise="no">
-				<ComponentRef Id="StartMenuBetaShortcut" />
-			</Feature>
-		</Feature>
+    <Feature Id="ApplicationFeature" Title="Content Manager" ConfigurableDirectory="APPLICATIONFOLDER" AllowAdvertise="no">
+      <ComponentGroupRef Id="GUI" />
+      <Feature Id="CLI" Title="Command Line Interface" Level="1000" AllowAdvertise="no">
+        <ComponentRef Id="CLI" />
+      </Feature>
+      <Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut" AllowAdvertise="no">
+        <ComponentRef Id="DesktopShortcut" />
+      </Feature>
+      <Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut" AllowAdvertise="no">
+        <ComponentRef Id="StartMenuShortcut" />
+      </Feature>
+      <Feature Id="DesktopBetaShortcutFeature" Title="Beta Desktop Shortcut" Level="1000" AllowAdvertise="no">
+        <ComponentRef Id="DesktopBetaShortcut" />
+      </Feature>
+      <Feature Id="StartMenuBetaShortcutFeature" Title="Beta Start Menu Shortcut" Level="1000" AllowAdvertise="no">
+        <ComponentRef Id="StartMenuBetaShortcut" />
+      </Feature>
+    </Feature>
 
-		<Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
+    <Icon Id="ApplicationIcon" SourceFile="AMS2CM.ico" />
 
-		<!-- "Add or remove programs" icon -->
-		<Property Id='ARPPRODUCTICON' Value='ApplicationIcon' />
+    <!-- "Add or remove programs" icon -->
+    <Property Id='ARPPRODUCTICON' Value='ApplicationIcon' />
 
-		<!-- UI -->
-		<ui:WixUI Id="WixUI_Custom" />
-		<WixVariable Id="WixUILicenseRtf" Value="..\..\LICENSE.rtf" />
-	</Package>
+    <!-- UI -->
+    <ui:WixUI Id="WixUI_Custom" />
+    <WixVariable Id="WixUILicenseRtf" Value="..\..\LICENSE.rtf" />
+  </Package>
 </Wix>

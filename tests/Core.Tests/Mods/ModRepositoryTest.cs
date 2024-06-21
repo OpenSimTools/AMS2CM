@@ -1,5 +1,4 @@
 using Core.Mods;
-using Moq;
 
 namespace Core.Tests.Mods;
 
@@ -29,7 +28,7 @@ public class ModRepositoryTest : AbstractFilesystemTest
                 new("File1.Ext", Path.Combine(testDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
                 new("File2.Ext", Path.Combine(testDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
             },
-            modRepository.ListEnabledMods().Select(_ => _ with {  FsHash = NotChecked })
+            modRepository.ListEnabledMods().Select(_ => _ with { FsHash = NotChecked })
         );
         Assert.Equivalent(
             new ModPackage[] {
