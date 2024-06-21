@@ -66,7 +66,7 @@ public sealed partial class MainWindow : WindowEx
     private void SyncModListView()
     {
         modList.Clear();
-        foreach (var modState in modManager.FetchState().OrderBy(_ => _.ModName).ThenBy(_ => _.PackageName))
+        foreach (var modState in modManager.FetchState().OrderBy(_ => _.PackageName))
         {
             modList.Add(new ModVM(modState, modManager));
         }

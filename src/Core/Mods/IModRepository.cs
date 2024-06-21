@@ -12,8 +12,7 @@ public interface IModRepository
 
 public record ModPackage
 (
-    string Name,
-    string PackageName, // TODO: rename to ID
+    string PackageName,
     string FullPath,
     bool Enabled,
     int? FsHash

@@ -69,7 +69,6 @@ internal class ModManager : IModManager
         return allPackageNames
             .Select(packageName => {
                 return new ModState(
-                    ModName: Path.GetFileNameWithoutExtension(packageName),
                     PackageName: packageName,
                     PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
                     IsInstalled: isModInstalled.TryGetValue(packageName, out var isInstalled) ? isInstalled : false,
@@ -105,7 +104,6 @@ internal class ModManager : IModManager
         statePersistence.ReadState().Install.Mods.TryGetValue(modPackage.PackageName, out var modInstallationState);
 
         return new ModState(
-                ModName: modPackage.Name,
                 PackageName: modPackage.PackageName,
                 PackagePath: modPackage.FullPath,
                 IsEnabled: modPackage.Enabled,

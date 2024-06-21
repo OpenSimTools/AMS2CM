@@ -527,7 +527,7 @@ public class ModManagerTest : AbstractFilesystemTest
         var archivePath = $@"{modsDir.FullName}\{modName}.zip";
         // TODO LibArchive.Net does not support compression yet
         ZipFile.CreateFromDirectory(modContentsDir, archivePath);
-        return new ModPackage(modName, $"{packagePrefix}{fsHash}", archivePath, true, fsHash);
+        return new ModPackage($"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
     private FileInfo CreateGameFile(string relativePath, string content = "") =>

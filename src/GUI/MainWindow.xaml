@@ -89,7 +89,7 @@
                             <TextBlock
                                 Grid.Column="2"
                                 VerticalAlignment="Center"
-                                Text="{x:Bind Name}"
+                                Text="{x:Bind DisplayName}"
                                 ToolTipService.ToolTip="{x:Bind PackageName}"/>
                             <SymbolIcon Grid.Column="3"
                                 Visibility="{x:Bind IsOutOfDate}"

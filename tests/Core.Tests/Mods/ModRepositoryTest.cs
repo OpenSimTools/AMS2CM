@@ -26,15 +26,15 @@ public class ModRepositoryTest : AbstractFilesystemTest
 
         Assert.Equivalent(
             new ModPackage[] {
-                new("File1", "File1.Ext", Path.Combine(testDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
-                new("File2", "File2.Ext", Path.Combine(testDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
+                new("File1.Ext", Path.Combine(testDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
+                new("File2.Ext", Path.Combine(testDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
             },
             modRepository.ListEnabledMods().Select(_ => _ with {  FsHash = NotChecked })
         );
         Assert.Equivalent(
             new ModPackage[] {
-                        new("File3", "File3.Ext", Path.Combine(testDir.FullName, @"Disabled\File3.Ext"), false, NotChecked),
-                        new("File4", "File4.Ext", Path.Combine(testDir.FullName, @"Disabled\File4.Ext"), false, NotChecked)
+                new("File3.Ext", Path.Combine(testDir.FullName, @"Disabled\File3.Ext"), false, NotChecked),
+                new("File4.Ext", Path.Combine(testDir.FullName, @"Disabled\File4.Ext"), false, NotChecked)
             },
             modRepository.ListDisabledMods().Select(_ => _ with { FsHash = NotChecked })
         );
@@ -52,15 +52,15 @@ public class ModRepositoryTest : AbstractFilesystemTest
 
         Assert.Equivalent(
             new ModPackage[] {
-                new("Dir1", "Dir1", Path.Combine(testDir.FullName, @"Enabled\Dir1"), true, null),
-                new("Dir2", "Dir2", Path.Combine(testDir.FullName, @"Enabled\Dir2"), true, null)
+                new(@"Dir1\", Path.Combine(testDir.FullName, @"Enabled\Dir1"), true, null),
+                new(@"Dir2\", Path.Combine(testDir.FullName, @"Enabled\Dir2"), true, null)
             },
             modRepository.ListEnabledMods()
         );
         Assert.Equivalent(
             new ModPackage[] {
-                new("Dir3", "Dir3", Path.Combine(testDir.FullName, @"Disabled\Dir3"), false, null),
-                new("Dir4", "Dir4", Path.Combine(testDir.FullName, @"Disabled\Dir4"), false, null)
+                new(@"Dir3\", Path.Combine(testDir.FullName, @"Disabled\Dir3"), false, null),
+                new(@"Dir4\", Path.Combine(testDir.FullName, @"Disabled\Dir4"), false, null)
             },
             modRepository.ListDisabledMods()
         );

@@ -80,26 +80,21 @@ public class ModRepository : IModRepository
         }
     }
 
-    private ModPackage ModFilePackage(FileInfo modFileInfo)
-    {
-        return ModDirectoryPackage(modFileInfo) with
-        {
-            FsHash = FsHash(modFileInfo)
-        };
-    }
+    private ModPackage ModFilePackage(FileInfo modFileInfo) =>
+        new(
+            PackageName: modFileInfo.Name,
+            FullPath: modFileInfo.FullName,
+            Enabled: IsEnabled(modFileInfo),
+            FsHash: FsHash(modFileInfo)
+        );
 
-    private ModPackage ModDirectoryPackage(FileSystemInfo modFileSystemInfo)
-    {
-
-        return new ModPackage
-        (
-            Name: Path.GetFileNameWithoutExtension(modFileSystemInfo.Name),
-            PackageName: modFileSystemInfo.Name,
-            FullPath: modFileSystemInfo.FullName,
-            Enabled: IsEnabled(modFileSystemInfo), 
+    private ModPackage ModDirectoryPackage(DirectoryInfo modDirectoryInfo) =>
+        new(
+            PackageName: $"{modDirectoryInfo.Name}{Path.DirectorySeparatorChar}",
+            FullPath: modDirectoryInfo.FullName,
+            Enabled: IsEnabled(modDirectoryInfo),
             FsHash: null
         );
-    }
 
     private bool IsEnabled(FileSystemInfo modFileSystemInfo) =>
         Directory.GetParent(modFileSystemInfo.FullName)?.FullName == enabledModsDir;
