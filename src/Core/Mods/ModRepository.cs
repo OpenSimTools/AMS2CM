@@ -5,13 +5,14 @@ public class ModRepository : IModRepository
     private const string EnabledModsDirName = "Enabled";
     private const string DisabledModsSubdir = "Disabled";
 
-    private readonly string enabledModArchivesDir;
-    private readonly string disabledModArchivesDir;
+    private readonly string enabledModsDir;
+    private readonly string disabledModsDir;
 
     internal ModRepository(string modsDir)
     {
-        enabledModArchivesDir = Path.Combine(modsDir, EnabledModsDirName);
-        disabledModArchivesDir = Path.Combine(modsDir, DisabledModsSubdir);
+        var modsDirFullPath = Path.GetFullPath(modsDir);
+        enabledModsDir = Path.Combine(modsDirFullPath, EnabledModsDirName);
+        disabledModsDir =  Path.Combine(modsDirFullPath, DisabledModsSubdir);
     }
 
     public ModPackage UploadMod(string sourceFilePath)
@@ -19,36 +20,43 @@ public class ModRepository : IModRepository
         var fileName = Path.GetFileName(sourceFilePath);
 
         var isDisabled = ListDisabledMods().Where(_ => _.PackageName == fileName).Any();
-        var destinationDirectoryPath = isDisabled ? disabledModArchivesDir : enabledModArchivesDir;
+        var destinationDirectoryPath = isDisabled ? disabledModsDir : enabledModsDir;
         var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
 
         ExistingDirectoryOrCreate(destinationDirectoryPath);
         File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
 
-        return ModPackageFrom(destinationDirectoryPath, new FileInfo(destinationFilePath));
+        return ModFilePackage(new FileInfo(destinationFilePath));
     }
 
     public string EnableMod(string packagePath)
     {
-        return MoveMod(packagePath, enabledModArchivesDir);
+        return MoveMod(packagePath, enabledModsDir);
     }
 
     public string DisableMod(string packagePath)
     {
-        return MoveMod(packagePath, disabledModArchivesDir);
+        return MoveMod(packagePath, disabledModsDir);
     }
 
-    private static string MoveMod(string packagePath, string destinationDirectoryPath)
+    private static string MoveMod(string sourcePackagePath, string destinationParentPath)
     {
-        ExistingDirectoryOrCreate(destinationDirectoryPath);
-        var destinationFilePath = Path.Combine(destinationDirectoryPath, Path.GetFileName(packagePath));
-        File.Move(packagePath, destinationFilePath);
-        return destinationFilePath;
+        ExistingDirectoryOrCreate(destinationParentPath);
+        var destinationPackagePath = Path.Combine(destinationParentPath, Path.GetFileName(sourcePackagePath));
+        if (Directory.Exists(sourcePackagePath))
+        {
+            Directory.Move(sourcePackagePath, destinationPackagePath);
+        }
+        else
+        {
+            File.Move(sourcePackagePath, destinationPackagePath);
+        }
+        return destinationPackagePath;
     }
 
-    public IReadOnlyCollection<ModPackage> ListEnabledMods() => ListMods(enabledModArchivesDir);
+    public IReadOnlyCollection<ModPackage> ListEnabledMods() => ListMods(enabledModsDir);
 
-    public IReadOnlyCollection<ModPackage> ListDisabledMods() => ListMods(disabledModArchivesDir);
+    public IReadOnlyCollection<ModPackage> ListDisabledMods() => ListMods(disabledModsDir);
 
     private IReadOnlyCollection<ModPackage> ListMods(string rootPath)
     {
@@ -62,8 +70,8 @@ public class ModRepository : IModRepository
                 AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
                 RecurseSubdirectories = false,
             };
-            return directoryInfo.GetFiles("*", options)
-                .Select(fileInfo => ModPackageFrom(rootPath, fileInfo))
+            return directoryInfo.GetFiles("*", options).Select(fileInfo => ModFilePackage(fileInfo))
+                .Concat(directoryInfo.GetDirectories("*", options).Select(fileInfo => ModDirectoryPackage(fileInfo)))
                 .ToList();
         }
         else
@@ -72,17 +80,24 @@ public class ModRepository : IModRepository
         }
     }
 
-    private static ModPackage ModPackageFrom(string rootPath, FileInfo modFileInfo)
-    {
-        return new ModPackage
-        (
-            Name: Path.GetFileNameWithoutExtension(modFileInfo.Name),
+    private ModPackage ModFilePackage(FileInfo modFileInfo) =>
+        new(
             PackageName: modFileInfo.Name,
             FullPath: modFileInfo.FullName,
-            Enabled: Path.GetDirectoryName(rootPath) == EnabledModsDirName,
+            Enabled: IsEnabled(modFileInfo),
             FsHash: FsHash(modFileInfo)
         );
-    }
+
+    private ModPackage ModDirectoryPackage(DirectoryInfo modDirectoryInfo) =>
+        new(
+            PackageName: $"{modDirectoryInfo.Name}{Path.DirectorySeparatorChar}",
+            FullPath: modDirectoryInfo.FullName,
+            Enabled: IsEnabled(modDirectoryInfo),
+            FsHash: null
+        );
+
+    private bool IsEnabled(FileSystemInfo modFileSystemInfo) =>
+        Directory.GetParent(modFileSystemInfo.FullName)?.FullName == enabledModsDir;
 
     /// <summary>
     /// Just a very simple has function to detect if the file might have changed.

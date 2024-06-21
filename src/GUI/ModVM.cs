@@ -22,7 +22,10 @@ internal class ModVM : INotifyPropertyChanged
         isOutOfDate = modState.IsOutOfDate;
     }
 
-    public string Name => modState.ModName;
+    public string DisplayName =>
+        Path.EndsInDirectorySeparator(modState.PackageName)
+        ? Path.TrimEndingDirectorySeparator(modState.PackageName)
+        : Path.GetFileNameWithoutExtension(modState.PackageName);
 
     public string PackageName => modState.PackageName;
 

@@ -66,7 +66,7 @@ public sealed partial class MainWindow : WindowEx
     private void SyncModListView()
     {
         modList.Clear();
-        foreach (var modState in modManager.FetchState().OrderBy(_ => _.ModName).ThenBy(_ => _.PackageName))
+        foreach (var modState in modManager.FetchState().OrderBy(_ => _.PackageName))
         {
             modList.Add(new ModVM(modState, modManager));
         }
@@ -88,19 +88,24 @@ public sealed partial class MainWindow : WindowEx
 
     private async void ModListView_DragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
     {
+        var storageItems = new List<StorageFile>();
         var filePaths = e.Items.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
-        if (!filePaths.Any())
+        foreach (var filePath in filePaths)
+        {
+            if (Directory.Exists(filePath))
+            {
+                continue;
+            }
+            var si = await StorageFile.GetFileFromPathAsync(filePath);
+            storageItems.Add(si);
+        }
+
+        if (!storageItems.Any())
         {
             e.Cancel = true;
             return;
         }
 
-        var storageItems = new List<StorageFile>();
-        foreach (var filePath in filePaths)
-        {
-            var si = await StorageFile.GetFileFromPathAsync(filePath);
-            storageItems.Add(si);
-        }
         e.Data.SetStorageItems(storageItems);
         e.Data.RequestedOperation = DataPackageOperation.Move;
     }
