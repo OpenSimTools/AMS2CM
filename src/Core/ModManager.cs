@@ -1,9 +1,9 @@
 using Core.Games;
-using Core.Mods;
-using Core.Utils;
-using Core.State;
-using static Core.IModManager;
 using Core.IO;
+using Core.Mods;
+using Core.State;
+using Core.Utils;
+using static Core.IModManager;
 
 namespace Core;
 
@@ -67,7 +67,8 @@ internal class ModManager : IModManager
             .Distinct();
 
         return allPackageNames
-            .Select(packageName => {
+            .Select(packageName =>
+            {
                 return new ModState(
                     PackageName: packageName,
                     PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,

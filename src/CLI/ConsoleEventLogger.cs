@@ -1,5 +1,5 @@
-﻿using Core.Utils;
-using Core;
+﻿using Core;
+using Core.Utils;
 
 namespace AMS2CM.CLI;
 

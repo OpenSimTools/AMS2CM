@@ -28,7 +28,8 @@ public class GitHubUpdateChecker : IUpdateChecker
             var latestVersion = Version.Parse(release.Name);
             var currentVersion = Version.Parse(GitVersionInformation.MajorMinorPatch);
             return latestVersion is not null && currentVersion < latestVersion;
-        } catch
+        }
+        catch
         {
             return false;
         }

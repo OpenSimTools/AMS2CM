@@ -23,7 +23,8 @@ internal class ModArchiveInstaller : BaseInstaller<Stream>
     // LINQ expressions as they can lead to <see cref="LibArchiveReader.Entries"/> or
     // <see cref="LibArchiveReader.Entry.Stream"/> being called out of order.
 
-    protected override IEnumerable<string> RelativeDirectoryPaths {
+    protected override IEnumerable<string> RelativeDirectoryPaths
+    {
         get
         {
             using var reader = new LibArchiveReader(archivePath, BlockSize);
@@ -37,7 +38,8 @@ internal class ModArchiveInstaller : BaseInstaller<Stream>
                     continue;
                 }
                 var normalizedPath = Path.GetDirectoryName(entry.Name);
-                if (normalizedPath is not null) {
+                if (normalizedPath is not null)
+                {
                     ret.Add(normalizedPath);
                 }
             }
@@ -50,7 +52,8 @@ internal class ModArchiveInstaller : BaseInstaller<Stream>
         using var reader = new LibArchiveReader(archivePath, BlockSize);
         foreach (var entry in reader.Entries())
         {
-            if (entry.IsRegularFile) {
+            if (entry.IsRegularFile)
+            {
                 var normalizedPath = NormalizePathSeparator(entry.Name);
                 body(normalizedPath, entry.Stream);
             }
