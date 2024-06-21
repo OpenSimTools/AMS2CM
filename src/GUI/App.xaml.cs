@@ -1,6 +1,7 @@
 ﻿using Core;
 using Core.SoftwareUpdates;
 using Microsoft.UI.Xaml;
+using static Core.IModManager;
 
 namespace AMS2CM.GUI;
 
@@ -54,23 +55,12 @@ public partial class App : Application
             this.ex = ex;
         }
 
-        public event IModManager.LogHandler? Logs {
-            add => throw ex;
-            remove => throw ex;
-        }
-
-        public event IModManager.ProgressHandler? Progress
-        {
-            add => throw ex;
-            remove => throw ex;
-        }
-
         public string DisableMod(string packagePath) => throw ex;
         public string EnableMod(string packagePath) => throw ex;
         public ModState AddNewMod(string packagePath) => throw ex;
         public void DeleteMod(string packagePath) => throw ex;
         public List<ModState> FetchState() => throw ex;
-        public void InstallEnabledMods(CancellationToken cancellationToken) => throw ex;
-        public void UninstallAllMods(CancellationToken cancellationToken) => throw ex;
+        public void InstallEnabledMods(IEventHandler eventHandler, CancellationToken cancellationToken) => throw ex;
+        public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken) => throw ex;
     }
 }

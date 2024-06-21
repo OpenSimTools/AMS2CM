@@ -14,7 +14,7 @@ public record ModPackage
 (
     string Name,
     string PackageName, // TODO: rename to ID
-    string FullPath, // TODO: remove once all references are gone
+    string FullPath,
     bool Enabled,
     int FsHash
 );

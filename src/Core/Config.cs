@@ -34,7 +34,7 @@ public class GameConfig : Game.IConfig
     public string ProcessName { get; set; } = "Undefined";
 }
 
-public class ModInstallConfig : ModFactory.IConfig
+public class ModInstallConfig : ModInstaller.IConfig, InstallationFactory.IConfig
 {
     public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
     public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();

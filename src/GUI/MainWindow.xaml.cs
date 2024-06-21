@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using Microsoft.VisualBasic.FileIO;
 using Core;
 using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
@@ -43,11 +42,8 @@ public sealed partial class MainWindow : WindowEx
     {
         await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
-            modManager.Logs += dialog.LogMessage;
-            modManager.Progress += dialog.SetProgress;
-            modManager.InstallEnabledMods(cancellationToken);
-            modManager.Progress -= dialog.SetProgress;
-            modManager.Logs -= dialog.LogMessage;
+            var eventLogger = new SyncDialogEventLogger(dialog);
+            modManager.InstallEnabledMods(eventLogger, cancellationToken);
             var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
             dialog.LogMessage($"Synchronization {status}.");
         });
@@ -58,10 +54,9 @@ public sealed partial class MainWindow : WindowEx
     {
         await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
-            modManager.Logs += dialog.LogMessage;
-            modManager.UninstallAllMods();
+            var eventLogger = new SyncDialogEventLogger(dialog);
+            modManager.UninstallAllMods(eventLogger);
             dialog.SetProgress(1.0);
-            modManager.Logs -= dialog.LogMessage;
             var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
             dialog.LogMessage($"Uninstall {status}.");
         });
@@ -198,5 +193,18 @@ public sealed partial class MainWindow : WindowEx
         });
 
         SyncModListView();
+    }
+
+    internal class SyncDialogEventLogger : BaseEventLogger
+    {
+        private readonly SyncDialog dialog;
+
+        internal SyncDialogEventLogger(SyncDialog dialog)
+        {
+            this.dialog = dialog;
+        }
+
+        public override void ProgressUpdate(IPercent? value) => dialog.SetProgress(value?.Percent);
+        protected override void LogMessage(string message) => dialog.LogMessage(message);
     }
 }

@@ -1,9 +1,10 @@
-﻿using PCarsTools;
+﻿using Core.Games;
 using PCarsTools.Encryption;
+using PCarsTools;
 
 namespace Core.Mods;
 
-internal class GeneratedBootfiles : ExtractedMod
+internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 {
     internal const string VirtualPackageName = "__bootfiles_generated";
     internal const string PakfilesDirectory = "Pakfiles";
@@ -15,18 +16,31 @@ internal class GeneratedBootfiles : ExtractedMod
     private readonly string BmtFilesWildcard =
         Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
-    public GeneratedBootfiles(string gamePath, string generationBasePath)
-        : base(VirtualPackageName, null, Path.Combine(generationBasePath, VirtualPackageName))
+    public GeneratedBootfilesInstaller(ITempDir tempDir, BaseInstaller.IConfig config, IGame game) :
+        base(VirtualPackageName, null, tempDir, config)
     {
-        pakPath = Path.Combine(gamePath, PakfilesDirectory);
+        pakPath = Path.Combine(game.InstallationDirectory, PakfilesDirectory);
         GenerateBootfiles();
     }
+
+    protected override DirectoryInfo Source => stagingDir;
+
+    protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)
+    {
+        File.Move(fileInfo.FullName, destinationPath.Full);
+    }
+
+    public override void Dispose()
+    {
+    }
+
+    #region Bootfiles Generation
 
     private void GenerateBootfiles()
     {
         ExtractPakFileFromGame(BootFlowPakFileName);
         ExtractPakFileFromGame(PhysicsPersistentPakFileName);
-        CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{JsgmeFileInstaller.RemoveFileSuffix}"));
+        CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{BaseInstaller.RemoveFileSuffix}"));
         File.Copy(Path.Combine(pakPath, BootSplashPakFileName), ExtractedPakPath(BootFlowPakFileName));
         DeleteFromExtractedFiles(BmtFilesWildcard);
     }
@@ -36,11 +50,11 @@ internal class GeneratedBootfiles : ExtractedMod
         var filePath = Path.Combine(pakPath, fileName);
         BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
         using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true, outputWriter: TextWriter.Null);
-        pakFile.UnpackAll(extractedPath);
+        pakFile.UnpackAll(stagingDir.FullName);
     }
 
     private string ExtractedPakPath(string name) =>
-        Path.Combine(extractedPath, PakfilesDirectory, name);
+        Path.Combine(stagingDir.FullName, PakfilesDirectory, name);
 
     private void CreateEmptyFile(string path)
     {
@@ -57,13 +71,11 @@ internal class GeneratedBootfiles : ExtractedMod
 
     private void DeleteFromExtractedFiles(string wildcardRelative)
     {
-        foreach (var file in Directory.EnumerateFiles(extractedPath, wildcardRelative))
+        foreach (var file in Directory.EnumerateFiles(stagingDir.FullName, wildcardRelative))
         {
             File.Delete(file);
         }
     }
 
-    protected override IEnumerable<string> ExtractedRootDirs() => new[] { extractedPath };
-
-    protected override ConfigEntries GenerateConfig() => ConfigEntries.Empty;
+    #endregion
 }

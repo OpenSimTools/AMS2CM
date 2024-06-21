@@ -1,6 +1,6 @@
 ﻿namespace Core.Mods;
 
-internal class ModRepository : IModRepository
+public class ModRepository : IModRepository
 {
     private const string EnabledModsDirName = "Enabled";
     private const string DisabledModsSubdir = "Disabled";
@@ -60,7 +60,7 @@ internal class ModRepository : IModRepository
                 MatchType = MatchType.Win32,
                 IgnoreInaccessible = false,
                 AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                MaxRecursionDepth = 0,
+                RecurseSubdirectories = false,
             };
             return directoryInfo.GetFiles("*", options)
                 .Select(fileInfo => ModPackageFrom(rootPath, fileInfo))

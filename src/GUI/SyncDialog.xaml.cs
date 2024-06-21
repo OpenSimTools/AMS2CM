@@ -68,7 +68,7 @@ public sealed partial class SyncDialog : ContentDialog
         var items = enumerable.ToList();
         await ShowAsync(xamlRoot, (sd, ct) =>
         {
-            var progress = Percent.OfTotal(items.Count);
+            var progress = new PercentOfTotal(items.Count);
             foreach (var i in items)
             {
                 if (ct.IsCancellationRequested)
@@ -76,7 +76,7 @@ public sealed partial class SyncDialog : ContentDialog
                     break;
                 }
                 action(sd, i);
-                sd.SetProgress(progress.Increment());
+                sd.SetProgress(progress.IncrementDone().Percent);
             }
             return true;
         });

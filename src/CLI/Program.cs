@@ -1,11 +1,11 @@
-﻿using Core;
+﻿using AMS2CM.CLI;
+using Core;
 
 try
 {
     var config = Config.Load(args);
     var modManager = Init.CreateModManager(config);
-    modManager.Logs += Console.WriteLine;
-    modManager.InstallEnabledMods();
+    modManager.InstallEnabledMods(new ConsoleEventLogger());
 }
 catch (Exception e)
 {

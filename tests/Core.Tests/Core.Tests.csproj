@@ -25,14 +25,6 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
+		<PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" Version="21.0.2" />
 	</ItemGroup>
-
-	<!-- 7zip -->
-	<ItemGroup>
-		<PackageReference Include="7z.Libs" Version="23.1.0" />
-	</ItemGroup>
-	<Target Name="Organize7zLibs" AfterTargets="Build">
-		<Move SourceFiles="$(OutDir)\x64\7z.dll" DestinationFiles="$(OutDir)\7z64.dll" />
-		<RemoveDir Directories="$(OutDir)\x86;$(OutDir)\x64" />
-	</Target>
 </Project>
