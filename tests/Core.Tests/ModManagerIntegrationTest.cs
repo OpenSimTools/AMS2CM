@@ -111,7 +111,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.InitState(new InternalState
         (
             Install: new(
-                Time: installationDateTime,
+                Time: installationDateTime.ToUniversalTime(),
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     [""] = new(
@@ -137,10 +137,10 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     public void Uninstall_StopsAfterAnyError()
     {
         // It must be after files are created
-        var installationDateTime = DateTime.Now.AddDays(1);
+        var installationDateTime = DateTime.Now.AddMinutes(1);
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: installationDateTime,
+                Time: installationDateTime.ToUniversalTime(),
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["A"] = new(
@@ -168,7 +168,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
-                Time: installationDateTime,
+                Time: installationDateTime.ToUniversalTime(),
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["B"] = new(
@@ -205,6 +205,33 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
         Assert.Equal("Orig", File.ReadAllText(GamePath("ModFile")));
+        Assert.False(File.Exists(GamePath(BackupName("ModFile"))));
+    }
+
+    [Fact]
+    public void Uninstall_SkipsRestoreIfModFileOverwritten()
+    {
+        // It must be after files are created
+        var installationDateTime = DateTime.Now.AddMinutes(1);
+        persistedState.InitState(new InternalState(
+            Install: new(
+                Time: installationDateTime.ToUniversalTime(),
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    [""] = new(
+                        FsHash: null, Partial: false, Files: [
+                            "ModFile"
+                        ])
+                }
+            )));
+
+        CreateGameFile("ModFile", "Overwritten");
+        File.SetCreationTime(GamePath("ModFile"), installationDateTime.AddHours(1));
+        CreateGameFile(BackupName("ModFile"), "Orig");
+
+        modManager.UninstallAllMods(eventHandlerMock.Object);
+
+        Assert.Equal("Overwritten", File.ReadAllText(GamePath("ModFile")));
         Assert.False(File.Exists(GamePath(BackupName("ModFile"))));
     }
 
@@ -378,7 +405,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_PreventsFileCreationTimeInTheFuture()
     {
-        var future = DateTime.Now.AddDays(1);
+        var future = DateTime.Now.AddMinutes(1);
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "A")
