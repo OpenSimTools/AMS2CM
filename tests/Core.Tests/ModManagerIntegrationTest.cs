@@ -1,15 +1,13 @@
-namespace Core.Tests;
-
-using System;
 using System.Collections.Immutable;
 using System.IO.Compression;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
-using Moq;
 
-public class ModManagerTest : AbstractFilesystemTest
+namespace Core.Tests;
+
+public class ModManagerIntegrationTest : AbstractFilesystemTest
 {
     #region Initialisation
 
@@ -31,7 +29,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
     private readonly ModManager modManager;
 
-    public ModManagerTest() : base()
+    public ModManagerIntegrationTest() : base()
     {
         gameDir = testDir.CreateSubdirectory("Game");
         modsDir = testDir.CreateSubdirectory("Packages");
