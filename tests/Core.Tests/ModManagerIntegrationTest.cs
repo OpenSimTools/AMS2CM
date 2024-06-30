@@ -3,6 +3,7 @@ using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
+using Core.Utils;
 using FluentAssertions;
 
 namespace Core.Tests;
@@ -13,6 +14,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
+
+    // Randomness ensures that at least some test runs will fail if it's used
+    private static readonly DateTime? ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
 
     private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
@@ -77,16 +81,16 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.InitState(new InternalState
         (
             Install: new(
-                Time: null,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["A"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: null, FsHash: null, Partial: false, Files: [
                             Path.Combine("X", "ModAFile"),
                             Path.Combine("Y", "ModAFile")
                         ]),
                     ["B"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: null, FsHash: null, Partial: false, Files: [
                             Path.Combine("X", "ModBFile")
                         ])
                 }
@@ -109,11 +113,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.InitState(new InternalState
         (
             Install: new(
-                Time: installationDateTime.ToUniversalTime(),
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     [""] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModFile",
                             "RecreatedFile",
                             "AlreadyDeletedFile"
@@ -138,20 +142,20 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         var installationDateTime = DateTime.Now.AddMinutes(1);
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: installationDateTime.ToUniversalTime(),
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["A"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModAFile"
                         ]),
                     ["B"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModBFile1",
                             "ModBFile2"
                         ]),
                     ["C"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModCFile"
                         ])
                 }
@@ -171,11 +175,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["B"] = new(
-                        FsHash: null, Partial: true, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: true, Files: [
                             "ModBFile2"
                         ]),
                     ["C"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModCFile"
                         ])
                 }
@@ -188,11 +192,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     {
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: null,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     [""] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: null, FsHash: null, Partial: false, Files: [
                             "ModFile"
                         ])
                 }
@@ -214,11 +218,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         var installationDateTime = DateTime.Now.AddMinutes(1);
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: installationDateTime.ToUniversalTime(),
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     [""] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModFile"
                         ])
                 }
@@ -267,7 +271,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.Should().HaveInstalled(new Dictionary<string, InternalModInstallationState>
         {
             ["Package100"] = new(
-                    FsHash: 100, Partial: false, Files: [
+                    Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                         Path.Combine(DirAtRoot, "A"),
                         Path.Combine(DirAtRoot, "B"),
                         "C"
@@ -292,7 +296,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.Should().HaveInstalled(new Dictionary<string, InternalModInstallationState>
         {
             ["Package100"] = new(
-                    FsHash: 100, Partial: false, Files: [
+                    Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                         Path.Combine(DirAtRoot, "B")
                     ]),
         });
@@ -331,8 +335,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))).Should().Be("200");
         persistedState.Should().HaveInstalled(new Dictionary<string, InternalModInstallationState>
         {
-            ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
-            ["Package200"] = new(FsHash: 200, Partial: false, Files: [
+            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: []),
+            ["Package200"] = new(Time: DateTime.UtcNow, FsHash: 200, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "a")
                 ]),
         });
@@ -352,7 +356,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         persistedState.Should().HaveInstalled(new Dictionary<string, InternalModInstallationState>
         {
-            ["Package100"] = new(FsHash: 100, Partial: false, Files: [
+            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "A")
                 ]),
         });
@@ -389,11 +393,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["Package200"] = new(
-                        FsHash: 200, Partial: true, Files: [
+                        Time: DateTime.UtcNow, FsHash: 200, Partial: true, Files: [
                             Path.Combine(DirAtRoot, "B1")
                         ]),
                     ["Package300"] = new(
-                        FsHash: 300, Partial: false, Files: [
+                        Time: DateTime.UtcNow, FsHash: 300, Partial: false, Files: [
                             Path.Combine(DirAtRoot, "C")
                         ]),
                 }
@@ -571,12 +575,12 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private class InMemoryStatePersistence : IStatePersistence
     {
         // Avoids bootfiles checks on uninstall
-        private static readonly InternalState SkipBootfilesCheck = new InternalState(
+        private static readonly InternalState SkipBootfilesCheck = new(
             Install: new(
-                Time: null,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["INIT"] = new(FsHash: null, Partial: false, Files: []),
+                    ["INIT"] = new(Time: null, FsHash: null, Partial: false, Files: []),
                 }
             ));
 
@@ -603,22 +607,46 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         internal void Be(InternalState expected)
         {
-            savedState.Should().NotBeNull();
-            // Not a great solution, but .NET doesn't natively provide support for mocking the clock
-            (savedState!.Install.Time ?? DateTime.MinValue).Should().BeCloseTo((expected.Install.Time ?? DateTime.MinValue), TimeTolerance);
+            var writtenState = WrittenState();
+            ValidateDateTime(expected.Install.Time, writtenState.Install.Time);
             HaveInstalled(expected.Install.Mods);
         }
 
         internal void HaveInstalled(IReadOnlyDictionary<string, InternalModInstallationState> expected)
         {
-            savedState.Should().NotBeNull();
-            savedState?.Install.Mods.Should().BeEquivalentTo(expected);
+            var writtenState = WrittenState();
+            var actualMods = writtenState.Install.Mods;
+            var expectedMods = expected.Select(mod =>
+            {
+                var expectedTime = mod.Value.Time;
+                var actualTime = writtenState.Install.Mods.GetValueOrDefault(mod.Key)?.Time;
+                if (actualTime is null)
+                {
+                    return mod;
+                }
+                ValidateDateTime(expectedTime, actualTime);
+                return new KeyValuePair<string, InternalModInstallationState>(mod.Key, mod.Value with { Time = actualTime });
+            });
+            actualMods.Should().BeEquivalentTo(expectedMods);
         }
 
         internal void HaveInstalled(IEnumerable<string> expected)
         {
-            savedState?.Install.Mods.Keys.Should().BeEquivalentTo(expected);
+            var writtenState = WrittenState();
+            writtenState.Install.Mods.Keys.Should().BeEquivalentTo(expected);
         }
+
+        private InternalState WrittenState()
+        {
+            savedState.Should().NotBeNull("State was not written");
+            return savedState!;
+        }
+
+        /// <summary>
+        /// Not a great solution, but .NET doesn't natively provide support for mocking the clock!
+        /// </summary>
+        private void ValidateDateTime(DateTime? expected, DateTime? actual) =>
+            (actual ?? DateTime.MinValue).Should().BeCloseTo((expected ?? DateTime.MinValue), TimeTolerance);
 
         internal void BeEmpty()
         {

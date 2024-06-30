@@ -65,13 +65,8 @@ public class ModInstaller : IModInstaller
         if (currentState.Mods.Any())
         {
             eventHandler.UninstallStart();
-            var skipCreatedAfter = SkipCreatedAfter(eventHandler, currentState.Time);
             var uninstallCallbacks = new ProcessingCallbacks<RootedPath>
             {
-                Accept = gamePath =>
-                {
-                    return skipCreatedAfter(gamePath);
-                },
                 After = gamePath =>
                 {
                     backupStrategy.RestoreBackup(gamePath.Full);
@@ -95,6 +90,7 @@ public class ModInstaller : IModInstaller
                         installDir,
                         filesLeft,
                         uninstallCallbacks
+                            .AndAccept(SkipCreatedAfter(eventHandler, modInstallationState.Time))
                             .AndAfter(_ => filesLeft.Remove(_.Relative))
                             .AndNotAccepted(_ => filesLeft.Remove(_.Relative))
                     );
