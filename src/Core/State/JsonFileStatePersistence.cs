@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Core.Utils;
+using Newtonsoft.Json;
 
 namespace Core.State;
 
@@ -28,7 +29,15 @@ internal class JsonFileStatePersistence : IStatePersistence
         if (File.Exists(stateFile))
         {
             var contents = File.ReadAllText(stateFile);
-            return JsonConvert.DeserializeObject<InternalState>(contents);
+            var state = JsonConvert.DeserializeObject<InternalState>(contents);
+            // Fill mod install time if not present (for migration)
+            return state with
+            {
+                Install = state.Install with
+                {
+                    Mods = state.Install.Mods.SelectValues(_ => _ with { Time = _.Time ?? state.Install.Time })
+                }
+            };
         }
 
         // Fallback to old state when new state is not present
@@ -42,7 +51,7 @@ internal class JsonFileStatePersistence : IStatePersistence
                     Time: installTime,
                     Mods: oldState.AsEnumerable().ToDictionary(
                         kv => kv.Key,
-                        kv => new InternalModInstallationState(FsHash: null, Partial: false, Files: kv.Value)
+                        kv => new InternalModInstallationState(Time: installTime, FsHash: null, Partial: false, Files: kv.Value)
                     )
                 )
             );

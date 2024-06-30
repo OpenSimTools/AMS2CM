@@ -12,6 +12,7 @@ public record InternalState(
 };
 
 public record InternalInstallationState(
+    // TODO: needed for backward compatibility
     DateTime? Time,
     IReadOnlyDictionary<string, InternalModInstallationState> Mods
 )
@@ -23,6 +24,8 @@ public record InternalInstallationState(
 };
 
 public record InternalModInstallationState(
+    // TODO: nullable for backward compatibility
+    DateTime? Time,
     // Unknown when partially installed or upgrading from a previous version
     int? FsHash,
     // TODO: needed for backward compatibility
