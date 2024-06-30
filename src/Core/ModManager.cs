@@ -169,6 +169,7 @@ internal class ModManager : IModManager
                     else
                     {
                         modsLeft[modInstallation.PackageName] = new InternalModInstallationState(
+                            Time: modsLeft[modInstallation.PackageName].Time,
                             FsHash: modInstallation.PackageFsHash,
                             Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
                             Files: modInstallation.InstalledFiles
@@ -182,7 +183,8 @@ internal class ModManager : IModManager
         {
             statePersistence.WriteState(new InternalState(
                 Install: new(
-                    Time: modsLeft.Any() ? previousInstallation.Time : null,
+                    // TODO for state migration
+                    Time: modsLeft.Values.Max(_ => _.Time),
                     Mods: modsLeft
                 )
             ));
@@ -208,10 +210,11 @@ internal class ModManager : IModManager
                 modRepository.ListEnabledMods(),
                 game.InstallationDirectory,
                 modInstallation => installedFilesByMod.Add(modInstallation.PackageName, new(
-                                FsHash: modInstallation.PackageFsHash,
-                                Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
-                                Files: modInstallation.InstalledFiles
-                            )),
+                    Time: DateTime.UtcNow,
+                    FsHash: modInstallation.PackageFsHash,
+                    Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
+                    Files: modInstallation.InstalledFiles
+                )),
                 eventHandler,
                 cancellationToken);
         }
@@ -219,7 +222,7 @@ internal class ModManager : IModManager
         {
             statePersistence.WriteState(new InternalState(
                 Install: new(
-                    Time: DateTime.UtcNow,
+                    Time: installedFilesByMod.Values.Max(_ => _.Time),
                     Mods: installedFilesByMod
                 )
             ));
