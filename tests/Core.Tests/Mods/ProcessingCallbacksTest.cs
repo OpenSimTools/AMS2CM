@@ -1,8 +1,8 @@
 ﻿using Core.Mods;
-using Moq;
 
 namespace Core.Tests.Mods;
 
+[UnitTest]
 public class ProcessingCallbacksTest
 {
     private static readonly int SomeValue = 42;

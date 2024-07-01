@@ -1,20 +1,21 @@
-namespace Core.Tests;
-
-using System;
 using System.Collections.Immutable;
 using System.IO.Compression;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
-using Moq;
 
-public class ModManagerTest : AbstractFilesystemTest
+namespace Core.Tests;
+
+public class ModManagerIntegrationTest : AbstractFilesystemTest
 {
     #region Initialisation
 
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
+
+    // Randomness ensures that at least some test runs will fail if it's used
+    private static readonly DateTime? ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
 
     private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
@@ -31,7 +32,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
     private readonly ModManager modManager;
 
-    public ModManagerTest() : base()
+    public ModManagerIntegrationTest() : base()
     {
         gameDir = testDir.CreateSubdirectory("Game");
         modsDir = testDir.CreateSubdirectory("Packages");
@@ -81,16 +82,16 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitState(new InternalState
         (
             Install: new(
-                Time: null,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["A"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: null, FsHash: null, Partial: false, Files: [
                             Path.Combine("X", "ModAFile"),
                             Path.Combine("Y", "ModAFile")
                         ]),
                     ["B"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: null, FsHash: null, Partial: false, Files: [
                             Path.Combine("X", "ModBFile")
                         ])
                 }
@@ -113,11 +114,11 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitState(new InternalState
         (
             Install: new(
-                Time: installationDateTime,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     [""] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModFile",
                             "RecreatedFile",
                             "AlreadyDeletedFile"
@@ -139,23 +140,23 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Uninstall_StopsAfterAnyError()
     {
         // It must be after files are created
-        var installationDateTime = DateTime.Now.AddDays(1);
+        var installationDateTime = DateTime.Now.AddMinutes(1);
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: installationDateTime,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["A"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModAFile"
                         ]),
                     ["B"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModBFile1",
                             "ModBFile2"
                         ]),
                     ["C"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModCFile"
                         ])
                 }
@@ -170,15 +171,15 @@ public class ModManagerTest : AbstractFilesystemTest
 
         persistedState.AssertEqual(new InternalState(
             Install: new InternalInstallationState(
-                Time: installationDateTime,
+                Time: installationDateTime.ToUniversalTime(),
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["B"] = new(
-                        FsHash: null, Partial: true, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: true, Files: [
                             "ModBFile2"
                         ]),
                     ["C"] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
                             "ModCFile"
                         ])
                 }
@@ -191,11 +192,11 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         persistedState.InitState(new InternalState(
             Install: new(
-                Time: null,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     [""] = new(
-                        FsHash: null, Partial: false, Files: [
+                        Time: null, FsHash: null, Partial: false, Files: [
                             "ModFile"
                         ])
                 }
@@ -207,6 +208,33 @@ public class ModManagerTest : AbstractFilesystemTest
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
         Assert.Equal("Orig", File.ReadAllText(GamePath("ModFile")));
+        Assert.False(File.Exists(GamePath(BackupName("ModFile"))));
+    }
+
+    [Fact]
+    public void Uninstall_SkipsRestoreIfModFileOverwritten()
+    {
+        // It must be after files are created
+        var installationDateTime = DateTime.Now.AddMinutes(1);
+        persistedState.InitState(new InternalState(
+            Install: new(
+                Time: ValueNotUsed,
+                Mods: new Dictionary<string, InternalModInstallationState>
+                {
+                    [""] = new(
+                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
+                            "ModFile"
+                        ])
+                }
+            )));
+
+        CreateGameFile("ModFile", "Overwritten");
+        File.SetCreationTime(GamePath("ModFile"), installationDateTime.AddHours(1));
+        CreateGameFile(BackupName("ModFile"), "Orig");
+
+        modManager.UninstallAllMods(eventHandlerMock.Object);
+
+        Assert.Equal("Overwritten", File.ReadAllText(GamePath("ModFile")));
         Assert.False(File.Exists(GamePath(BackupName("ModFile"))));
     }
 
@@ -245,7 +273,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
         {
             ["Package100"] = new(
-                    FsHash: 100, Partial: false, Files: [
+                    Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                         Path.Combine(DirAtRoot, "A"),
                         Path.Combine(DirAtRoot, "B"),
                         "C"
@@ -270,7 +298,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
         {
             ["Package100"] = new(
-                    FsHash: 100, Partial: false, Files: [
+                    Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                         Path.Combine(DirAtRoot, "B")
                     ]),
         });
@@ -309,8 +337,8 @@ public class ModManagerTest : AbstractFilesystemTest
         Assert.Equal("200", File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))));
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
         {
-            ["Package100"] = new(FsHash: 100, Partial: false, Files: []),
-            ["Package200"] = new(FsHash: 200, Partial: false, Files: [
+            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: []),
+            ["Package200"] = new(Time: DateTime.UtcNow, FsHash: 200, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "a")
                 ]),
         });
@@ -330,7 +358,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         persistedState.AssertModsEqual(new Dictionary<string, InternalModInstallationState>
         {
-            ["Package100"] = new(FsHash: 100, Partial: false, Files: [
+            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "A")
                 ]),
         });
@@ -366,11 +394,11 @@ public class ModManagerTest : AbstractFilesystemTest
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
                     ["Package200"] = new(
-                        FsHash: 200, Partial: true, Files: [
+                        Time: DateTime.Now, FsHash: 200, Partial: true, Files: [
                             Path.Combine(DirAtRoot, "B1")
                         ]),
                     ["Package300"] = new(
-                        FsHash: 300, Partial: false, Files: [
+                        Time: DateTime.Now, FsHash: 300, Partial: false, Files: [
                             Path.Combine(DirAtRoot, "C")
                         ]),
                 }
@@ -380,7 +408,7 @@ public class ModManagerTest : AbstractFilesystemTest
     [Fact]
     public void Install_PreventsFileCreationTimeInTheFuture()
     {
-        var future = DateTime.Now.AddDays(1);
+        var future = DateTime.Now.AddMinutes(1);
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "A")
@@ -547,6 +575,9 @@ public class ModManagerTest : AbstractFilesystemTest
     private static void AssertAboutNow(DateTime actual) =>
         AssertEqualWithinToleration(DateTime.Now, actual);
 
+    /// <remarks>
+    /// Not a great solution, but .NET doesn't natively provide support for mocking the clock
+    /// </remarks>
     private static void AssertEqualWithinToleration(DateTime? expected, DateTime? actual) =>
         Assert.InRange(actual?.ToUniversalTime().Ticks ?? 0L,
             expected?.ToUniversalTime().Subtract(TimeTolerance).Ticks ?? 0L,
@@ -557,10 +588,10 @@ public class ModManagerTest : AbstractFilesystemTest
         // Avoids bootfiles checks on uninstall
         private static readonly InternalState SkipBootfilesCheck = new InternalState(
             Install: new(
-                Time: null,
+                Time: ValueNotUsed,
                 Mods: new Dictionary<string, InternalModInstallationState>
                 {
-                    ["INIT"] = new(FsHash: null, Partial: false, Files: []),
+                    ["INIT"] = new(Time: null, FsHash: null, Partial: false, Files: []),
                 }
             ));
 
@@ -576,7 +607,6 @@ public class ModManagerTest : AbstractFilesystemTest
         internal void AssertEqual(InternalState expected)
         {
             Assert.NotNull(savedState);
-            // Not a great solution, but .NET doesn't natively provide support for mocking the clock
             AssertEqualWithinToleration(expected.Install.Time, savedState.Install.Time);
             AssertModsInstalled(expected.Install.Mods.Keys);
             AssertModsEqual(expected.Install.Mods);
@@ -589,6 +619,7 @@ public class ModManagerTest : AbstractFilesystemTest
             {
                 var currentModState = savedState.Install.Mods[e.Key];
                 var expectedModState = e.Value;
+                AssertEqualWithinToleration(expectedModState.Time, currentModState.Time);
                 Assert.Equal(expectedModState.FsHash, currentModState.FsHash);
                 Assert.Equal(expectedModState.Partial, currentModState.Partial);
                 Assert.Equal(expectedModState.Files.ToImmutableHashSet(), currentModState.Files.ToImmutableHashSet());

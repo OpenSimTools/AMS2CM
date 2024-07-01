@@ -1,8 +1,9 @@
-namespace Core.Tests.Utils;
-
 using static Core.Utils.StringExtensions;
 
-public class PostProcessorTest
+namespace Core.Tests.Utils;
+
+[UnitTest]
+public class StringExtensionsTest
 {
     [Fact]
     public void NormalizeWhitespaces_ReplacesWithSpaces()
