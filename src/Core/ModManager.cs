@@ -1,8 +1,10 @@
+using System.Globalization;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
+using Microsoft.VisualBasic;
 using static Core.IModManager;
 
 namespace Core;
@@ -138,59 +140,14 @@ internal class ModManager : IModManager
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
-        if (RestoreOriginalState(eventHandler, cancellationToken))
-        {
-            InstallAllModFiles(eventHandler, cancellationToken);
-        }
+        InstallMods(modRepository.ListEnabledMods(), eventHandler, cancellationToken);
         tempDir.Cleanup();
     }
 
     public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        RestoreOriginalState(eventHandler, cancellationToken);
-    }
-
-    private bool RestoreOriginalState(IEventHandler eventHandler, CancellationToken cancellationToken)
-    {
-        var previousInstallation = statePersistence.ReadState().Install;
-        var modsLeft = new Dictionary<string, InternalModInstallationState>(previousInstallation.Mods);
-        try
-        {
-            modInstaller.UninstallPackages(
-                previousInstallation,
-                game.InstallationDirectory,
-                modInstallation =>
-                {
-                    if (modInstallation.Installed == IInstallation.State.NotInstalled)
-                    {
-                        modsLeft.Remove(modInstallation.PackageName);
-                    }
-                    else
-                    {
-                        modsLeft[modInstallation.PackageName] = new InternalModInstallationState(
-                            Time: modsLeft[modInstallation.PackageName].Time,
-                            FsHash: modInstallation.PackageFsHash,
-                            Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
-                            Files: modInstallation.InstalledFiles
-                        );
-                    }
-                },
-                eventHandler,
-                cancellationToken);
-        }
-        finally
-        {
-            statePersistence.WriteState(new InternalState(
-                Install: new(
-                    // TODO for state migration
-                    Time: modsLeft.Values.Max(_ => _.Time),
-                    Mods: modsLeft
-                )
-            ));
-        }
-        // Success if everything was uninstalled
-        return !modsLeft.Any();
+        InstallMods(Array.Empty<ModPackage>(), eventHandler, cancellationToken);
     }
 
     private void CheckGameNotRunning()
@@ -201,29 +158,50 @@ internal class ModManager : IModManager
         }
     }
 
-    private void InstallAllModFiles(IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void InstallMods(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
+        var previousState = statePersistence.ReadState().Install.Mods;
+        var currentState = new Dictionary<string, InternalModInstallationState>(previousState);
         try
         {
-            modInstaller.InstallPackages(
-                modRepository.ListEnabledMods(),
+            modInstaller.Apply(
+                previousState,
+                packages,
                 game.InstallationDirectory,
-                modInstallation => installedFilesByMod.Add(modInstallation.PackageName, new(
-                    Time: DateTime.UtcNow,
-                    FsHash: modInstallation.PackageFsHash,
-                    Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
-                    Files: modInstallation.InstalledFiles
-                )),
-                eventHandler,
+                modInstallation =>
+                {
+                    switch (modInstallation.Installed)
+                    {
+                    case IInstallation.State.Installed:
+                    case IInstallation.State.PartiallyInstalled:
+                        currentState.Upsert(modInstallation.PackageName,
+                            existing => new(
+                                Time: existing.Time,
+                                FsHash: existing.FsHash,
+                                Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
+                                Files: modInstallation.InstalledFiles
+                            ),
+                            () => new(
+                                Time: DateTime.UtcNow,
+                                FsHash: modInstallation.PackageFsHash,
+                                Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
+                                Files: modInstallation.InstalledFiles
+                            ));
+                        break;
+                    case IInstallation.State.NotInstalled:
+                        currentState.Remove(modInstallation.PackageName);
+                        break;
+                    }
+                },
+            eventHandler,
                 cancellationToken);
         }
         finally
         {
             statePersistence.WriteState(new InternalState(
                 Install: new(
-                    Time: installedFilesByMod.Values.Max(_ => _.Time),
-                    Mods: installedFilesByMod
+                    Time: currentState.Values.Max(_ => _.Time),
+                    Mods: currentState
                 )
             ));
         }

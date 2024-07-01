@@ -1,4 +1,6 @@
-﻿namespace Core.Utils;
+﻿using Core.Mods;
+
+namespace Core.Utils;
 
 public static class DictionaryExtensions
 {
@@ -30,5 +32,11 @@ public static class DictionaryExtensions
         where TKey : notnull
     {
         return dict.ToDictionary(kv => kv.Key, kv => f(kv.Key, kv.Value));
+    }
+
+    public static void Upsert<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, Func<TValue, TValue> updatedValue, Func<TValue> insertedValue)
+        where TKey : notnull
+    {
+        dict[key] = dict.TryGetValue(key, out var existing) ? updatedValue(existing) : insertedValue();
     }
 }
