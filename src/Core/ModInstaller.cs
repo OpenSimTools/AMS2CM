@@ -55,14 +55,26 @@ public class ModInstaller : IModInstaller
         backupStrategy = new SuffixBackupStrategy();
     }
 
-    public void UninstallPackages(
-        InternalInstallationState currentState,
+    public void Apply(
+        IReadOnlyDictionary<string, InternalModInstallationState> currentState,
+        IReadOnlyCollection<ModPackage> packages,
+        string installDir,
+        Action<IInstallation> afterCallback,
+        IEventHandler eventHandler,
+        CancellationToken cancellationToken)
+    {
+        UninstallPackages(currentState, installDir, afterCallback, eventHandler, cancellationToken);
+        InstallPackages(packages, installDir, afterCallback, eventHandler, cancellationToken);
+    }
+
+    private void UninstallPackages(
+        IReadOnlyDictionary<string, InternalModInstallationState> currentState,
         string installDir,
         Action<IInstallation> afterUninstall,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        if (currentState.Mods.Any())
+        if (currentState.Any())
         {
             eventHandler.UninstallStart();
             var uninstallCallbacks = new ProcessingCallbacks<RootedPath>
@@ -76,7 +88,7 @@ public class ModInstaller : IModInstaller
                     backupStrategy.DeleteBackup(gamePath.Full);
                 }
             };
-            foreach (var (packageName, modInstallationState) in currentState.Mods)
+            foreach (var (packageName, modInstallationState) in currentState)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -170,7 +182,7 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private static IEnumerable<string> AncestorsUpTo(string root, string path)
+    private static List<string> AncestorsUpTo(string root, string path)
     {
         var ancestors = new List<string>();
         for (var dir = Directory.GetParent(path); dir is not null && dir.FullName != root; dir = dir.Parent)
@@ -180,7 +192,7 @@ public class ModInstaller : IModInstaller
         return ancestors;
     }
 
-    public void InstallPackages(
+    private void InstallPackages(
         IReadOnlyCollection<ModPackage> packages,
         string installDir,
         Action<IInstallation> afterInstall,
