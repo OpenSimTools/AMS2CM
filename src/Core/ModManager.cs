@@ -193,7 +193,7 @@ internal class ModManager : IModManager
                         break;
                     }
                 },
-            eventHandler,
+                eventHandler,
                 cancellationToken);
         }
         finally
