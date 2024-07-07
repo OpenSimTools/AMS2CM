@@ -1,4 +1,5 @@
-﻿using Core.Games;
+﻿using Core.Backup;
+using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
@@ -18,7 +19,8 @@ public static class Init
         var modRepository = new ModRepository(modsDir);
         var installationFactory = new InstallationFactory(game, tempDir, config.ModInstall);
         var safeFileDelete = new WindowsRecyclingBin();
-        var modInstaller = new ModInstaller(installationFactory, config.ModInstall);
+        var backupStrategy = new SuffixBackupStrategy();
+        var modInstaller = new ModInstaller(installationFactory, backupStrategy, config.ModInstall);
         return new ModManager(game, modRepository, modInstaller, statePersistence, safeFileDelete, tempDir);
     }
 }

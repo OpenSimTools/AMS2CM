@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.IO.Compression;
+using Core.Backup;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
@@ -53,7 +54,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            new ModInstaller(installationFactory, modInstallConfig),
+            new ModInstaller(installationFactory, new SuffixBackupStrategy(), modInstallConfig),
             persistedState,
             safeFileDeleteMock.Object,
             tempDir);
