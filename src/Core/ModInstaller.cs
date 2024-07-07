@@ -46,11 +46,11 @@ public class ModInstaller : IModInstaller
     private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
 
-    public ModInstaller(IInstallationFactory installationFactory, IConfig config)
+    public ModInstaller(IInstallationFactory installationFactory, IBackupStrategy backupStrategy, IConfig config)
     {
         this.installationFactory = installationFactory;
+        this.backupStrategy = backupStrategy;
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
-        backupStrategy = new SuffixBackupStrategy();
     }
 
     public void Apply(
@@ -260,6 +260,7 @@ public class ModInstaller : IModInstaller
             {
                 eventHandler.PostProcessingNotRequired();
             }
+            eventHandler.InstallEnd();
             eventHandler.ProgressUpdate(progress.IncrementDone());
         }
         else
