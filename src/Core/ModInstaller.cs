@@ -43,14 +43,12 @@ public class ModInstaller : IModInstaller
     }
 
     private readonly IInstallationFactory installationFactory;
-    private readonly ITempDir tempDir;
     private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
 
-    public ModInstaller(IInstallationFactory installationFactory, ITempDir tempDir, IConfig config)
+    public ModInstaller(IInstallationFactory installationFactory, IConfig config)
     {
         this.installationFactory = installationFactory;
-        this.tempDir = tempDir;
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         backupStrategy = new SuffixBackupStrategy();
     }
