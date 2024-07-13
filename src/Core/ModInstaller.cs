@@ -43,35 +43,40 @@ public class ModInstaller : IModInstaller
     }
 
     private readonly IInstallationFactory installationFactory;
-    private readonly ITempDir tempDir;
     private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
 
-    public ModInstaller(IInstallationFactory installationFactory, ITempDir tempDir, IConfig config)
+    public ModInstaller(IInstallationFactory installationFactory, IBackupStrategy backupStrategy, IConfig config)
     {
         this.installationFactory = installationFactory;
-        this.tempDir = tempDir;
+        this.backupStrategy = backupStrategy;
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
-        backupStrategy = new SuffixBackupStrategy();
     }
 
-    public void UninstallPackages(
-        InternalInstallationState currentState,
+    public void Apply(
+        IReadOnlyDictionary<string, InternalModInstallationState> currentState,
+        IReadOnlyCollection<ModPackage> toInstall,
+        string installDir,
+        Action<IInstallation> afterCallback,
+        IEventHandler eventHandler,
+        CancellationToken cancellationToken)
+    {
+        UninstallPackages(currentState, installDir, afterCallback, eventHandler, cancellationToken);
+        InstallPackages(toInstall, installDir, afterCallback, eventHandler, cancellationToken);
+    }
+
+    private void UninstallPackages(
+        IReadOnlyDictionary<string, InternalModInstallationState> currentState,
         string installDir,
         Action<IInstallation> afterUninstall,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        if (currentState.Mods.Any())
+        if (currentState.Any())
         {
             eventHandler.UninstallStart();
-            var skipCreatedAfter = SkipCreatedAfter(eventHandler, currentState.Time);
             var uninstallCallbacks = new ProcessingCallbacks<RootedPath>
             {
-                Accept = gamePath =>
-                {
-                    return skipCreatedAfter(gamePath);
-                },
                 After = gamePath =>
                 {
                     backupStrategy.RestoreBackup(gamePath.Full);
@@ -81,7 +86,7 @@ public class ModInstaller : IModInstaller
                     backupStrategy.DeleteBackup(gamePath.Full);
                 }
             };
-            foreach (var (packageName, modInstallationState) in currentState.Mods)
+            foreach (var (packageName, modInstallationState) in currentState)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -95,6 +100,7 @@ public class ModInstaller : IModInstaller
                         installDir,
                         filesLeft,
                         uninstallCallbacks
+                            .AndAccept(SkipCreatedAfter(eventHandler, modInstallationState.Time))
                             .AndAfter(_ => filesLeft.Remove(_.Relative))
                             .AndNotAccepted(_ => filesLeft.Remove(_.Relative))
                     );
@@ -131,10 +137,9 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private static void UninstallFiles(string dstPath, IEnumerable<string> files, ProcessingCallbacks<RootedPath> callbacks)
+    private static void UninstallFiles(string dstPath, IReadOnlyCollection<string> filePaths, ProcessingCallbacks<RootedPath> callbacks)
     {
-        var fileList = files.ToList(); // It must be enumerated twice
-        foreach (var relativePath in fileList)
+        foreach (var relativePath in filePaths)
         {
             var gamePath = new RootedPath(dstPath, relativePath);
 
@@ -154,10 +159,10 @@ public class ModInstaller : IModInstaller
 
             callbacks.After(gamePath);
         }
-        DeleteEmptyDirectories(dstPath, fileList);
+        DeleteEmptyDirectories(dstPath, filePaths);
     }
 
-    private static void DeleteEmptyDirectories(string dstRootPath, IEnumerable<string> filePaths)
+    private static void DeleteEmptyDirectories(string dstRootPath, IReadOnlyCollection<string> filePaths)
     {
         var dirs = filePaths
             .Select(file => Path.Combine(dstRootPath, file))
@@ -174,7 +179,7 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private static IEnumerable<string> AncestorsUpTo(string root, string path)
+    private static List<string> AncestorsUpTo(string root, string path)
     {
         var ancestors = new List<string>();
         for (var dir = Directory.GetParent(path); dir is not null && dir.FullName != root; dir = dir.Parent)
@@ -184,14 +189,14 @@ public class ModInstaller : IModInstaller
         return ancestors;
     }
 
-    public void InstallPackages(
-        IReadOnlyCollection<ModPackage> packages,
+    private void InstallPackages(
+        IReadOnlyCollection<ModPackage> toInstall,
         string installDir,
         Action<IInstallation> afterInstall,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var modPackages = packages.Where(_ => !BootfilesManager.IsBootFiles(_.PackageName)).Reverse();
+        var modPackages = toInstall.Where(_ => !BootfilesManager.IsBootFiles(_.PackageName)).Reverse();
 
         var modConfigs = new List<ConfigEntries>();
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -239,7 +244,7 @@ public class ModInstaller : IModInstaller
             if (modConfigs.Where(_ => _.NotEmpty()).Any())
             {
                 eventHandler.PostProcessingStart();
-                using var bootfilesMod = CreateBootfilesMod(packages, eventHandler);
+                using var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
                 try
                 {
                     bootfilesMod.Install(installDir, installCallbacks);
@@ -255,6 +260,7 @@ public class ModInstaller : IModInstaller
             {
                 eventHandler.PostProcessingNotRequired();
             }
+            eventHandler.InstallEnd();
             eventHandler.ProgressUpdate(progress.IncrementDone());
         }
         else
