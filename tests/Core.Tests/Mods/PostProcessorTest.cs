@@ -2,6 +2,7 @@ using Core.Mods;
 
 namespace Core.Tests.Mods;
 
+[UnitTest]
 public class PostProcessorTest
 {
     [Fact]

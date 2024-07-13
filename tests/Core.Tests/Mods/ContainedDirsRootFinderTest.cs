@@ -2,6 +2,7 @@
 
 namespace Core.Tests.Mods;
 
+[UnitTest]
 public class ContainedDirsRootFinderTest
 {
     private static readonly string[] RootDirs = ["R1", "R2"];

@@ -3,6 +3,7 @@ using Core.Backup;
 
 namespace Core.Tests.Backup;
 
+[IntegrationTest]
 public class MoveFileBackupStrategyTest
 {
     private static readonly string OriginalFile = "original";

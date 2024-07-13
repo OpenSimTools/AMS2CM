@@ -2,13 +2,13 @@ using Core.Mods;
 
 namespace Core.Tests.Mods;
 
-public class ModRepositoryTest : AbstractFilesystemTest
+public class ModRepositoryIntegrationTest : AbstractFilesystemTest
 {
     private const int NotChecked = 42;
 
     private readonly ModRepository modRepository;
 
-    public ModRepositoryTest() : base()
+    public ModRepositoryIntegrationTest() : base()
     {
         modRepository = new(testDir.FullName);
     }
