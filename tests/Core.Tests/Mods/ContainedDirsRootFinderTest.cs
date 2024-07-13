@@ -1,4 +1,5 @@
 ﻿using Core.Mods;
+using FluentAssertions;
 
 namespace Core.Tests.Mods;
 
@@ -11,84 +12,72 @@ public class ContainedDirsRootFinderTest
     [Fact]
     public void FromDirectoryList_FindsDirsAtRoot()
     {
-        Assert.Equal(
-            [
-                "",
-            ],
-            rootFinder.FromDirectoryList(
+        rootFinder.FromDirectoryList(
             [
                 Path.Combine("R1"),
-            ]).Roots);
+            ]).Roots.Should().BeEquivalentTo([
+                "",
+            ]);
     }
 
     [Fact]
     public void FromDirectoryList_FindsDirsWhenNamePrefixOfOtherDirs()
     {
-        Assert.Equal(
-            [
-                "D1",
-                "D11"
-            ],
-            rootFinder.FromDirectoryList(
+        rootFinder.FromDirectoryList(
             [
                 Path.Combine("D1", "R1"),
                 Path.Combine("D11", "R1")
-            ]).Roots);
+            ]).Roots.Should().BeEquivalentTo([
+                "D1",
+                "D11"
+            ]);
     }
 
     [Fact]
     public void FromDirectoryList_IgnoresNestedRoots()
     {
-        Assert.Equal(
-            [
-                "D1"
-            ],
-            rootFinder.FromDirectoryList(
+        rootFinder.FromDirectoryList(
             [
                 Path.Combine("D1", "D2", "R1"),
                 Path.Combine("D1", "R1"),
                 Path.Combine("D1", "D3", "R1")
-            ]).Roots);
+            ]).Roots.Should().BeEquivalentTo([
+                "D1"
+            ]);
 
         // Empty path is a special case
-        Assert.Equal(
-            [
-                ""
-            ],
-            rootFinder.FromDirectoryList(
+        rootFinder.FromDirectoryList(
             [
                 Path.Combine("D1", "R1"),
                 Path.Combine("R1"),
                 Path.Combine("D2", "R2")
-            ]).Roots);
+            ]).Roots.Should().BeEquivalentTo([
+                ""
+            ]);
     }
 
     [Fact]
     public void FromDirectoryList_IsCaseInsensitive()
     {
-        Assert.Equal(
-            [
-                "d1",
-            ],
-            rootFinder.FromDirectoryList(
+        rootFinder.FromDirectoryList(
             [
                 Path.Combine("d1", "r1"),
-            ]).Roots);
+            ]).Roots.Should().BeEquivalentTo([
+                "d1",
+            ]);
     }
 
     [Fact]
     public void FromDirectoryList_FindsDirsInSubDirs()
     {
-        Assert.Equal(
-            [
-                "D1",
-                Path.Combine("D2", "D3")
-            ],
-            rootFinder.FromDirectoryList(
+        rootFinder.FromDirectoryList(
             [
                 Path.Combine("D1", "R1"),
                 Path.Combine("D2", "D3", "R2"),
                 Path.Combine("D4")
-            ]).Roots);
+            ]).Roots.Should().BeEquivalentTo([
+                "D1",
+                Path.Combine("D2", "D3")
+            ]);
     }
 }

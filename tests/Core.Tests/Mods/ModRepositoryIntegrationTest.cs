@@ -1,4 +1,5 @@
 using Core.Mods;
+using FluentAssertions;
 
 namespace Core.Tests.Mods;
 
@@ -23,20 +24,17 @@ public class ModRepositoryIntegrationTest : AbstractFilesystemTest
             @"Disabled\File4.Ext"
         );
 
-        Assert.Equivalent(
-            new ModPackage[] {
+        modRepository.ListEnabledMods().Select(_ => _ with { FsHash = NotChecked })
+            .Should().BeEquivalentTo(new ModPackage[] {
                 new("File1.Ext", Path.Combine(testDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
                 new("File2.Ext", Path.Combine(testDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
-            },
-            modRepository.ListEnabledMods().Select(_ => _ with { FsHash = NotChecked })
-        );
-        Assert.Equivalent(
-            new ModPackage[] {
+            });
+
+        modRepository.ListDisabledMods().Select(_ => _ with { FsHash = NotChecked })
+            .Should().BeEquivalentTo(new ModPackage[] {
                 new("File3.Ext", Path.Combine(testDir.FullName, @"Disabled\File3.Ext"), false, NotChecked),
                 new("File4.Ext", Path.Combine(testDir.FullName, @"Disabled\File4.Ext"), false, NotChecked)
-            },
-            modRepository.ListDisabledMods().Select(_ => _ with { FsHash = NotChecked })
-        );
+            });
     }
 
     [Fact]
@@ -49,20 +47,16 @@ public class ModRepositoryIntegrationTest : AbstractFilesystemTest
             @"Disabled\Dir4\SubDir\Content"
         );
 
-        Assert.Equivalent(
-            new ModPackage[] {
+        modRepository.ListEnabledMods()
+            .Should().BeEquivalentTo(new ModPackage[] {
                 new(@"Dir1\", Path.Combine(testDir.FullName, @"Enabled\Dir1"), true, null),
                 new(@"Dir2\", Path.Combine(testDir.FullName, @"Enabled\Dir2"), true, null)
-            },
-            modRepository.ListEnabledMods()
-        );
-        Assert.Equivalent(
-            new ModPackage[] {
+            });
+        modRepository.ListDisabledMods()
+            .Should().BeEquivalentTo(new ModPackage[] {
                 new(@"Dir3\", Path.Combine(testDir.FullName, @"Disabled\Dir3"), false, null),
                 new(@"Dir4\", Path.Combine(testDir.FullName, @"Disabled\Dir4"), false, null)
-            },
-            modRepository.ListDisabledMods()
-        );
+            });
     }
 
     [Fact]
@@ -74,7 +68,7 @@ public class ModRepositoryIntegrationTest : AbstractFilesystemTest
 
         modRepository.EnableMod(TestPath(@"Disabled\File.Ext"));
 
-        Assert.True(File.Exists(TestPath(@"Enabled\File.Ext")));
+        File.Exists(TestPath(@"Enabled\File.Ext")).Should().BeTrue();
     }
 
     [Fact]
@@ -86,7 +80,7 @@ public class ModRepositoryIntegrationTest : AbstractFilesystemTest
 
         modRepository.EnableMod(TestPath(@"Disabled\Dir"));
 
-        Assert.True(Directory.Exists(TestPath(@"Enabled\Dir")));
+        Directory.Exists(TestPath(@"Enabled\Dir")).Should().BeTrue();
     }
 
     [Fact]
@@ -98,7 +92,7 @@ public class ModRepositoryIntegrationTest : AbstractFilesystemTest
 
         modRepository.DisableMod(TestPath(@"Enabled\File.Ext"));
 
-        Assert.True(File.Exists(TestPath(@"Disabled\File.Ext")));
+        File.Exists(TestPath(@"Disabled\File.Ext")).Should().BeTrue();
     }
 
     [Fact]
@@ -110,6 +104,6 @@ public class ModRepositoryIntegrationTest : AbstractFilesystemTest
 
         modRepository.DisableMod(TestPath(@"Enabled\Dir"));
 
-        Assert.True(Directory.Exists(TestPath(@"Disabled\Dir")));
+        Directory.Exists(TestPath(@"Disabled\Dir")).Should().BeTrue();
     }
 }

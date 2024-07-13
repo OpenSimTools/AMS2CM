@@ -1,4 +1,5 @@
 ﻿using Core.Mods;
+using FluentAssertions;
 
 namespace Core.Tests.Mods;
 
@@ -12,8 +13,8 @@ public class ProcessingCallbacksTest
     {
         var callbacks = new ProcessingCallbacks<int>();
 
-        Assert.NotNull(callbacks.Accept);
-        Assert.True(callbacks.Accept(SomeValue));
+        callbacks.Accept.Should().NotBeNull();
+        callbacks.Accept(SomeValue).Should().BeTrue();
     }
 
     [Fact]
@@ -45,7 +46,7 @@ public class ProcessingCallbacksTest
         var ma1 = new Mock<Action<int>>();
         var ma2 = new Mock<Action<int>>();
 
-        Assert.NotNull(callbacks.Before);
+        callbacks.Before.Should().NotBeNull();
 
         callbacks
             .AndBefore(ma1.Object)
@@ -63,7 +64,7 @@ public class ProcessingCallbacksTest
         var ma1 = new Mock<Action<int>>();
         var ma2 = new Mock<Action<int>>();
 
-        Assert.NotNull(callbacks.After);
+        callbacks.After.Should().NotBeNull();
 
         callbacks
             .AndAfter(ma1.Object)
