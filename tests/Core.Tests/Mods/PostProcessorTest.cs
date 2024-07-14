@@ -1,4 +1,5 @@
 using Core.Mods;
+using FluentAssertions;
 
 namespace Core.Tests.Mods;
 
@@ -8,60 +9,48 @@ public class PostProcessorTest
     [Fact]
     public void DedupeRecordBlocks_ConsidersOnlyFirstLine()
     {
-        Assert.Equal(new[]
-        {
-            @"RECORDGROUP foo
-                last"
-        },
-        PostProcessor.DedupeRecordBlocks(new[]
-        {
+        PostProcessor.DedupeRecordBlocks([
             @"RECORDGROUP foo
                 first",
             @"RECORDGROUP foo
                 last"
-        }));
+        ]).Should().BeEquivalentTo([
+            @"RECORDGROUP foo
+                last"
+        ]);
     }
 
     [Fact]
     public void DedupeRecordBlocks_IgnoresRedundantWhitespaces()
     {
-        Assert.Equal(new[]
-        {
-            "RECORD foo\tbar"
-        },
-        PostProcessor.DedupeRecordBlocks(new[]
-        {
+        PostProcessor.DedupeRecordBlocks([
             "  RECORD foo\vbar ",
             "RECORD foo\tbar"
-        }));
+        ]).Should().BeEquivalentTo([
+            "RECORD foo\tbar"
+        ]);
     }
 
     [Fact]
     public void DedupeRecordBlocks_WorksForEmptyLines()
     {
-        Assert.Equal(new[]
-        {
+        PostProcessor.DedupeRecordBlocks([
+            "",
+            "",
+        ]).Should().BeEquivalentTo([
             ""
-        },
-        PostProcessor.DedupeRecordBlocks(new[]
-        {
-            "",
-            "",
-        }));
+        ]);
     }
 
     [Fact]
     public void DedupeRecordBlocks_AssumesCommentsAlreadyRemoved()
     {
-        Assert.Equal(new[]
-        {
+        PostProcessor.DedupeRecordBlocks([
             @"RECORD foo bar # first",
             @"RECORD foo bar # last"
-        },
-        PostProcessor.DedupeRecordBlocks(new[]
-        {
+        ]).Should().BeEquivalentTo([
             @"RECORD foo bar # first",
             @"RECORD foo bar # last"
-        }));
+        ]);
     }
 }

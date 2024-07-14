@@ -1,5 +1,6 @@
 ﻿using System.IO.Abstractions.TestingHelpers;
 using Core.Backup;
+using FluentAssertions;
 
 namespace Core.Tests.Backup;
 
@@ -24,8 +25,8 @@ public class MoveFileBackupStrategyTest
 
         sbs.PerformBackup(OriginalFile);
 
-        Assert.False(fs.FileExists(OriginalFile));
-        Assert.Equal(OriginalContents, fs.File.ReadAllText(BackupFile));
+        fs.FileExists(OriginalFile).Should().BeFalse();
+        fs.File.ReadAllText(BackupFile).Should().Be(OriginalContents);
     }
 
     [Fact]
@@ -37,7 +38,7 @@ public class MoveFileBackupStrategyTest
 
         sbs.PerformBackup(OriginalFile);
 
-        Assert.False(fs.FileExists(BackupFile));
+        fs.FileExists(BackupFile).Should().BeFalse();
     }
 
     [Fact]
@@ -54,8 +55,8 @@ public class MoveFileBackupStrategyTest
 
         sbs.PerformBackup(OriginalFile);
 
-        Assert.False(fs.FileExists(OriginalFile));
-        Assert.Equal(oldBackupContents, fs.File.ReadAllText(BackupFile));
+        fs.FileExists(OriginalFile).Should().BeFalse();
+        fs.File.ReadAllText(BackupFile).Should().Be(oldBackupContents);
     }
 
     [Fact]
@@ -70,8 +71,8 @@ public class MoveFileBackupStrategyTest
 
         sbs.RestoreBackup(OriginalFile);
 
-        Assert.Equal(OriginalContents, fs.File.ReadAllText(OriginalFile));
-        Assert.False(fs.FileExists(BackupFile));
+        fs.File.ReadAllText(OriginalFile).Should().Be(OriginalContents);
+        fs.FileExists(BackupFile).Should().BeFalse();
     }
 
     [Fact]
@@ -86,7 +87,7 @@ public class MoveFileBackupStrategyTest
 
         sbs.RestoreBackup(OriginalFile);
 
-        Assert.True(fs.FileExists(OriginalFile));
+        fs.FileExists(OriginalFile).Should().BeTrue();
     }
 
     [Fact]
@@ -100,10 +101,10 @@ public class MoveFileBackupStrategyTest
 
         var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
 
-        Assert.Throws<IOException>(() => sbs.RestoreBackup(OriginalFile));
+        sbs.Invoking(_ =>  _.RestoreBackup(OriginalFile)).Should().Throw<IOException>();
 
-        Assert.NotEqual(OriginalContents, fs.File.ReadAllText(OriginalFile));
-        Assert.True(fs.FileExists(BackupFile));
+        fs.File.ReadAllText(OriginalFile).Should().NotBe(OriginalContents);
+        fs.FileExists(BackupFile).Should().BeTrue();
     }
 
     [Fact]
@@ -118,8 +119,8 @@ public class MoveFileBackupStrategyTest
 
         sbs.DeleteBackup(OriginalFile);
 
-        Assert.False(fs.FileExists(OriginalFile));
-        Assert.False(fs.FileExists(BackupFile));
+        fs.FileExists(OriginalFile).Should().BeFalse();
+        fs.FileExists(BackupFile).Should().BeFalse();
 
         sbs.DeleteBackup(OriginalFile); // Check that it does not error
     }

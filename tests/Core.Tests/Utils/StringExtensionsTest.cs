@@ -1,3 +1,4 @@
+using FluentAssertions;
 using static Core.Utils.StringExtensions;
 
 namespace Core.Tests.Utils;
@@ -8,14 +9,14 @@ public class PostProcessorTest
     [Fact]
     public void NormalizeWhitespaces_ReplacesWithSpaces()
     {
-        Assert.Equal("", "".NormalizeWhitespaces());
-        Assert.Equal("foo bar", "foo bar".NormalizeWhitespaces());
-        Assert.Equal("foo bar", "foo\r\v\nbar".NormalizeWhitespaces());
+        "".NormalizeWhitespaces().Should().BeEmpty();
+        "foo bar".NormalizeWhitespaces().Should().Be("foo bar");
+        "foo\r\v\nbar".NormalizeWhitespaces().Should().Be("foo bar");
     }
 
     [Fact]
     public void NormalizeWhitespaces_TrimsInput()
     {
-        Assert.Equal("foo", " foo\f".NormalizeWhitespaces());
+        " foo\f".NormalizeWhitespaces().Should().Be("foo");
     }
 }
