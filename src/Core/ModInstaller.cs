@@ -204,7 +204,6 @@ public class ModInstaller : IModInstaller
         {
             Accept = gamePath =>
                 Whitelisted(gamePath) &&
-                !backupStrategy.IsBackupFile(gamePath.Relative) &&
                 !installedFiles.Contains(gamePath.Relative),
             Before = gamePath =>
             {

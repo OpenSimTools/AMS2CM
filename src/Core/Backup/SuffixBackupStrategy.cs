@@ -2,15 +2,18 @@
 
 namespace Core.Backup;
 
-public class SuffixBackupStrategy : MoveFileBackupStrategy, IBackupStrategy
+public class SuffixBackupStrategy : MoveFileBackupStrategy
 {
-    public const string BackupSuffix = ".orig";
-
-    public SuffixBackupStrategy() :
-        base(new FileSystem(), _ => $"{_}{BackupSuffix}")
+    private class BackupFileNaming : IBackupFileNaming
     {
+        private const string BackupSuffix = ".orig";
+
+        public string ToBackup(string fullPath) => $"{fullPath}{BackupSuffix}";
+        public bool IsBackup(string fullPath) => fullPath.EndsWith(BackupSuffix);
     }
 
-    public bool IsBackupFile(string fullPath) =>
-        fullPath.EndsWith(BackupSuffix);
+    public SuffixBackupStrategy() :
+        base(new FileSystem(), new BackupFileNaming())
+    {
+    }
 }

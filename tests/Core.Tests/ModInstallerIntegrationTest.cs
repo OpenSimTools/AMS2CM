@@ -10,6 +10,8 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
 {
     #region Initialisation
 
+    private class TestException : Exception {}
+
     private record InstallationResult(
         int? PackageFsHash,
         HashSet<string> InstalledFiles,
@@ -99,6 +101,29 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     }
 
     [Fact]
+    public void Apply_UninstallStopsIfBackupFails()
+    {
+        backupStrategyMock.Setup(_ => _.RestoreBackup(TestPath("Fail"))).Throws<TestException>();
+
+        modInstaller.Invoking(_ => _.Apply(
+            new Dictionary<string, InternalModInstallationState>
+            {
+                ["A"] = new(
+                        Time: null,
+                        FsHash: 42,
+                        Partial: false,
+                        Files: ["AF1", "Fail", "AF2"])
+            },
+            [],
+            testDir.FullName,
+            RecordState,
+            eventHandlerMock.Object,
+            CancellationToken.None)).Should().Throw<TestException>();
+
+        recordedState["A"].InstalledFiles.Should().BeEquivalentTo(["Fail", "AF2"]);
+    }
+
+    [Fact]
     public void Apply_InstallsMods()
     {
         modInstaller.Apply(
@@ -119,7 +144,6 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
         });
 
         backupStrategyMock.Verify(_ => _.PerformBackup(TestPath("AF")));
-        backupStrategyMock.Verify(_ => _.IsBackupFile(It.IsAny<string>()));
         backupStrategyMock.VerifyNoOtherCalls();
 
         eventHandlerMock.Verify(_ => _.UninstallNoMods());
@@ -129,6 +153,26 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
         eventHandlerMock.Verify(_ => _.InstallEnd());
         eventHandlerMock.Verify(_ => _.ProgressUpdate(It.IsAny<IPercent>()));
         eventHandlerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void Apply_InstallStopsIfBackupFails()
+    {
+        backupStrategyMock.Setup(_ => _.PerformBackup(TestPath("Fail"))).Throws<TestException>();
+
+        modInstaller.Invoking(_ => _.Apply(
+            new Dictionary<string, InternalModInstallationState>(),
+            [
+                PackageInstalling("A", 42, [
+                    "AF1", "Fail", "AF2"
+                ])
+            ],
+            testDir.FullName,
+            RecordState,
+            eventHandlerMock.Object,
+            CancellationToken.None)).Should().Throw<TestException>();
+
+        recordedState["A"].InstalledFiles.Should().BeEquivalentTo(["AF1"]);
     }
 
     [Fact]
