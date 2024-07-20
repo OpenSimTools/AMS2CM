@@ -77,14 +77,8 @@ public class ModInstaller : IModInstaller
             eventHandler.UninstallStart();
             var uninstallCallbacks = new ProcessingCallbacks<RootedPath>
             {
-                After = gamePath =>
-                {
-                    backupStrategy.RestoreBackup(gamePath.Full);
-                },
-                NotAccepted = gamePath =>
-                {
-                    backupStrategy.DeleteBackup(gamePath.Full);
-                }
+                After = gamePath => backupStrategy.RestoreBackup(gamePath.Full),
+                NotAccepted = gamePath => backupStrategy.DeleteBackup(gamePath.Full)
             };
             foreach (var (packageName, modInstallationState) in currentState)
             {
@@ -101,8 +95,7 @@ public class ModInstaller : IModInstaller
                         filesLeft,
                         uninstallCallbacks
                             .AndAccept(SkipCreatedAfter(eventHandler, modInstallationState.Time))
-                            .AndAfter(_ => filesLeft.Remove(_.Relative))
-                            .AndNotAccepted(_ => filesLeft.Remove(_.Relative))
+                            .AndFinally(_ => filesLeft.Remove(_.Relative))
                     );
                 }
                 finally
