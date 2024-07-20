@@ -81,6 +81,15 @@ public struct ProcessingCallbacks<T>
         notAccepted = Combine(notAccepted, additional)
     };
 
+    public ProcessingCallbacks<T> AndFinally(Action<T> additional) =>
+    new()
+    {
+        accept = accept,
+        before = before,
+        after = Combine(after, additional),
+        notAccepted = Combine(notAccepted, additional)
+    };
+
     private static Predicate<T>? Combine(Predicate<T>? p1, Predicate<T> p2) =>
         p1 is null ? p2 : key => p1(key) && p2(key);
 
