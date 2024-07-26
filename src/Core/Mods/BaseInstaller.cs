@@ -1,10 +1,11 @@
-﻿using Core.Utils;
+﻿using Core.Backup;
+using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Mods;
 
 /// <summary>
-/// 
+///
 /// </summary>
 /// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
 internal abstract class BaseInstaller<TPassthrough> : IInstaller
@@ -30,7 +31,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
-    public ConfigEntries Install(string dstPath, ProcessingCallbacks<RootedPath> callbacks)
+    public ConfigEntries Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
@@ -62,6 +63,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             if (callbacks.Accept(gamePath))
             {
                 callbacks.Before(gamePath);
+                backupStrategy.PerformBackup(gamePath.Full);
                 if (!removeFile)
                 {
                     Directory.GetParent(gamePath.Full)?.Create();

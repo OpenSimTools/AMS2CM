@@ -12,8 +12,7 @@ public class SuffixBackupStrategy : MoveFileBackupStrategy
         public bool IsBackup(string fullPath) => fullPath.EndsWith(BackupSuffix);
     }
 
-    public SuffixBackupStrategy() :
-        base(new FileSystem(), new BackupFileNaming())
+    public SuffixBackupStrategy() : base(new BackupFileNaming())
     {
     }
 }
