@@ -42,6 +42,13 @@ public class ModInstaller : IModInstaller
         public void ProgressUpdate(IPercent? progress);
     }
 
+    public interface IBackupStrategyProvider
+    {
+        // TODO Return IBackupStrategy+IRestoreStrategy and make IBackupRestoreStrategy the sum of two plus delete?
+        IBackupStrategy Backup();
+        IBackupStrategy Restore(DateTime? backupTimeUtc);
+    }
+
     private readonly IInstallationFactory installationFactory;
     private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
