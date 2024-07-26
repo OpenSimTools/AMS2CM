@@ -42,6 +42,13 @@ public class ModInstaller : IModInstaller
         public void ProgressUpdate(IPercent? progress);
     }
 
+    public interface IBackupStrategyProvider
+    {
+        // TODO Return IBackupStrategy+IRestoreStrategy and make IBackupRestoreStrategy the sum of two plus delete?
+        IBackupStrategy Backup();
+        IBackupStrategy Restore(DateTime? backupTimeUtc);
+    }
+
     private readonly IInstallationFactory installationFactory;
     private readonly Matcher filesToInstallMatcher;
     private readonly IBackupStrategy backupStrategy;
@@ -75,11 +82,6 @@ public class ModInstaller : IModInstaller
         if (currentState.Any())
         {
             eventHandler.UninstallStart();
-            var uninstallCallbacks = new ProcessingCallbacks<RootedPath>
-            {
-                After = gamePath => backupStrategy.RestoreBackup(gamePath.Full),
-                NotAccepted = gamePath => backupStrategy.DeleteBackup(gamePath.Full)
-            };
             foreach (var (packageName, modInstallationState) in currentState)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -93,8 +95,7 @@ public class ModInstaller : IModInstaller
                     UninstallFiles(
                         installDir,
                         filesLeft,
-                        uninstallCallbacks
-                            .AndAccept(SkipCreatedAfter(eventHandler, modInstallationState.Time))
+                        new ProcessingCallbacks<RootedPath>{}
                             .AndFinally(_ => filesLeft.Remove(_.Relative))
                     );
                 }
@@ -130,7 +131,7 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private static void UninstallFiles(string dstPath, IReadOnlyCollection<string> filePaths, ProcessingCallbacks<RootedPath> callbacks)
+    private void UninstallFiles(string dstPath, IReadOnlyCollection<string> filePaths, ProcessingCallbacks<RootedPath> callbacks)
     {
         foreach (var relativePath in filePaths)
         {
@@ -138,6 +139,7 @@ public class ModInstaller : IModInstaller
 
             if (!callbacks.Accept(gamePath))
             {
+                backupStrategy.DeleteBackup(gamePath.Full);
                 callbacks.NotAccepted(gamePath);
                 continue;
             }
@@ -150,6 +152,7 @@ public class ModInstaller : IModInstaller
                 File.Delete(gamePath.Full);
             }
 
+            backupStrategy.RestoreBackup(gamePath.Full);
             callbacks.After(gamePath);
         }
         DeleteEmptyDirectories(dstPath, filePaths);
@@ -198,11 +201,7 @@ public class ModInstaller : IModInstaller
             Accept = gamePath =>
                 Whitelisted(gamePath) &&
                 !installedFiles.Contains(gamePath.Relative),
-            Before = gamePath =>
-            {
-                backupStrategy.PerformBackup(gamePath.Full);
-                installedFiles.Add(gamePath.Relative);
-            },
+            Before = gamePath => installedFiles.Add(gamePath.Relative),
             After = EnsureNotCreatedAfter(DateTime.UtcNow)
         };
 
@@ -223,7 +222,7 @@ public class ModInstaller : IModInstaller
                 var mod = installationFactory.ModInstaller(modPackage);
                 try
                 {
-                    var modConfig = mod.Install(installDir, installCallbacks);
+                    var modConfig = mod.Install(installDir, backupStrategy, installCallbacks);
                     modConfigs.Add(modConfig);
                 }
                 finally
@@ -239,7 +238,7 @@ public class ModInstaller : IModInstaller
                 var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
                 try
                 {
-                    bootfilesMod.Install(installDir, installCallbacks);
+                    bootfilesMod.Install(installDir, backupStrategy, installCallbacks);
                     bootfilesMod.PostProcessing(installDir, modConfigs, eventHandler);
                 }
                 finally
@@ -264,24 +263,6 @@ public class ModInstaller : IModInstaller
 
     private Predicate<RootedPath> Whitelisted =>
         gamePath => filesToInstallMatcher.Match(gamePath.Relative).HasMatches;
-
-    private static Predicate<RootedPath> SkipCreatedAfter(IEventHandler eventHandler, DateTime? dateTimeUtc)
-    {
-        if (dateTimeUtc is null)
-        {
-            return _ => true;
-        }
-
-        return gamePath =>
-        {
-            var proceed = !File.Exists(gamePath.Full) || File.GetCreationTimeUtc(gamePath.Full) <= dateTimeUtc;
-            if (!proceed)
-            {
-                eventHandler.UninstallSkipModified(gamePath.Full);
-            }
-            return proceed;
-        };
-    }
 
     private static Action<RootedPath> EnsureNotCreatedAfter(DateTime dateTimeUtc) => gamePath =>
     {
@@ -333,9 +314,9 @@ public class ModInstaller : IModInstaller
 
         public int? PackageFsHash => inner.PackageFsHash;
 
-        public ConfigEntries Install(string dstPath, ProcessingCallbacks<RootedPath> callbacks)
+        public ConfigEntries Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
         {
-            inner.Install(dstPath, callbacks);
+            inner.Install(dstPath, backupStrategy, callbacks);
             return ConfigEntries.Empty;
         }
 
