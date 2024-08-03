@@ -2,6 +2,6 @@
 
 public interface IStatePersistence
 {
-    public InternalState ReadState();
-    public void WriteState(InternalState state);
+    public SavedState ReadState();
+    public void WriteState(SavedState state);
 }

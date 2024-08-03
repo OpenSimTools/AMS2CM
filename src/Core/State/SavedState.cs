@@ -2,28 +2,28 @@
 
 namespace Core.State;
 
-public record InternalState(
-        InternalInstallationState Install
+public record SavedState(
+        InstallationState Install
     )
 {
-    public static InternalState Empty() => new(
-        Install: InternalInstallationState.Empty()
+    public static SavedState Empty() => new(
+        Install: InstallationState.Empty()
     );
 };
 
-public record InternalInstallationState(
+public record InstallationState(
     // TODO: needed for backward compatibility
     DateTime? Time,
-    IReadOnlyDictionary<string, InternalModInstallationState> Mods
+    IReadOnlyDictionary<string, ModInstallationState> Mods
 )
 {
-    public static InternalInstallationState Empty() => new(
+    public static InstallationState Empty() => new(
         Time: null,
-        Mods: ImmutableDictionary.Create<string, InternalModInstallationState>()
+        Mods: ImmutableDictionary.Create<string, ModInstallationState>()
     );
 };
 
-public record InternalModInstallationState(
+public record ModInstallationState(
     // TODO: nullable for backward compatibility
     DateTime? Time,
     // Unknown when partially installed or upgrading from a previous version
@@ -32,4 +32,7 @@ public record InternalModInstallationState(
     // infer from null hash after the first install
     bool Partial,
     IReadOnlyCollection<string> Files
-);
+)
+{
+    public static ModInstallationState Empty => new(null, null, false, Array.Empty<string>());
+}
