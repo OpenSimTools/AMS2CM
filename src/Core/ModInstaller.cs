@@ -220,7 +220,7 @@ public class ModInstaller : IModInstaller
                     break;
                 }
                 eventHandler.InstallCurrent(modPackage.PackageName);
-                using var mod = installationFactory.ModInstaller(modPackage);
+                var mod = installationFactory.ModInstaller(modPackage);
                 try
                 {
                     var modConfig = mod.Install(installDir, installCallbacks);
@@ -236,7 +236,7 @@ public class ModInstaller : IModInstaller
             if (modConfigs.Where(_ => _.NotEmpty()).Any())
             {
                 eventHandler.PostProcessingStart();
-                using var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
+                var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
                 try
                 {
                     bootfilesMod.Install(installDir, installCallbacks);
@@ -348,11 +348,6 @@ public class ModInstaller : IModInstaller
             eventHandler.PostProcessingDrivelines();
             PostProcessor.AppendDrivelineRecords(dstPath, modConfigs.SelectMany(_ => _.DrivelineRecords));
             postProcessingDone = true;
-        }
-
-        public void Dispose()
-        {
-            inner.Dispose();
         }
     }
 }

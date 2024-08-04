@@ -172,8 +172,6 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
         return recordBlocks;
     }
-
-    public abstract void Dispose();
 }
 
 public static class BaseInstaller

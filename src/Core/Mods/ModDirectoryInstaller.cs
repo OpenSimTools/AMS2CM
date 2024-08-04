@@ -17,8 +17,4 @@ internal class ModDirectoryInstaller : BaseDirectoryInstaller
     {
         File.Copy(fileInfo.FullName, destinationPath.Full);
     }
-
-    public override void Dispose()
-    {
-    }
 }

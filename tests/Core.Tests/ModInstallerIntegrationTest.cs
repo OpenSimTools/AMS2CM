@@ -240,10 +240,6 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
             // Do not install any file for real
         }
 
-        public override void Dispose()
-        {
-        }
-
         // Install everything from the root directory
 
         private static readonly string DirAtRoot = "X";
