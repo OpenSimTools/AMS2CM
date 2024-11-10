@@ -1,10 +1,8 @@
-using System.Globalization;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
-using Microsoft.VisualBasic;
 using static Core.IModManager;
 
 namespace Core;
@@ -53,7 +51,7 @@ internal class ModManager : IModManager
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
         var bootfilesFailed = installedMods.Where(kv => BootfilesManager.IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
-        var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
+        var isModInstalled = installedMods.SelectValues<string, ModInstallationState, bool?>(modInstallationState =>
             modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
         );
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
@@ -81,7 +79,7 @@ internal class ModManager : IModManager
             }).ToList();
     }
 
-    private static bool IsOutOfDate(ModPackage? modPackage, InternalModInstallationState? modInstallationState)
+    private static bool IsOutOfDate(ModPackage? modPackage, ModInstallationState? modInstallationState)
     {
         if (modPackage is null || modInstallationState is null)
         {
@@ -140,14 +138,14 @@ internal class ModManager : IModManager
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
-        InstallMods(modRepository.ListEnabledMods(), eventHandler, cancellationToken);
+        UpdateMods(modRepository.ListEnabledMods(), eventHandler, cancellationToken);
         tempDir.Cleanup();
     }
 
     public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        InstallMods(Array.Empty<ModPackage>(), eventHandler, cancellationToken);
+        UpdateMods(Array.Empty<ModPackage>(), eventHandler, cancellationToken);
     }
 
     private void CheckGameNotRunning()
@@ -158,10 +156,10 @@ internal class ModManager : IModManager
         }
     }
 
-    private void InstallMods(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void UpdateMods(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
         var previousState = statePersistence.ReadState().Install.Mods;
-        var currentState = new Dictionary<string, InternalModInstallationState>(previousState);
+        var currentState = new Dictionary<string, ModInstallationState>(previousState);
         try
         {
             modInstaller.Apply(
@@ -198,7 +196,7 @@ internal class ModManager : IModManager
         }
         finally
         {
-            statePersistence.WriteState(new InternalState(
+            statePersistence.WriteState(new SavedState(
                 Install: new(
                     Time: currentState.Values.Max(_ => _.Time),
                     Mods: currentState

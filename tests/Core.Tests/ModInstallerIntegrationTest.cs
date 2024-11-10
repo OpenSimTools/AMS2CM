@@ -52,7 +52,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     public void Apply_NoMods()
     {
         modInstaller.Apply(
-            new Dictionary<string, InternalModInstallationState>(),
+            new Dictionary<string, ModInstallationState>(),
             [],
             "",
             RecordState,
@@ -69,7 +69,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
         CreateTestFile("AF");
 
         modInstaller.Apply(
-            new Dictionary<string, InternalModInstallationState>{
+            new Dictionary<string, ModInstallationState>{
                 ["A"] = new(
                         Time: null,
                         FsHash: 42,
@@ -106,7 +106,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
         backupStrategyMock.Setup(_ => _.RestoreBackup(TestPath("Fail"))).Throws<TestException>();
 
         modInstaller.Invoking(_ => _.Apply(
-            new Dictionary<string, InternalModInstallationState>
+            new Dictionary<string, ModInstallationState>
             {
                 ["A"] = new(
                         Time: null,
@@ -127,7 +127,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     public void Apply_InstallsMods()
     {
         modInstaller.Apply(
-            new Dictionary<string, InternalModInstallationState>(),
+            new Dictionary<string, ModInstallationState>(),
             [
                 PackageInstalling("A", 42, [
                     "AF"
@@ -161,7 +161,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
         backupStrategyMock.Setup(_ => _.PerformBackup(TestPath("Fail"))).Throws<TestException>();
 
         modInstaller.Invoking(_ => _.Apply(
-            new Dictionary<string, InternalModInstallationState>(),
+            new Dictionary<string, ModInstallationState>(),
             [
                 PackageInstalling("A", 42, [
                     "AF1", "Fail", "AF2"
@@ -180,7 +180,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     {
         var endState = new Dictionary<string, IInstallation>();
         modInstaller.Apply(
-            new Dictionary<string, InternalModInstallationState>
+            new Dictionary<string, ModInstallationState>
             {
                 ["A"] = new(Time: null, FsHash: 1, Partial: false, Files: [
                     "AF",

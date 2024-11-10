@@ -54,7 +54,7 @@ public class ModInstaller : IModInstaller
     }
 
     public void Apply(
-        IReadOnlyDictionary<string, InternalModInstallationState> currentState,
+        IReadOnlyDictionary<string, ModInstallationState> currentState,
         IReadOnlyCollection<ModPackage> toInstall,
         string installDir,
         Action<IInstallation> afterCallback,
@@ -66,7 +66,7 @@ public class ModInstaller : IModInstaller
     }
 
     private void UninstallPackages(
-        IReadOnlyDictionary<string, InternalModInstallationState> currentState,
+        IReadOnlyDictionary<string, ModInstallationState> currentState,
         string installDir,
         Action<IInstallation> afterUninstall,
         IEventHandler eventHandler,
