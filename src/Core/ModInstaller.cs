@@ -206,7 +206,7 @@ public class ModInstaller : IModInstaller
                 backupStrategy.PerformBackup(gamePath.Full);
                 installedFiles.Add(gamePath.Relative);
             },
-            After = gamePath => EnsureNotCreatedAfter(DateTime.UtcNow)
+            After = EnsureNotCreatedAfter(DateTime.UtcNow)
         };
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
