@@ -42,21 +42,17 @@ public class ModInstaller : IModInstaller
         public void ProgressUpdate(IPercent? progress);
     }
 
-    public interface IBackupStrategyProvider
-    {
-        // TODO Return IBackupStrategy+IRestoreStrategy and make IBackupRestoreStrategy the sum of two plus delete?
-        IBackupStrategy Backup();
-        IBackupStrategy Restore(DateTime? backupTimeUtc);
-    }
-
     private readonly IInstallationFactory installationFactory;
+    private readonly IBackupStrategyProvider backupStrategyProvider;
     private readonly Matcher filesToInstallMatcher;
-    private readonly IBackupStrategy backupStrategy;
 
-    public ModInstaller(IInstallationFactory installationFactory, IBackupStrategy backupStrategy, IConfig config)
+    public ModInstaller(
+        IInstallationFactory installationFactory,
+        IBackupStrategy  backupStrategy,
+        IConfig config)
     {
         this.installationFactory = installationFactory;
-        this.backupStrategy = backupStrategy;
+        backupStrategyProvider = new BackupStrategyProvider(backupStrategy);
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
     }
 
@@ -89,12 +85,14 @@ public class ModInstaller : IModInstaller
                     break;
                 }
                 eventHandler.UninstallCurrent(packageName);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(modInstallationState.Time);
                 var filesLeft = modInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 try
                 {
                     UninstallFiles(
                         installDir,
                         filesLeft,
+                        backupStrategy,
                         new ProcessingCallbacks<RootedPath>{}
                             .AndFinally(_ => filesLeft.Remove(_.Relative))
                     );
@@ -131,7 +129,7 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private void UninstallFiles(string dstPath, IReadOnlyCollection<string> filePaths, ProcessingCallbacks<RootedPath> callbacks)
+    private void UninstallFiles(string dstPath, IReadOnlyCollection<string> filePaths, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         foreach (var relativePath in filePaths)
         {
@@ -219,6 +217,7 @@ public class ModInstaller : IModInstaller
                     break;
                 }
                 eventHandler.InstallCurrent(modPackage.PackageName);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(null);
                 var mod = installationFactory.ModInstaller(modPackage);
                 try
                 {
@@ -238,6 +237,7 @@ public class ModInstaller : IModInstaller
                 var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
                 try
                 {
+                    var backupStrategy = backupStrategyProvider.BackupStrategy(null);
                     bootfilesMod.Install(installDir, backupStrategy, installCallbacks);
                     bootfilesMod.PostProcessing(installDir, modConfigs, eventHandler);
                 }
