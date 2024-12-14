@@ -15,10 +15,6 @@ internal class ModArchiveInstaller : BaseInstaller<Stream>
         this.archivePath = archivePath;
     }
 
-    public override void Dispose()
-    {
-    }
-
     // LibArchive.Net is a mere wrapper around libarchive. It's better to avoid using
     // LINQ expressions as they can lead to <see cref="LibArchiveReader.Entries"/> or
     // <see cref="LibArchiveReader.Entry.Stream"/> being called out of order.

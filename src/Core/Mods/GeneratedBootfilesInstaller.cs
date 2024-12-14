@@ -30,10 +30,6 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
         File.Move(fileInfo.FullName, destinationPath.Full);
     }
 
-    public override void Dispose()
-    {
-    }
-
     #region Bootfiles Generation
 
     private void GenerateBootfiles()
