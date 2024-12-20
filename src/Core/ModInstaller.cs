@@ -93,8 +93,8 @@ public class ModInstaller : IModInstaller
                         installDir,
                         filesLeft,
                         backupStrategy,
-                        new ProcessingCallbacks<RootedPath>{}
-                            .AndFinally(_ => filesLeft.Remove(_.Relative))
+                        eventHandler,
+                        new ProcessingCallbacks<RootedPath>().AndFinally(_ => filesLeft.Remove(_.Relative))
                     );
                 }
                 finally
@@ -129,7 +129,12 @@ public class ModInstaller : IModInstaller
         }
     }
 
-    private void UninstallFiles(string dstPath, IReadOnlyCollection<string> filePaths, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    private void UninstallFiles(
+        string dstPath,
+        IReadOnlyCollection<string> filePaths,
+        IBackupStrategy backupStrategy,
+        IEventHandler eventHandler,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         foreach (var relativePath in filePaths)
         {
@@ -144,13 +149,11 @@ public class ModInstaller : IModInstaller
 
             callbacks.Before(gamePath);
 
-            // Delete will fail if the parent directory does not exist
-            if (File.Exists(gamePath.Full))
+            if (!backupStrategy.RestoreBackup(gamePath.Full))
             {
-                File.Delete(gamePath.Full);
+                eventHandler.UninstallSkipModified(gamePath.Full);
             }
 
-            backupStrategy.RestoreBackup(gamePath.Full);
             callbacks.After(gamePath);
         }
         DeleteEmptyDirectories(dstPath, filePaths);

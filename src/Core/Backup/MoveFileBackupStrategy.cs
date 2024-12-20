@@ -13,6 +13,11 @@ public class MoveFileBackupStrategy : IBackupStrategy
     private readonly IFileSystem fs;
     private readonly IBackupFileNaming backupFileNaming;
 
+    public MoveFileBackupStrategy(IBackupFileNaming backupFileNaming) :
+        this(new FileSystem(), backupFileNaming)
+    {
+    }
+
     public MoveFileBackupStrategy(IFileSystem fs, IBackupFileNaming backupFileNaming)
     {
         this.fs = fs;
@@ -41,13 +46,19 @@ public class MoveFileBackupStrategy : IBackupStrategy
         }
     }
 
-    public void RestoreBackup(string fullPath)
+    public bool RestoreBackup(string fullPath)
     {
+        if (fs.File.Exists(fullPath))
+        {
+            fs.File.Delete(fullPath);
+        }
         var backupFilePath = backupFileNaming.ToBackup(fullPath);
         if (fs.File.Exists(backupFilePath))
         {
             fs.File.Move(backupFilePath, fullPath);
         }
+
+        return true;
     }
 
     public void DeleteBackup(string fullPath)

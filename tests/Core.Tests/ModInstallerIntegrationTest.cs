@@ -26,7 +26,6 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
 
     private readonly Mock<IInstallationFactory> installationFactoryMock;
     private readonly Mock<IBackupStrategy> backupStrategyMock;
-    private readonly Mock<ModInstaller.IConfig> config;
     private readonly ModInstaller modInstaller;
 
     private readonly Mock<ModInstaller.IEventHandler> eventHandlerMock;
@@ -37,7 +36,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     {
         installationFactoryMock = new Mock<IInstallationFactory>();
         backupStrategyMock = new Mock<IBackupStrategy>();
-        config = new Mock<ModInstaller.IConfig>();
+        Mock<ModInstaller.IConfig> config = new();
         modInstaller = new ModInstaller(
             installationFactoryMock.Object,
             backupStrategyMock.Object,
@@ -65,9 +64,6 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_UninstallsMods()
     {
-        // TODO Introduce interface to delete file as part of restoring backup
-        CreateTestFile("AF");
-
         modInstaller.Apply(
             new Dictionary<string, ModInstallationState>{
                 ["A"] = new(
@@ -86,14 +82,12 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
             ["A"] = new(42, [], IInstallation.State.NotInstalled),
         });
 
-        // TODO see above
-        File.Exists(TestPath("AF")).Should().BeFalse();
-
         backupStrategyMock.Verify(_ => _.RestoreBackup(TestPath("AF")));
         backupStrategyMock.VerifyNoOtherCalls();
 
         eventHandlerMock.Verify(_ => _.UninstallStart());
         eventHandlerMock.Verify(_ => _.UninstallCurrent("A"));
+        eventHandlerMock.Verify(_ => _.UninstallSkipModified(TestPath("AF")));
         eventHandlerMock.Verify(_ => _.UninstallEnd());
         eventHandlerMock.Verify(_ => _.InstallNoMods());
         eventHandlerMock.Verify(_ => _.ProgressUpdate(It.IsAny<IPercent>()));

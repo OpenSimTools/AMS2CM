@@ -34,7 +34,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
     private readonly ModManager modManager;
 
-    public ModManagerIntegrationTest() : base()
+    public ModManagerIntegrationTest()
     {
         gameDir = testDir.CreateSubdirectory("Game");
         modsDir = testDir.CreateSubdirectory("Packages");
@@ -131,7 +131,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
-        File.Exists(GamePath("ModFile")).Should().BeFalse();
+        File.Exists(GamePath("ModFile")).Should().BeFalse(); // FIXME
         File.Exists(GamePath("RecreatedFile")).Should().BeTrue();
         persistedState.Should().BeEmpty();
     }

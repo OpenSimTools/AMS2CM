@@ -10,7 +10,5 @@ public class BackupStrategyProvider : IBackupStrategyProvider
     }
 
     public IBackupStrategy BackupStrategy(DateTime? installationTime) =>
-        installationTime is null ?
-            defaultStrategy :
-            new SkipUpdatedBackupStrategyWrapper(defaultStrategy, (DateTime)installationTime);
+        new SkipUpdatedBackupStrategyWrapper(defaultStrategy, installationTime);
 }
