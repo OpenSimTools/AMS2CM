@@ -7,42 +7,61 @@ namespace Core.Tests.Backup;
 [IntegrationTest]
 public class MoveFileBackupStrategyTest
 {
-    private static readonly string OriginalFile = "original";
-    private static readonly string OriginalContents = "something";
-    private static readonly string BackupFile = GenerateBackupFilePath(OriginalFile);
+    private const string OriginalFile = "original";
+    private const string OriginalContents = "something";
 
-    private static string GenerateBackupFilePath(string fullPath) => $"b{fullPath}";
+    private readonly Mock<MoveFileBackupStrategy.IBackupFileNaming> backupFileNamingMock;
+
+    private MoveFileBackupStrategy.IBackupFileNaming BackupFileNaming => backupFileNamingMock.Object;
+    private string BackupFile => BackupFileNaming.ToBackup(OriginalFile);
+
+    public MoveFileBackupStrategyTest()
+    {
+        backupFileNamingMock = new();
+        backupFileNamingMock.Setup(_ => _.ToBackup(It.IsAny<string>())).Returns<string>(_ => $"b{_}");
+    }
 
     [Fact]
-    public void BackupFile_MovesOriginalToBackup()
+    public void PerformBackup_MovesOriginalToBackup()
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { OriginalFile, OriginalContents },
         });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
 
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
-
-        sbs.PerformBackup(OriginalFile);
+        mfbs.PerformBackup(OriginalFile);
 
         fs.FileExists(OriginalFile).Should().BeFalse();
         fs.File.ReadAllText(BackupFile).Should().Be(OriginalContents);
     }
 
     [Fact]
-    public void BackupFile_SkipsBackupIfFileNotPresent()
+    public void PerformBackup_ErrorsIfNameIsBackupName()
     {
         var fs = new MockFileSystem();
+        backupFileNamingMock.Setup(_ => _.IsBackup(OriginalFile)).Returns(true);
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
 
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
-
-        sbs.PerformBackup(OriginalFile);
+        mfbs.Invoking(_ => _.PerformBackup(OriginalFile))
+            .Should().Throw<InvalidOperationException>();
 
         fs.FileExists(BackupFile).Should().BeFalse();
     }
 
     [Fact]
-    public void BackupFile_KeepsExistingBackup()
+    public void PerformBackup_SkipsBackupIfFileNotPresent()
+    {
+        var fs = new MockFileSystem();
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
+
+        mfbs.PerformBackup(OriginalFile);
+
+        fs.FileExists(BackupFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public void PerformBackup_KeepsExistingBackup()
     {
         var oldBackupContents = "old backup";
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
@@ -50,10 +69,9 @@ public class MoveFileBackupStrategyTest
             { OriginalFile, OriginalContents },
             { BackupFile, oldBackupContents },
         });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
 
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
-
-        sbs.PerformBackup(OriginalFile);
+        mfbs.PerformBackup(OriginalFile);
 
         fs.FileExists(OriginalFile).Should().BeFalse();
         fs.File.ReadAllText(BackupFile).Should().Be(oldBackupContents);
@@ -66,45 +84,57 @@ public class MoveFileBackupStrategyTest
         {
             { BackupFile, OriginalContents},
         });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
 
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
-
-        sbs.RestoreBackup(OriginalFile);
+        mfbs.RestoreBackup(OriginalFile);
 
         fs.File.ReadAllText(OriginalFile).Should().Be(OriginalContents);
         fs.FileExists(BackupFile).Should().BeFalse();
     }
 
     [Fact]
-    public void RestoreBackup_LeavesOriginalFileIfNoBackup()
-    {
-        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
-        {
-            { OriginalFile, "other contents" },
-        });
-
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
-
-        sbs.RestoreBackup(OriginalFile);
-
-        fs.FileExists(OriginalFile).Should().BeTrue();
-    }
-
-    [Fact]
-    public void RestoreBackup_ErrorsIfOriginalFileExists()
+    public void RestoreBackup_OverwritesOriginalFile()
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { OriginalFile, "other contents" },
             { BackupFile, OriginalContents},
         });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
 
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
+        mfbs.RestoreBackup(OriginalFile);
 
-        sbs.Invoking(_ =>  _.RestoreBackup(OriginalFile)).Should().Throw<IOException>();
+        fs.File.ReadAllText(OriginalFile).Should().Be(OriginalContents);
+        fs.FileExists(BackupFile).Should().BeFalse();
+    }
 
-        fs.File.ReadAllText(OriginalFile).Should().NotBe(OriginalContents);
-        fs.FileExists(BackupFile).Should().BeTrue();
+    [Fact]
+    public void RestoreBackup_WhenNoOriginalFile()
+    {
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
+        {
+            { BackupFile, OriginalContents},
+        });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
+
+        mfbs.RestoreBackup(OriginalFile);
+
+        fs.File.ReadAllText(OriginalFile).Should().Be(OriginalContents);
+        fs.FileExists(BackupFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public void RestoreBackup_DeletesOriginalFileIfNoBackup()
+    {
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
+        {
+            { OriginalFile, "other contents" },
+        });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
+
+        mfbs.RestoreBackup(OriginalFile);
+
+        fs.FileExists(OriginalFile).Should().BeFalse();
     }
 
     [Fact]
@@ -114,14 +144,13 @@ public class MoveFileBackupStrategyTest
         {
             { BackupFile, OriginalContents},
         });
+        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming);
 
-        var sbs = new MoveFileBackupStrategy(fs, GenerateBackupFilePath);
-
-        sbs.DeleteBackup(OriginalFile);
+        mfbs.DeleteBackup(OriginalFile);
 
         fs.FileExists(OriginalFile).Should().BeFalse();
         fs.FileExists(BackupFile).Should().BeFalse();
 
-        sbs.DeleteBackup(OriginalFile); // Check that it does not error
+        mfbs.DeleteBackup(OriginalFile); // Check that it does not error
     }
 }

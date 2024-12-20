@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Core.Utils;
+using Newtonsoft.Json;
 
 namespace Core.State;
 
@@ -22,13 +23,21 @@ internal class JsonFileStatePersistence : IStatePersistence
         oldStateFile = Path.Combine(modsDir, OldStateFileName);
     }
 
-    public InternalState ReadState()
+    public SavedState ReadState()
     {
         // Always favour new state if present
         if (File.Exists(stateFile))
         {
             var contents = File.ReadAllText(stateFile);
-            return JsonConvert.DeserializeObject<InternalState>(contents);
+            var state = JsonConvert.DeserializeObject<SavedState>(contents);
+            // Fill mod install time if not present (for migration)
+            return state with
+            {
+                Install = state.Install with
+                {
+                    Mods = state.Install.Mods.SelectValues(_ => _ with { Time = _.Time ?? state.Install.Time })
+                }
+            };
         }
 
         // Fallback to old state when new state is not present
@@ -37,21 +46,21 @@ internal class JsonFileStatePersistence : IStatePersistence
             var contents = File.ReadAllText(oldStateFile);
             var oldState = JsonConvert.DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(contents);
             var installTime = File.GetLastWriteTimeUtc(oldStateFile);
-            return new InternalState(
+            return new SavedState(
                 Install: new(
                     Time: installTime,
                     Mods: oldState.AsEnumerable().ToDictionary(
                         kv => kv.Key,
-                        kv => new InternalModInstallationState(FsHash: null, Partial: false, Files: kv.Value)
+                        kv => new ModInstallationState(Time: installTime, FsHash: null, Partial: false, Files: kv.Value)
                     )
                 )
             );
         }
 
-        return InternalState.Empty();
+        return SavedState.Empty();
     }
 
-    public void WriteState(InternalState state)
+    public void WriteState(SavedState state)
     {
         // Remove old state if upgrading from a previous version
         File.Delete(oldStateFile);
