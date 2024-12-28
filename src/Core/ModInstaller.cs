@@ -89,13 +89,16 @@ public class ModInstaller : IModInstaller
                 var filesLeft = modInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    UninstallFiles(
-                        installDir,
-                        filesLeft,
-                        backupStrategy,
-                        eventHandler,
-                        new ProcessingCallbacks<RootedPath>().AndFinally(_ => filesLeft.Remove(_.Relative))
-                    );
+                    foreach (var relativePath in modInstallationState.Files)
+                    {
+                        var gamePath = new RootedPath(installDir, relativePath);
+                        if (!backupStrategy.RestoreBackup(gamePath.Full))
+                        {
+                            eventHandler.UninstallSkipModified(gamePath.Full);
+                        }
+                        filesLeft.Remove(gamePath.Relative);
+                    }
+                    DeleteEmptyDirectories(installDir, modInstallationState.Files);
                 }
                 finally
                 {
@@ -127,36 +130,6 @@ public class ModInstaller : IModInstaller
         {
             eventHandler.UninstallNoMods();
         }
-    }
-
-    private void UninstallFiles(
-        string dstPath,
-        IReadOnlyCollection<string> filePaths,
-        IBackupStrategy backupStrategy,
-        IEventHandler eventHandler,
-        ProcessingCallbacks<RootedPath> callbacks)
-    {
-        foreach (var relativePath in filePaths)
-        {
-            var gamePath = new RootedPath(dstPath, relativePath);
-
-            if (!callbacks.Accept(gamePath))
-            {
-                backupStrategy.DeleteBackup(gamePath.Full);
-                callbacks.NotAccepted(gamePath);
-                continue;
-            }
-
-            callbacks.Before(gamePath);
-
-            if (!backupStrategy.RestoreBackup(gamePath.Full))
-            {
-                eventHandler.UninstallSkipModified(gamePath.Full);
-            }
-
-            callbacks.After(gamePath);
-        }
-        DeleteEmptyDirectories(dstPath, filePaths);
     }
 
     private static void DeleteEmptyDirectories(string dstRootPath, IReadOnlyCollection<string> filePaths)
