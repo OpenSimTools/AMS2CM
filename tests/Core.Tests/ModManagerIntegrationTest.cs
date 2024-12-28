@@ -510,7 +510,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     }
 
     [Fact]
-    public void Install_RejectsMultipleCustomBootfiles()
+    public void Install_ChoosesFirstOfMultipleCustomBootfiles()
     {
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
@@ -518,10 +518,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             CreateCustomBootfiles(901)
         ]);
 
-        modManager.Invoking(_ => _.InstallEnabledMods(eventHandlerMock.Object))
-            .Should().Throw<Exception>().WithMessage("*many bootfiles*");
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100"]);
+        persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
     }
 
     #region Utility methods

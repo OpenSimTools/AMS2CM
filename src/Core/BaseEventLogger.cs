@@ -27,14 +27,6 @@ public abstract class BaseEventLogger : IModManager.IEventHandler
         LogMessage("Post-processing:");
     public void ExtractingBootfiles(string? packageName) =>
         LogMessage($"Extracting bootfiles from {packageName ?? "game"}");
-    public void ExtractingBootfilesErrorMultiple(IReadOnlyCollection<string> bootfilesPackageNames)
-    {
-        LogMessage("Multiple bootfiles found:");
-        foreach (var packageName in bootfilesPackageNames)
-        {
-            LogMessage($"- {packageName}");
-        }
-    }
     public void PostProcessingVehicles() =>
         LogMessage("- Appending crd file entries");
     public void PostProcessingTracks() =>

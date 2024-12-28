@@ -24,7 +24,6 @@ public class ModInstaller : IModInstaller
         void PostProcessingNotRequired();
         void PostProcessingStart();
         void ExtractingBootfiles(string? packageName);
-        void ExtractingBootfilesErrorMultiple(IReadOnlyCollection<string> bootfilesPackageNames);
         void PostProcessingVehicles();
         void PostProcessingTracks();
         void PostProcessingDrivelines();
@@ -250,22 +249,14 @@ public class ModInstaller : IModInstaller
 
     private BootfilesMod CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
     {
-        var bootfilesPackages = packages
-            .Where(_ => BootfilesManager.IsBootFiles(_.PackageName));
-        switch (bootfilesPackages.Count())
+        var bootfilesPackage = packages.FirstOrDefault(p => BootfilesManager.IsBootFiles(p.PackageName));
+        if (bootfilesPackage is null)
         {
-            case 0:
-                eventHandler.ExtractingBootfiles(null);
-                return new BootfilesMod(installationFactory.GeneratedBootfilesInstaller());
-            case 1:
-                var modPackage = bootfilesPackages.First();
-                eventHandler.ExtractingBootfiles(modPackage.PackageName);
-                return new BootfilesMod(installationFactory.ModInstaller(modPackage));
-            default:
-                var bootfilesPackageNames = bootfilesPackages.Select(_ => _.PackageName).ToImmutableList();
-                eventHandler.ExtractingBootfilesErrorMultiple(bootfilesPackageNames);
-                throw new Exception("Too many bootfiles found");
+            eventHandler.ExtractingBootfiles(null);
+            return new BootfilesMod(installationFactory.GeneratedBootfilesInstaller());
         }
+        eventHandler.ExtractingBootfiles(bootfilesPackage.PackageName);
+        return new BootfilesMod(installationFactory.ModInstaller(bootfilesPackage));
     }
 
     private class BootfilesMod : IInstaller
