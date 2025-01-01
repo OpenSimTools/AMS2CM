@@ -1,5 +1,6 @@
 ﻿using System.IO.Abstractions;
 using Core.Mods;
+using Core.State;
 
 namespace Core.Backup;
 
@@ -8,7 +9,7 @@ namespace Core.Backup;
 /// </summary>
 internal class SkipUpdatedBackupStrategy : IInstallationBackupStrategy
 {
-    internal class Provider : IBackupStrategyProvider
+    internal class Provider : IModBackupStrategyProvider
     {
         private readonly IBackupStrategy defaultStrategy;
 
@@ -17,8 +18,8 @@ internal class SkipUpdatedBackupStrategy : IInstallationBackupStrategy
             this.defaultStrategy = defaultStrategy;
         }
 
-        public IInstallationBackupStrategy BackupStrategy(DateTime? backupTimeUtc) =>
-            new SkipUpdatedBackupStrategy(defaultStrategy, backupTimeUtc);
+        public IInstallationBackupStrategy BackupStrategy(ModInstallationState? state) =>
+            new SkipUpdatedBackupStrategy(defaultStrategy, state?.Time);
     }
 
     private readonly IFileSystem fs;

@@ -41,7 +41,7 @@ public class ModInstaller : IModInstaller
     }
 
     private readonly IInstallationFactory installationFactory;
-    private readonly IBackupStrategyProvider backupStrategyProvider;
+    private readonly IModBackupStrategyProvider modBackupStrategyProvider;
     private readonly Matcher filesToInstallMatcher;
 
     public ModInstaller(
@@ -50,7 +50,7 @@ public class ModInstaller : IModInstaller
         IConfig config)
     {
         this.installationFactory = installationFactory;
-        backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
+        modBackupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
     }
 
@@ -83,7 +83,7 @@ public class ModInstaller : IModInstaller
                     break;
                 }
                 eventHandler.UninstallCurrent(packageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(modInstallationState.Time);
+                var backupStrategy = modBackupStrategyProvider.BackupStrategy(modInstallationState);
                 var filesLeft = modInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 try
                 {
@@ -189,7 +189,7 @@ public class ModInstaller : IModInstaller
                     break;
                 }
                 eventHandler.InstallCurrent(modPackage.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(null);
+                var backupStrategy = modBackupStrategyProvider.BackupStrategy(null);
                 var mod = installationFactory.ModInstaller(modPackage);
                 try
                 {
@@ -209,7 +209,7 @@ public class ModInstaller : IModInstaller
                 var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
                 try
                 {
-                    var backupStrategy = backupStrategyProvider.BackupStrategy(null);
+                    var backupStrategy = modBackupStrategyProvider.BackupStrategy(null);
                     bootfilesMod.Install(installDir, backupStrategy, installCallbacks);
                     bootfilesMod.PostProcessing(installDir, modConfigs, eventHandler);
                 }
