@@ -1,4 +1,5 @@
-﻿using Core.Backup;
+﻿using System.Collections.Immutable;
+using Core.Backup;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
@@ -164,7 +165,7 @@ public class ModInstaller : IModInstaller
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var modPackages = toInstall.Where(_ => !BootfilesManager.IsBootFiles(_.PackageName)).Reverse();
+        var modPackages = toInstall.Where(p => !BootfilesManager.IsBootFiles(p.PackageName)).Reverse().ToImmutableArray();
 
         var modConfigs = new List<ConfigEntries>();
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -176,18 +177,14 @@ public class ModInstaller : IModInstaller
             .AndAccept(gamePath => Whitelisted(gamePath));
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
-        var progress = new PercentOfTotal(modPackages.Count() + 2);
+        var progress = new PercentOfTotal(modPackages.Length + 2);
         if (modPackages.Any())
         {
             eventHandler.InstallStart();
             eventHandler.ProgressUpdate(progress.IncrementDone());
 
-            foreach (var modPackage in modPackages)
+            foreach (var modPackage in modPackages.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
                 eventHandler.InstallCurrent(modPackage.PackageName);
                 var backupStrategy = modBackupStrategyProvider.BackupStrategy(null);
                 var mod = installationFactory.ModInstaller(modPackage);
@@ -203,7 +200,7 @@ public class ModInstaller : IModInstaller
                 eventHandler.ProgressUpdate(progress.IncrementDone());
             }
 
-            if (modConfigs.Where(_ => _.NotEmpty()).Any())
+            if (modConfigs.Any(c => c.NotEmpty()))
             {
                 eventHandler.PostProcessingStart();
                 var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
@@ -279,11 +276,11 @@ public class ModInstaller : IModInstaller
         public void PostProcessing(string dstPath, IReadOnlyList<ConfigEntries> modConfigs, IEventHandler eventHandler)
         {
             eventHandler.PostProcessingVehicles();
-            PostProcessor.AppendCrdFileEntries(dstPath, modConfigs.SelectMany(_ => _.CrdFileEntries));
+            PostProcessor.AppendCrdFileEntries(dstPath, modConfigs.SelectMany(c => c.CrdFileEntries));
             eventHandler.PostProcessingTracks();
-            PostProcessor.AppendTrdFileEntries(dstPath, modConfigs.SelectMany(_ => _.TrdFileEntries));
+            PostProcessor.AppendTrdFileEntries(dstPath, modConfigs.SelectMany(c => c.TrdFileEntries));
             eventHandler.PostProcessingDrivelines();
-            PostProcessor.AppendDrivelineRecords(dstPath, modConfigs.SelectMany(_ => _.DrivelineRecords));
+            PostProcessor.AppendDrivelineRecords(dstPath, modConfigs.SelectMany(c => c.DrivelineRecords));
             postProcessingDone = true;
         }
     }
