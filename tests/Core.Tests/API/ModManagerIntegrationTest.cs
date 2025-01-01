@@ -1,13 +1,14 @@
 using System.IO.Compression;
+using Core.API;
 using Core.Backup;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.State;
-using Core.Utils;
+using Core.Tests.Base;
 using FluentAssertions;
 
-namespace Core.Tests;
+namespace Core.Tests.API;
 
 public class ModManagerIntegrationTest : AbstractFilesystemTest
 {
@@ -30,7 +31,6 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private readonly Mock<IModManager.IEventHandler> eventHandlerMock = new();
 
     private readonly InMemoryStatePersistence persistedState;
-    private readonly InstallationFactory installationFactory;
 
     private readonly ModManager modManager;
 
@@ -47,7 +47,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             DirsAtRoot = [DirAtRoot],
             ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
         };
-        installationFactory = new InstallationFactory(
+        var installationFactory = new InstallationFactory(
             gameMock.Object,
             tempDir,
             modInstallConfig);

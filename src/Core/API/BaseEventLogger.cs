@@ -1,6 +1,6 @@
 ﻿using Core.Utils;
 
-namespace Core;
+namespace Core.API;
 
 /// <summary>
 /// This class is here because of the CLI. Move it into the GUI once the CLI

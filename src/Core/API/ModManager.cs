@@ -3,9 +3,9 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
-using static Core.IModManager;
+using static Core.API.IModManager;
 
-namespace Core;
+namespace Core.API;
 
 internal class ModManager : IModManager
 {

@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using Core;
+using Core.API;
 using Core.SoftwareUpdates;
 using Core.Utils;
 using Microsoft.UI.Xaml;

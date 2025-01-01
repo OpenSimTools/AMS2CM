@@ -1,4 +1,5 @@
 using Core.Mods;
+using Core.Tests.Base;
 using FluentAssertions;
 
 namespace Core.Tests.Mods;

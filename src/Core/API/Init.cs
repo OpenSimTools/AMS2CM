@@ -4,7 +4,7 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 
-namespace Core;
+namespace Core.API;
 
 public static class Init
 {

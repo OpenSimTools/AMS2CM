@@ -2,7 +2,7 @@
 using Core.SoftwareUpdates;
 using Microsoft.Extensions.Configuration;
 
-namespace Core;
+namespace Core.API;
 
 public class Config
 {

@@ -1,4 +1,4 @@
-﻿namespace Core.Tests;
+﻿namespace Core.Tests.Base;
 
 [IntegrationTest]
 public abstract class AbstractFilesystemTest : IDisposable

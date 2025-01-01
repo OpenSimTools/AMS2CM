@@ -1,7 +1,7 @@
-﻿using Core;
+﻿using Core.API;
 using Core.SoftwareUpdates;
 using Microsoft.UI.Xaml;
-using static Core.IModManager;
+using static Core.API.IModManager;
 
 namespace AMS2CM.GUI;
 

@@ -1,5 +1,5 @@
 ﻿using AMS2CM.CLI;
-using Core;
+using Core.API;
 
 try
 {

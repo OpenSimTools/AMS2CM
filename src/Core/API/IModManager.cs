@@ -1,4 +1,4 @@
-﻿namespace Core;
+﻿namespace Core.API;
 
 public interface IModManager
 {
