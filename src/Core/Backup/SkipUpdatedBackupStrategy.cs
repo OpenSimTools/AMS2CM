@@ -1,11 +1,12 @@
 ﻿using System.IO.Abstractions;
+using Core.Mods;
 
 namespace Core.Backup;
 
 /// <summary>
 /// It avoids restoring backups when game files have been updated by Steam.
 /// </summary>
-internal class SkipUpdatedBackupStrategy : IBackupStrategy
+internal class SkipUpdatedBackupStrategy : IInstallationBackupStrategy
 {
     internal class Provider : IBackupStrategyProvider
     {
@@ -16,45 +17,59 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
             this.defaultStrategy = defaultStrategy;
         }
 
-        public IBackupStrategy BackupStrategy(DateTime? installationTime) =>
-            new SkipUpdatedBackupStrategy(defaultStrategy, installationTime);
+        public IInstallationBackupStrategy BackupStrategy(DateTime? backupTimeUtc) =>
+            new SkipUpdatedBackupStrategy(defaultStrategy, backupTimeUtc);
     }
 
     private readonly IFileSystem fs;
     private readonly IBackupStrategy inner;
     private readonly DateTime? backupTimeUtc;
 
-    internal SkipUpdatedBackupStrategy(IBackupStrategy backupStrategy, DateTime? backupTimeUtc) :
+    private SkipUpdatedBackupStrategy(
+        IBackupStrategy backupStrategy,
+        DateTime? backupTimeUtc) :
         this(new FileSystem(), backupStrategy, backupTimeUtc)
     {
     }
 
-    internal SkipUpdatedBackupStrategy(IFileSystem fs, IBackupStrategy backupStrategy, DateTime? backupTimeUtc)
+    internal SkipUpdatedBackupStrategy(
+        IFileSystem fs,
+        IBackupStrategy backupStrategy,
+        DateTime? backupTimeUtc)
     {
         this.fs = fs;
         inner = backupStrategy;
         this.backupTimeUtc = backupTimeUtc;
     }
 
-    public void DeleteBackup(string fullPath) =>
-        inner.DeleteBackup(fullPath);
+    public void DeleteBackup(RootedPath path) =>
+        inner.DeleteBackup(path.Full);
 
-    public void PerformBackup(string fullPath) =>
-        inner.PerformBackup(fullPath);
+    public void PerformBackup(RootedPath path) =>
+        inner.PerformBackup(path.Full);
 
-    public bool RestoreBackup(string fullPath)
+    public bool RestoreBackup(RootedPath path)
     {
-        if (FileWasOverwritten(fullPath))
+        if (FileWasOverwritten(path))
         {
-            inner.DeleteBackup(fullPath);
+            inner.DeleteBackup(path.Full);
             return false;
         }
 
-        return inner.RestoreBackup(fullPath);
+        return inner.RestoreBackup(path.Full);
     }
 
-    private bool FileWasOverwritten(string fullPath) =>
+    private bool FileWasOverwritten(RootedPath path) =>
         backupTimeUtc is not null &&
-        fs.File.Exists(fullPath) &&
-        fs.File.GetCreationTimeUtc(fullPath) > backupTimeUtc;
+        fs.File.Exists(path.Full) &&
+        fs.File.GetCreationTimeUtc(path.Full) > backupTimeUtc;
+
+    public void AfterInstall(RootedPath path)
+    {
+        var now = DateTime.UtcNow;
+        if (fs.File.Exists(path.Full) && fs.File.GetCreationTimeUtc(path.Full) > now)
+        {
+            fs.File.SetCreationTimeUtc(path.Full, now);
+        }
+    }
 }

@@ -173,14 +173,13 @@ internal class ModManager : IModManager
                     case IInstallation.State.Installed:
                     case IInstallation.State.PartiallyInstalled:
                         currentState.Upsert(modInstallation.PackageName,
-                            existing => new(
-                                Time: existing.Time,
-                                FsHash: existing.FsHash,
-                                Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
-                                Files: modInstallation.InstalledFiles
-                            ),
-                            () => new(
-                                Time: DateTime.UtcNow,
+                            existing => existing with
+                            {
+                                Partial = modInstallation.Installed == IInstallation.State.PartiallyInstalled,
+                                Files = modInstallation.InstalledFiles
+                            },
+                            () => new ModInstallationState(
+                                Time: DateTime.Now,
                                 FsHash: modInstallation.PackageFsHash,
                                 Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
                                 Files: modInstallation.InstalledFiles

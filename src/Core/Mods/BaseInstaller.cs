@@ -31,7 +31,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
-    public ConfigEntries Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    public ConfigEntries Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
@@ -63,13 +63,14 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             if (callbacks.Accept(gamePath))
             {
                 callbacks.Before(gamePath);
-                backupStrategy.PerformBackup(gamePath.Full);
+                backupStrategy.PerformBackup(gamePath);
                 if (!removeFile)
                 {
                     Directory.GetParent(gamePath.Full)?.Create();
                     InstallFile(gamePath, context);
                 }
                 installedFiles.Add(gamePath.Relative);
+                backupStrategy.AfterInstall(gamePath);
                 callbacks.After(gamePath);
             }
             else
@@ -98,7 +99,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
     protected abstract void InstallFile(RootedPath destinationPath, TPassthrough context);
 
-    protected static (string, bool) NeedsRemoving(string filePath)
+    private static (string, bool) NeedsRemoving(string filePath)
     {
         return filePath.EndsWith(BaseInstaller.RemoveFileSuffix) ?
             (filePath.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true) :
@@ -108,8 +109,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     private ConfigEntries GenerateConfig()
     {
         var gameSupportedMod = FileEntriesToConfigure()
-            .Where(p => p.StartsWith(BaseInstaller.GameSupportedModDirectory))
-            .Any();
+            .Any(p => p.StartsWith(BaseInstaller.GameSupportedModDirectory));
         return gameSupportedMod
             ? ConfigEntries.Empty
             : new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());

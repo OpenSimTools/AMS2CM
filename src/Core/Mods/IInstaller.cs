@@ -4,5 +4,5 @@ namespace Core.Mods;
 
 public interface IInstaller : IInstallation
 {
-    ConfigEntries Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks);
+    ConfigEntries Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks);
 }

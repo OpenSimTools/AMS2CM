@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using Core.Backup;
+﻿using Core.Backup;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
@@ -91,9 +90,9 @@ public class ModInstaller : IModInstaller
                     foreach (var relativePath in modInstallationState.Files)
                     {
                         var gamePath = new RootedPath(installDir, relativePath);
-                        if (!backupStrategy.RestoreBackup(gamePath.Full))
+                        if (!backupStrategy.RestoreBackup(gamePath))
                         {
-                            eventHandler.UninstallSkipModified(gamePath.Full);
+                            eventHandler.UninstallSkipModified(gamePath.Relative);
                         }
                         filesLeft.Remove(gamePath.Relative);
                     }
@@ -170,13 +169,11 @@ public class ModInstaller : IModInstaller
         var modConfigs = new List<ConfigEntries>();
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
-        {
-            Accept = gamePath =>
-                Whitelisted(gamePath) &&
-                !installedFiles.Contains(gamePath.Relative),
-            Before = gamePath => installedFiles.Add(gamePath.Relative),
-            After = EnsureNotCreatedAfter(DateTime.UtcNow)
-        };
+            {
+                Accept = gamePath => !installedFiles.Contains(gamePath.Relative),
+                Before = gamePath => installedFiles.Add(gamePath.Relative),
+            }
+            .AndAccept(gamePath => Whitelisted(gamePath));
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
         var progress = new PercentOfTotal(modPackages.Count() + 2);
@@ -239,14 +236,6 @@ public class ModInstaller : IModInstaller
     private Predicate<RootedPath> Whitelisted =>
         gamePath => filesToInstallMatcher.Match(gamePath.Relative).HasMatches;
 
-    private static Action<RootedPath> EnsureNotCreatedAfter(DateTime dateTimeUtc) => gamePath =>
-    {
-        if (File.Exists(gamePath.Full) && File.GetCreationTimeUtc(gamePath.Full) > dateTimeUtc)
-        {
-            File.SetCreationTimeUtc(gamePath.Full, dateTimeUtc);
-        }
-    };
-
     private BootfilesMod CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
     {
         var bootfilesPackage = packages.FirstOrDefault(p => BootfilesManager.IsBootFiles(p.PackageName));
@@ -281,7 +270,7 @@ public class ModInstaller : IModInstaller
 
         public int? PackageFsHash => inner.PackageFsHash;
 
-        public ConfigEntries Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+        public ConfigEntries Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
         {
             inner.Install(dstPath, backupStrategy, callbacks);
             return ConfigEntries.Empty;

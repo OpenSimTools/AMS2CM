@@ -4,5 +4,5 @@ namespace Core.Backup;
 
 public interface IBackupStrategyProvider
 {
-    IBackupStrategy BackupStrategy(DateTime? installationTime);
+    IInstallationBackupStrategy BackupStrategy(DateTime? backupTimeUtc);
 }

@@ -88,7 +88,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
 
         eventHandlerMock.Verify(_ => _.UninstallStart());
         eventHandlerMock.Verify(_ => _.UninstallCurrent("A"));
-        eventHandlerMock.Verify(_ => _.UninstallSkipModified(TestPath("AF")));
+        eventHandlerMock.Verify(_ => _.UninstallSkipModified("AF"));
         eventHandlerMock.Verify(_ => _.UninstallEnd());
         eventHandlerMock.Verify(_ => _.InstallNoMods());
         eventHandlerMock.Verify(_ => _.ProgressUpdate(It.IsAny<IPercent>()));
