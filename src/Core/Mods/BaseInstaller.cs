@@ -19,6 +19,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
     private readonly IRootFinder rootFinder;
+    private readonly Matcher filesToInstallMatcher;
     private readonly Matcher filesToConfigureMatcher;
     private readonly List<string> installedFiles = new();
 
@@ -28,6 +29,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         PackageFsHash = packageFsHash;
         stagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
         rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
+        filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
@@ -60,7 +62,8 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             var (relativePath, removeFile) = NeedsRemoving(relativePathInMod);
 
             var gamePath = new RootedPath(dstPath, relativePath);
-            if (callbacks.Accept(gamePath))
+
+            if (Whitelisted(gamePath) && callbacks.Accept(gamePath))
             {
                 callbacks.Before(gamePath);
                 backupStrategy.PerformBackup(gamePath);
@@ -98,6 +101,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     protected delegate void InstallBody(string relativePathInMod, TPassthrough context);
 
     protected abstract void InstallFile(RootedPath destinationPath, TPassthrough context);
+
+    private bool Whitelisted(RootedPath path) =>
+        filesToInstallMatcher.Match(path.Relative).HasMatches;
 
     private static (string, bool) NeedsRemoving(string filePath)
     {
@@ -184,6 +190,12 @@ public static class BaseInstaller
         {
             get;
         }
+
+        IEnumerable<string> ExcludedFromInstall
+        {
+            get;
+        }
+
         IEnumerable<string> ExcludedFromConfig
         {
             get;

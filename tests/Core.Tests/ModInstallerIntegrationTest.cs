@@ -37,11 +37,9 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     {
         installationFactoryMock = new Mock<IInstallationFactory>();
         backupStrategyMock = new Mock<IBackupStrategy>();
-        Mock<ModInstaller.IConfig> config = new();
         modInstaller = new ModInstaller(
             installationFactoryMock.Object,
-            backupStrategyMock.Object,
-            config.Object);
+            backupStrategyMock.Object);
         eventHandlerMock = new Mock<ModInstaller.IEventHandler>();
         recordedState = new();
     }

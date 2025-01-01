@@ -20,7 +20,7 @@ public static class Init
         var installationFactory = new InstallationFactory(game, tempDir, config.ModInstall);
         var safeFileDelete = new WindowsRecyclingBin();
         var backupStrategy = new SuffixBackupStrategy();
-        var modInstaller = new ModInstaller(installationFactory, backupStrategy, config.ModInstall);
+        var modInstaller = new ModInstaller(installationFactory, backupStrategy);
         return new ModManager(game, modRepository, modInstaller, statePersistence, safeFileDelete, tempDir);
     }
 }

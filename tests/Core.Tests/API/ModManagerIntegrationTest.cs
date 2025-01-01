@@ -55,7 +55,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            new ModInstaller(installationFactory, new SuffixBackupStrategy(), modInstallConfig),
+            new ModInstaller(installationFactory, new SuffixBackupStrategy()),
             persistedState,
             safeFileDeleteMock.Object,
             tempDir);

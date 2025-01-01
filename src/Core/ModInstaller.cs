@@ -9,11 +9,6 @@ namespace Core;
 
 public class ModInstaller : IModInstaller
 {
-    public interface IConfig
-    {
-        IEnumerable<string> ExcludedFromInstall { get; }
-    }
-
     public interface IEventHandler : IProgress
     {
         void InstallNoMods();
@@ -43,16 +38,13 @@ public class ModInstaller : IModInstaller
 
     private readonly IInstallationFactory installationFactory;
     private readonly IModBackupStrategyProvider modBackupStrategyProvider;
-    private readonly Matcher filesToInstallMatcher;
 
     public ModInstaller(
         IInstallationFactory installationFactory,
-        IBackupStrategy  backupStrategy,
-        IConfig config)
+        IBackupStrategy  backupStrategy)
     {
         this.installationFactory = installationFactory;
         modBackupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
-        filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
     }
 
     public void Apply(
@@ -170,11 +162,10 @@ public class ModInstaller : IModInstaller
         var modConfigs = new List<ConfigEntries>();
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
-            {
-                Accept = gamePath => !installedFiles.Contains(gamePath.Relative),
-                Before = gamePath => installedFiles.Add(gamePath.Relative),
-            }
-            .AndAccept(gamePath => Whitelisted(gamePath));
+        {
+            Accept = gamePath => !installedFiles.Contains(gamePath.Relative),
+            Before = gamePath => installedFiles.Add(gamePath.Relative),
+        };
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
         var progress = new PercentOfTotal(modPackages.Length + 2);
@@ -229,9 +220,6 @@ public class ModInstaller : IModInstaller
         }
         eventHandler.ProgressUpdate(progress.DoneAll());
     }
-
-    private Predicate<RootedPath> Whitelisted =>
-        gamePath => filesToInstallMatcher.Match(gamePath.Relative).HasMatches;
 
     private BootfilesMod CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
     {
