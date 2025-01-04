@@ -1,10 +1,11 @@
-﻿using Core.Utils;
+﻿using Core.Backup;
+using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Mods;
 
 /// <summary>
-/// 
+///
 /// </summary>
 /// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
 internal abstract class BaseInstaller<TPassthrough> : IInstaller
@@ -18,6 +19,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
 
     private readonly IRootFinder rootFinder;
+    private readonly Matcher filesToInstallMatcher;
     private readonly Matcher filesToConfigureMatcher;
     private readonly List<string> installedFiles = new();
 
@@ -27,10 +29,11 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         PackageFsHash = packageFsHash;
         stagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
         rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
+        filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
-    public ConfigEntries Install(string dstPath, ProcessingCallbacks<RootedPath> callbacks)
+    public ConfigEntries Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
@@ -59,15 +62,18 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             var (relativePath, removeFile) = NeedsRemoving(relativePathInMod);
 
             var gamePath = new RootedPath(dstPath, relativePath);
-            if (callbacks.Accept(gamePath))
+
+            if (Whitelisted(gamePath) && callbacks.Accept(gamePath))
             {
                 callbacks.Before(gamePath);
+                backupStrategy.PerformBackup(gamePath);
                 if (!removeFile)
                 {
                     Directory.GetParent(gamePath.Full)?.Create();
                     InstallFile(gamePath, context);
                 }
                 installedFiles.Add(gamePath.Relative);
+                backupStrategy.AfterInstall(gamePath);
                 callbacks.After(gamePath);
             }
             else
@@ -96,7 +102,10 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
     protected abstract void InstallFile(RootedPath destinationPath, TPassthrough context);
 
-    protected static (string, bool) NeedsRemoving(string filePath)
+    private bool Whitelisted(RootedPath path) =>
+        filesToInstallMatcher.Match(path.Relative).HasMatches;
+
+    private static (string, bool) NeedsRemoving(string filePath)
     {
         return filePath.EndsWith(BaseInstaller.RemoveFileSuffix) ?
             (filePath.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true) :
@@ -106,8 +115,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     private ConfigEntries GenerateConfig()
     {
         var gameSupportedMod = FileEntriesToConfigure()
-            .Where(p => p.StartsWith(BaseInstaller.GameSupportedModDirectory))
-            .Any();
+            .Any(p => p.StartsWith(BaseInstaller.GameSupportedModDirectory));
         return gameSupportedMod
             ? ConfigEntries.Empty
             : new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
@@ -172,8 +180,6 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
         return recordBlocks;
     }
-
-    public abstract void Dispose();
 }
 
 public static class BaseInstaller
@@ -184,6 +190,12 @@ public static class BaseInstaller
         {
             get;
         }
+
+        IEnumerable<string> ExcludedFromInstall
+        {
+            get;
+        }
+
         IEnumerable<string> ExcludedFromConfig
         {
             get;

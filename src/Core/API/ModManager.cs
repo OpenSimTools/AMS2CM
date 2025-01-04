@@ -3,9 +3,9 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
-using static Core.IModManager;
+using static Core.API.IModManager;
 
-namespace Core;
+namespace Core.API;
 
 internal class ModManager : IModManager
 {
@@ -51,7 +51,7 @@ internal class ModManager : IModManager
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
         var bootfilesFailed = installedMods.Where(kv => BootfilesManager.IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
-        var isModInstalled = installedMods.SelectValues<string, InternalModInstallationState, bool?>(modInstallationState =>
+        var isModInstalled = installedMods.SelectValues<string, ModInstallationState, bool?>(modInstallationState =>
             modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
         );
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
@@ -79,7 +79,7 @@ internal class ModManager : IModManager
             }).ToList();
     }
 
-    private static bool IsOutOfDate(ModPackage? modPackage, InternalModInstallationState? modInstallationState)
+    private static bool IsOutOfDate(ModPackage? modPackage, ModInstallationState? modInstallationState)
     {
         if (modPackage is null || modInstallationState is null)
         {
@@ -138,57 +138,14 @@ internal class ModManager : IModManager
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
-        if (RestoreOriginalState(eventHandler, cancellationToken))
-        {
-            InstallAllModFiles(eventHandler, cancellationToken);
-        }
+        UpdateMods(modRepository.ListEnabledMods(), eventHandler, cancellationToken);
         tempDir.Cleanup();
     }
 
     public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        RestoreOriginalState(eventHandler, cancellationToken);
-    }
-
-    private bool RestoreOriginalState(IEventHandler eventHandler, CancellationToken cancellationToken)
-    {
-        var previousInstallation = statePersistence.ReadState().Install;
-        var modsLeft = new Dictionary<string, InternalModInstallationState>(previousInstallation.Mods);
-        try
-        {
-            modInstaller.UninstallPackages(
-                previousInstallation,
-                game.InstallationDirectory,
-                modInstallation =>
-                {
-                    if (modInstallation.Installed == IInstallation.State.NotInstalled)
-                    {
-                        modsLeft.Remove(modInstallation.PackageName);
-                    }
-                    else
-                    {
-                        modsLeft[modInstallation.PackageName] = new InternalModInstallationState(
-                            FsHash: modInstallation.PackageFsHash,
-                            Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
-                            Files: modInstallation.InstalledFiles
-                        );
-                    }
-                },
-                eventHandler,
-                cancellationToken);
-        }
-        finally
-        {
-            statePersistence.WriteState(new InternalState(
-                Install: new(
-                    Time: modsLeft.Any() ? previousInstallation.Time : null,
-                    Mods: modsLeft
-                )
-            ));
-        }
-        // Success if everything was uninstalled
-        return !modsLeft.Any();
+        UpdateMods(Array.Empty<ModPackage>(), eventHandler, cancellationToken);
     }
 
     private void CheckGameNotRunning()
@@ -199,28 +156,49 @@ internal class ModManager : IModManager
         }
     }
 
-    private void InstallAllModFiles(IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void UpdateMods(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        var installedFilesByMod = new Dictionary<string, InternalModInstallationState>();
+        var previousState = statePersistence.ReadState().Install.Mods;
+        var currentState = new Dictionary<string, ModInstallationState>(previousState);
         try
         {
-            modInstaller.InstallPackages(
-                modRepository.ListEnabledMods(),
+            modInstaller.Apply(
+                previousState,
+                packages,
                 game.InstallationDirectory,
-                modInstallation => installedFilesByMod.Add(modInstallation.PackageName, new(
+                modInstallation =>
+                {
+                    switch (modInstallation.Installed)
+                    {
+                    case IInstallation.State.Installed:
+                    case IInstallation.State.PartiallyInstalled:
+                        currentState.Upsert(modInstallation.PackageName,
+                            existing => existing with
+                            {
+                                Partial = modInstallation.Installed == IInstallation.State.PartiallyInstalled,
+                                Files = modInstallation.InstalledFiles
+                            },
+                            () => new ModInstallationState(
+                                Time: DateTime.Now,
                                 FsHash: modInstallation.PackageFsHash,
                                 Partial: modInstallation.Installed == IInstallation.State.PartiallyInstalled,
                                 Files: modInstallation.InstalledFiles
-                            )),
+                            ));
+                        break;
+                    case IInstallation.State.NotInstalled:
+                        currentState.Remove(modInstallation.PackageName);
+                        break;
+                    }
+                },
                 eventHandler,
                 cancellationToken);
         }
         finally
         {
-            statePersistence.WriteState(new InternalState(
+            statePersistence.WriteState(new SavedState(
                 Install: new(
-                    Time: DateTime.UtcNow,
-                    Mods: installedFilesByMod
+                    Time: currentState.Values.Max(_ => _.Time),
+                    Mods: currentState
                 )
             ));
         }

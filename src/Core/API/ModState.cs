@@ -1,4 +1,4 @@
-﻿namespace Core;
+﻿namespace Core.API;
 
 public record ModState(
     string PackageName,

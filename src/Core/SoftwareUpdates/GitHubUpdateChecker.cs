@@ -25,9 +25,10 @@ public class GitHubUpdateChecker : IUpdateChecker
             var client = new GitHubClient(new ProductHeaderValue(config.GitHubClientApp));
             var release = await client.Repository.Release.GetLatest(config.GitHubOwner, config.GitHubRepo);
 
+            // Note: Version.Parse breaks the contract and can return null!
             var latestVersion = Version.Parse(release.Name);
             var currentVersion = Version.Parse(GitVersionInformation.MajorMinorPatch);
-            return latestVersion is not null && currentVersion < latestVersion;
+            return currentVersion < latestVersion;
         }
         catch
         {
