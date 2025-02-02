@@ -233,8 +233,12 @@ public class ModInstaller : IModInstaller
         return new BootfilesMod(installationFactory.ModInstaller(bootfilesPackage));
     }
 
-    private class BootfilesMod : IInstaller
+    internal class BootfilesMod : IInstaller
     {
+        internal const string VehicleListRelativeDir = "vehicles";
+        internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
+        internal static readonly string DrivelineRelativeDir = Path.Combine("vehicles", "physics", "driveline");
+
         private readonly IInstaller inner;
         private bool postProcessingDone;
 
@@ -264,11 +268,11 @@ public class ModInstaller : IModInstaller
         public void PostProcessing(string dstPath, IReadOnlyList<ConfigEntries> modConfigs, IEventHandler eventHandler)
         {
             eventHandler.PostProcessingVehicles();
-            PostProcessor.AppendCrdFileEntries(dstPath, modConfigs.SelectMany(c => c.CrdFileEntries));
+            PostProcessor.AppendCrdFileEntries(new RootedPath(dstPath, VehicleListRelativeDir), modConfigs.SelectMany(c => c.CrdFileEntries));
             eventHandler.PostProcessingTracks();
-            PostProcessor.AppendTrdFileEntries(dstPath, modConfigs.SelectMany(c => c.TrdFileEntries));
+            PostProcessor.AppendTrdFileEntries(new RootedPath(dstPath, TrackListRelativeDir), modConfigs.SelectMany(c => c.TrdFileEntries));
             eventHandler.PostProcessingDrivelines();
-            PostProcessor.AppendDrivelineRecords(dstPath, modConfigs.SelectMany(c => c.DrivelineRecords));
+            PostProcessor.AppendDrivelineRecords(new RootedPath(dstPath, DrivelineRelativeDir), modConfigs.SelectMany(c => c.DrivelineRecords));
             postProcessingDone = true;
         }
     }

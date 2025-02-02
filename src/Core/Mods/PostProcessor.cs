@@ -4,53 +4,65 @@ namespace Core.Mods;
 
 internal static class PostProcessor
 {
-    internal static readonly string VehicleListRelativePath = Path.Combine("vehicles", "vehiclelist.lst");
-    internal static readonly string TrackListRelativePath = Path.Combine("tracks", "_data", "tracklist.lst");
-    internal static readonly string DrivelineRelativePath = Path.Combine("vehicles", "physics", "driveline", "driveline.rg");
+    internal const string VehicleListFileName = "vehiclelist.lst";
+    internal const string TrackListFileName = "tracklist.lst";
+    internal const string DrivelineFileName = "driveline.rg";
 
-    public static void AppendCrdFileEntries(string gamePath, IEnumerable<string> crdFileEntries)
-    {
-        var vehicleListFilePath = Path.Combine(gamePath, VehicleListRelativePath);
-        AppendEntryList(vehicleListFilePath, crdFileEntries);
-    }
+    // TODO PASS ROOTED PATH AS DESTDIR AND RETURN ROOTED PATH
+    public static RootedPath? AppendCrdFileEntries(RootedPath destDirPath, IEnumerable<string> crdFileEntries) =>
+        AppendEntryList(destDirPath.SubPath(VehicleListFileName), crdFileEntries);
 
-    public static void AppendTrdFileEntries(string gamePath, IEnumerable<string> trdFileEntries)
-    {
-        var trackListFilePath = Path.Combine(gamePath, TrackListRelativePath);
-        AppendEntryList(trackListFilePath, trdFileEntries);
-    }
+    public static RootedPath? AppendTrdFileEntries(RootedPath destDirPath, IEnumerable<string> trdFileEntries) =>
+        AppendEntryList(destDirPath.SubPath(TrackListFileName), trdFileEntries);
 
-    private static void AppendEntryList(string path, IEnumerable<string> entries)
+    private static RootedPath? AppendEntryList(RootedPath filePath, IEnumerable<string> entries)
     {
         var entriesBlock = string.Join(Environment.NewLine, entries);
-        if (!entriesBlock.Any())
+        if (entriesBlock.Length == 0)
         {
-            return;
+            return null;
         }
 
-        var f = File.AppendText(path);
+        var f = File.AppendText(filePath.Full);
         f.Write(WrapInComments(entriesBlock));
         f.Close();
+        return filePath;
     }
 
-    public static void AppendDrivelineRecords(string gamePath, IEnumerable<string> recordBlocks)
+    public static RootedPath? AppendDrivelineRecords(RootedPath destDirPath, IEnumerable<string> recordBlocks)
     {
-        var dedupedRecordBlocks = DedupeRecordBlocks(recordBlocks);
-        var recordsTextBlock = string.Join($"{Environment.NewLine}{Environment.NewLine}", dedupedRecordBlocks);
-        if (!recordsTextBlock.Any())
+        var recordsTextBlock = DrivelineBlock(recordBlocks);
+        if (recordsTextBlock.Length == 0)
         {
-            return;
+            return null;
         }
 
-        var driveLineFilePath = Path.Combine(gamePath, DrivelineRelativePath);
-        var contents = File.ReadAllText(driveLineFilePath);
+        var driveLineFilePath = destDirPath.SubPath(DrivelineFileName);
+        var newContents = DrivelineFileContents(driveLineFilePath, recordsTextBlock);
+        File.WriteAllText(driveLineFilePath.Full, newContents);
+        return driveLineFilePath;
+    }
+
+    private static string DrivelineFileContents(RootedPath driveLineFilePath, string recordsTextBlock)
+    {
+        if (!File.Exists(driveLineFilePath.Full))
+        {
+            return recordsTextBlock;
+        }
+
+        var contents = File.ReadAllText(driveLineFilePath.Full);
         var endIndex = contents.LastIndexOf("END", StringComparison.Ordinal);
         if (endIndex < 0)
         {
             throw new Exception("Could not find insertion point in driveline file");
         }
-        var newContents = contents.Insert(endIndex, WrapInComments(recordsTextBlock));
-        File.WriteAllText(driveLineFilePath, newContents);
+        return contents.Insert(endIndex, WrapInComments(recordsTextBlock));
+    }
+
+    private static string DrivelineBlock(IEnumerable<string> recordBlocks)
+    {
+        var dedupedRecordBlocks = DedupeRecordBlocks(recordBlocks);
+        return string.Join($"{Environment.NewLine}{Environment.NewLine}", dedupedRecordBlocks);
     }
 
     internal static IEnumerable<string> DedupeRecordBlocks(IEnumerable<string> recordBlocks)
