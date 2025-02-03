@@ -19,7 +19,7 @@ public class ModRepository : IModRepository
     {
         var fileName = Path.GetFileName(sourceFilePath);
 
-        var isDisabled = ListDisabledMods().Where(_ => _.PackageName == fileName).Any();
+        var isDisabled = ListDisabledMods().Any(_ => _.PackageName == fileName);
         var destinationDirectoryPath = isDisabled ? disabledModsDir : enabledModsDir;
         var destinationFilePath = Path.Combine(destinationDirectoryPath, fileName);
 

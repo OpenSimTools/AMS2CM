@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Core.API;
 using Core.Backup;
+using Core.Bootfiles;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
@@ -17,9 +18,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
 
-    private static readonly string VehicleListRelativePath = Path.Combine(ModInstaller.BootfilesMod.VehicleListRelativeDir, PostProcessor.VehicleListFileName);
-    private static readonly string TrackListRelativePath = Path.Combine(ModInstaller.BootfilesMod.TrackListRelativeDir, PostProcessor.TrackListFileName);
-    private static readonly string DrivelineRelativePath = Path.Combine(ModInstaller.BootfilesMod.DrivelineRelativeDir, PostProcessor.DrivelineFileName);
+    private static readonly string VehicleListRelativePath = Path.Combine(BootfilesInstaller.VehicleListRelativeDir, PostProcessor.VehicleListFileName);
+    private static readonly string TrackListRelativePath = Path.Combine(BootfilesInstaller.TrackListRelativeDir, PostProcessor.TrackListFileName);
+    private static readonly string DrivelineRelativePath = Path.Combine(BootfilesInstaller.DrivelineRelativeDir, PostProcessor.DrivelineFileName);
 
     // Randomness ensures that at least some test runs will fail if it's used
     private static readonly DateTime? ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;

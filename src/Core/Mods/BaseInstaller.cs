@@ -1,4 +1,5 @@
 ﻿using Core.Backup;
+using Core.Bootfiles;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
 
@@ -10,7 +11,7 @@ namespace Core.Mods;
 /// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
 internal abstract class BaseInstaller<TPassthrough> : IInstaller
 {
-    protected readonly DirectoryInfo stagingDir;
+    protected readonly DirectoryInfo StagingDir;
 
     public string PackageName { get; }
     public int? PackageFsHash { get; }
@@ -30,13 +31,13 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     {
         PackageName = packageName;
         PackageFsHash = packageFsHash;
-        stagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
+        StagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
         rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
-    public ConfigEntries Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    public void Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
@@ -56,7 +57,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
                 // Config files only at the mod root
                 if (!pathInMod.Contains(Path.DirectorySeparatorChar))
                 {
-                    var modConfigDstPath = new RootedPath(stagingDir.FullName, pathInMod);
+                    var modConfigDstPath = new RootedPath(StagingDir.FullName, pathInMod);
                     Directory.GetParent(modConfigDstPath.Full)?.Create();
                     InstallFile(modConfigDstPath, context);
                 }
@@ -86,9 +87,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             }
         });
 
-        Installed = IInstallation.State.Installed;
+        GenerateModConfig(dstPath);
 
-        return GenerateModConfig(dstPath);
+        Installed = IInstallation.State.Installed;
     }
 
     /// <summary>
@@ -116,7 +117,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             (filePath, false);
     }
 
-    private ConfigEntries GenerateModConfig(string dstPath)
+    private void GenerateModConfig(string dstPath)
     {
         var gameSupportedMod = FileEntriesToConfigure()
             .Any(p => p.StartsWith(BaseInstaller.GameSupportedModDirectory));
@@ -124,7 +125,6 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             ? ConfigEntries.Empty
             : new ConfigEntries(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
         WriteModConfigFiles(dstPath, modConfig);
-        return modConfig;
     }
 
     private void WriteModConfigFiles(string dstPath, ConfigEntries modConfig)
@@ -164,12 +164,12 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();
-        if (!stagingDir.Exists)
+        if (!StagingDir.Exists)
         {
             return recordBlocks;
         }
 
-        foreach (var configFile in stagingDir.EnumerateFiles())
+        foreach (var configFile in StagingDir.EnumerateFiles())
         {
             var recordIndent = -1;
             var recordLines = new List<string>();

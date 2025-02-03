@@ -23,7 +23,7 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
         GenerateBootfiles();
     }
 
-    protected override DirectoryInfo Source => stagingDir;
+    protected override DirectoryInfo Source => StagingDir;
 
     protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)
     {
@@ -46,11 +46,11 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
         var filePath = Path.Combine(pakPath, fileName);
         BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
         using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true, outputWriter: TextWriter.Null);
-        pakFile.UnpackAll(stagingDir.FullName);
+        pakFile.UnpackAll(StagingDir.FullName);
     }
 
     private string ExtractedPakPath(string name) =>
-        Path.Combine(stagingDir.FullName, PakfilesDirectory, name);
+        Path.Combine(StagingDir.FullName, PakfilesDirectory, name);
 
     private void CreateEmptyFile(string path)
     {
@@ -67,7 +67,7 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     private void DeleteFromExtractedFiles(string wildcardRelative)
     {
-        foreach (var file in Directory.EnumerateFiles(stagingDir.FullName, wildcardRelative))
+        foreach (var file in Directory.EnumerateFiles(StagingDir.FullName, wildcardRelative))
         {
             File.Delete(file);
         }

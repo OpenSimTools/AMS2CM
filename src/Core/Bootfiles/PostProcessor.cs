@@ -1,6 +1,7 @@
-﻿using Core.Utils;
+﻿using Core.Mods;
+using Core.Utils;
 
-namespace Core.Mods;
+namespace Core.Bootfiles;
 
 internal static class PostProcessor
 {
