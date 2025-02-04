@@ -132,6 +132,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         // TODO remove in later bootfiles refactoring
         if (BootfilesManager.IsBootFiles(PackageName))
             return;
+        if (modConfig.None())
+            return;
+        // TODO this can fail
         var modConfigDirPath = new RootedPath(dstPath, Path.Combine(BaseInstaller.GameSupportedModDirectory, NormalisedName));
         Directory.CreateDirectory(modConfigDirPath.Full);
         AddToInstalledFiles(PostProcessor.AppendCrdFileEntries(modConfigDirPath, modConfig.CrdFileEntries));

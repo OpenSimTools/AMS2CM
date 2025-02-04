@@ -51,7 +51,7 @@ public class BootfilesInstaller : IInstaller
     private void PostProcessing(string dstPath)
     {
         var modConfigs = CollectModConfigs(dstPath);
-        if (modConfigs.Any(c => c.NotEmpty()))
+        if (modConfigs.Any(c => c.Any()))
         {
             eventHandler.PostProcessingStart();
             eventHandler.PostProcessingVehicles();
