@@ -207,10 +207,9 @@ public class ModInstaller : IModInstaller
     private BootfilesInstaller CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
     {
         var bootfilesPackage = packages.FirstOrDefault(p => BootfilesManager.IsBootFiles(p.PackageName));
-        var bootfilesInstaller = bootfilesPackage is null
+        var packageInstaller = bootfilesPackage is null
             ? installationFactory.GeneratedBootfilesInstaller()
             : installationFactory.ModInstaller(bootfilesPackage);
-        eventHandler.ExtractingBootfiles(bootfilesPackage?.PackageName);
-        return new BootfilesInstaller(bootfilesInstaller, eventHandler);
+        return new BootfilesInstaller(packageInstaller, eventHandler);
     }
 }
