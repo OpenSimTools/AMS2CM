@@ -1,7 +1,7 @@
-using Core.Mods;
+using Core.Bootfiles;
 using FluentAssertions;
 
-namespace Core.Tests.Mods;
+namespace Core.Tests.Bootfiles;
 
 [UnitTest]
 public class PostProcessorTest

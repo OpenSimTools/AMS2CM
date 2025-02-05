@@ -9,5 +9,7 @@ public record ConfigEntries(
     public static readonly ConfigEntries Empty =
         new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
 
-    public bool NotEmpty() => CrdFileEntries.Any() || TrdFileEntries.Any() || DrivelineRecords.Any();
+    public bool Any() => CrdFileEntries.Any() || TrdFileEntries.Any() || DrivelineRecords.Any();
+
+    public bool None() => !Any();
 };

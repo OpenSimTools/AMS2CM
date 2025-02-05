@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Core.API;
 using Core.Backup;
+using Core.Bootfiles;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
@@ -16,6 +17,10 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
+
+    private static readonly string VehicleListRelativePath = Path.Combine(BootfilesInstaller.VehicleListRelativeDir, PostProcessor.VehicleListFileName);
+    private static readonly string TrackListRelativePath = Path.Combine(BootfilesInstaller.TrackListRelativeDir, PostProcessor.TrackListFileName);
+    private static readonly string DrivelineRelativePath = Path.Combine(BootfilesInstaller.DrivelineRelativeDir, PostProcessor.DrivelineFileName);
 
     // Randomness ensures that at least some test runs will fail if it's used
     private static readonly DateTime? ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
@@ -456,8 +461,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
-        File.ReadAllText(GamePath(PostProcessor.VehicleListRelativePath)).Should().Contain("Vehicle.crd");
-        File.ReadAllText(GamePath(PostProcessor.DrivelineRelativePath)).Should().Contain(drivelineRecord);
+        File.ReadAllText(GamePath(VehicleListRelativePath)).Should().Contain("Vehicle.crd");
+        File.ReadAllText(GamePath(DrivelineRelativePath)).Should().Contain(drivelineRecord);
     }
 
     [Fact]
@@ -466,7 +471,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
-                BaseInstaller.GameSupportedModDirectory
+                Path.Combine(BaseInstaller.GameSupportedModDirectory, "Anything")
             ]),
             CreateCustomBootfiles(900),
         ]);
@@ -487,8 +492,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
-        File.ReadAllText(GamePath(PostProcessor.TrackListRelativePath)).Should().Contain("Track.trd");
-
+        File.ReadAllText(GamePath(TrackListRelativePath)).Should().Contain("Track.trd");
     }
 
     [Fact]
@@ -534,12 +538,12 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private ModPackage CreateCustomBootfiles(int fsHash) =>
         CreateModPackage(BootfilesManager.BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
-            PostProcessor.VehicleListRelativePath,
-            PostProcessor.TrackListRelativePath,
-            PostProcessor.DrivelineRelativePath,
+            VehicleListRelativePath,
+            TrackListRelativePath,
+            DrivelineRelativePath,
         ], extractedDir =>
             File.AppendAllText(
-                Path.Combine(extractedDir, PostProcessor.DrivelineRelativePath),
+                Path.Combine(extractedDir, DrivelineRelativePath),
                 $"{Environment.NewLine}END")
             );
 

@@ -1,4 +1,5 @@
 ﻿using Core.Backup;
+using Core.Bootfiles;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
 
@@ -10,10 +11,13 @@ namespace Core.Mods;
 /// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
 internal abstract class BaseInstaller<TPassthrough> : IInstaller
 {
-    protected readonly DirectoryInfo stagingDir;
+    protected readonly DirectoryInfo StagingDir;
 
     public string PackageName { get; }
     public int? PackageFsHash { get; }
+
+    // TODO Generate a better name
+    private string NormalisedName => string.Concat(PackageName.Where(char.IsAsciiLetterOrDigit));
 
     public IInstallation.State Installed { get; private set; }
     public IReadOnlyCollection<string> InstalledFiles => installedFiles;
@@ -27,13 +31,13 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     {
         PackageName = packageName;
         PackageFsHash = packageFsHash;
-        stagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
+        StagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
         rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
 
-    public ConfigEntries Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    public void Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
@@ -46,15 +50,16 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         InstalAllFiles((string pathInMod, TPassthrough context) =>
         {
             var relativePathInMod = rootPaths.GetPathFromRoot(pathInMod);
+
             // If not part of any game root
             if (relativePathInMod is null)
             {
                 // Config files only at the mod root
                 if (!pathInMod.Contains(Path.DirectorySeparatorChar))
                 {
-                    var dstPath = new RootedPath(stagingDir.FullName, pathInMod);
-                    Directory.GetParent(dstPath.Full)?.Create();
-                    InstallFile(dstPath, context);
+                    var modConfigDstPath = new RootedPath(StagingDir.FullName, pathInMod);
+                    Directory.GetParent(modConfigDstPath.Full)?.Create();
+                    InstallFile(modConfigDstPath, context);
                 }
                 return;
             }
@@ -82,9 +87,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             }
         });
 
-        Installed = IInstallation.State.Installed;
+        GenerateModConfig(dstPath);
 
-        return GenerateConfig();
+        Installed = IInstallation.State.Installed;
     }
 
     /// <summary>
@@ -112,13 +117,37 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             (filePath, false);
     }
 
-    private ConfigEntries GenerateConfig()
+    private void GenerateModConfig(string dstPath)
     {
         var gameSupportedMod = FileEntriesToConfigure()
             .Any(p => p.StartsWith(BaseInstaller.GameSupportedModDirectory));
-        return gameSupportedMod
+        var modConfig = gameSupportedMod
             ? ConfigEntries.Empty
-            : new(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
+            : new ConfigEntries(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
+        WriteModConfigFiles(dstPath, modConfig);
+    }
+
+    private void WriteModConfigFiles(string dstPath, ConfigEntries modConfig)
+    {
+        // TODO remove in later bootfiles refactoring
+        if (BootfilesManager.IsBootFiles(PackageName))
+            return;
+        if (modConfig.None())
+            return;
+        // TODO this can fail
+        var modConfigDirPath = new RootedPath(dstPath, Path.Combine(BaseInstaller.GameSupportedModDirectory, NormalisedName));
+        Directory.CreateDirectory(modConfigDirPath.Full);
+        AddToInstalledFiles(PostProcessor.AppendCrdFileEntries(modConfigDirPath, modConfig.CrdFileEntries));
+        AddToInstalledFiles(PostProcessor.AppendTrdFileEntries(modConfigDirPath, modConfig.TrdFileEntries));
+        AddToInstalledFiles(PostProcessor.AppendDrivelineRecords(modConfigDirPath, modConfig.DrivelineRecords));
+    }
+
+    private void AddToInstalledFiles(RootedPath? installedFile)
+    {
+        if (installedFile is not null)
+        {
+            installedFiles.Add(installedFile.Relative);
+        }
     }
 
     private List<string> CrdFileEntries() =>
@@ -138,43 +167,45 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();
-        if (stagingDir.Exists)
+        if (!StagingDir.Exists)
         {
-            foreach (var fileAtModRoot in stagingDir.EnumerateFiles())
+            return recordBlocks;
+        }
+
+        foreach (var configFile in StagingDir.EnumerateFiles())
+        {
+            var recordIndent = -1;
+            var recordLines = new List<string>();
+            foreach (var line in File.ReadAllLines(configFile.FullName))
             {
-                var recordIndent = -1;
-                var recordLines = new List<string>();
-                foreach (var line in File.ReadAllLines(fileAtModRoot.FullName))
+                // Read each line until we find one with RECORD
+                if (recordIndent < 0)
                 {
-                    // Read each line until we find one with RECORD
-                    if (recordIndent < 0)
-                    {
-                        recordIndent = line.IndexOf("RECORD", StringComparison.InvariantCulture);
-                    }
-                    if (recordIndent < 0)
-                    {
-                        continue;
-                    }
-
-                    // Once it finds a blank line, create a record block and start over
-                    if (string.IsNullOrWhiteSpace(line))
-                    {
-                        recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
-                        recordIndent = -1;
-                        recordLines.Clear();
-                        continue;
-                    }
-
-                    // Otherwise add the line to the current record lines
-                    var lineNoIndent = line.Substring(recordIndent).TrimEnd();
-                    recordLines.Add(lineNoIndent);
+                    recordIndent = line.IndexOf("RECORD", StringComparison.InvariantCulture);
+                }
+                if (recordIndent < 0)
+                {
+                    continue;
                 }
 
-                // Create a record block also if the file finshed on a record line
-                if (recordIndent >= 0)
+                // Once it finds a blank line, create a record block and start over
+                if (string.IsNullOrWhiteSpace(line))
                 {
                     recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
+                    recordIndent = -1;
+                    recordLines.Clear();
+                    continue;
                 }
+
+                // Otherwise add the line to the current record lines
+                var lineNoIndent = line.Substring(recordIndent).TrimEnd();
+                recordLines.Add(lineNoIndent);
+            }
+
+            // Create a record block also if the file finshed on a record line
+            if (recordIndent >= 0)
+            {
+                recordBlocks.Add(string.Join(Environment.NewLine, recordLines));
             }
         }
 
