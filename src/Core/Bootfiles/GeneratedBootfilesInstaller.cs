@@ -1,8 +1,9 @@
 ﻿using Core.Games;
+using Core.Mods;
 using PCarsTools;
 using PCarsTools.Encryption;
 
-namespace Core.Mods;
+namespace Core.Bootfiles;
 
 internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 {
@@ -20,10 +21,15 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
         base(VirtualPackageName, null, tempDir, config)
     {
         pakPath = Path.Combine(game.InstallationDirectory, PakfilesDirectory);
-        GenerateBootfiles();
     }
 
     protected override DirectoryInfo Source => StagingDir;
+
+    protected override void InstalAllFiles(InstallBody body)
+    {
+        GenerateBootfiles();
+        base.InstalAllFiles(body);
+    }
 
     protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)
     {
