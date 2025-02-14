@@ -149,7 +149,9 @@ public class ModInstaller : IModInstaller
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var modPackages = toInstall.Where(p => !BootfilesManager.IsBootFiles(p.PackageName)).Reverse().ToImmutableArray();
+        var (bootfiles, notBootfiles) = toInstall.Partition(p => !BootfilesManager.IsBootFiles(p.PackageName));
+        var installers = notBootfiles.Select(p => installationFactory.ModInstaller(p))
+            .Append(CreateBootfilesInstaller(bootfiles, eventHandler)).ToImmutableArray();
 
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
@@ -159,38 +161,25 @@ public class ModInstaller : IModInstaller
         };
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
-        var progress = new PercentOfTotal(modPackages.Length + 2);
-        if (modPackages.Any())
+        var progress = new PercentOfTotal(installers.Length + 2);
+        if (installers.Any())
         {
             eventHandler.InstallStart();
             eventHandler.ProgressUpdate(progress.IncrementDone());
 
-            foreach (var modPackage in modPackages.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
+            foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
-                eventHandler.InstallCurrent(modPackage.PackageName);
+                eventHandler.InstallCurrent(installer.PackageName);
                 var backupStrategy = modBackupStrategyProvider.BackupStrategy(null);
-                var mod = installationFactory.ModInstaller(modPackage);
                 try
                 {
-                    mod.Install(installDir, backupStrategy, installCallbacks);
+                    installer.Install(installDir, backupStrategy, installCallbacks);
                 }
                 finally
                 {
-                    afterInstall(mod);
+                    afterInstall(installer);
                 }
                 eventHandler.ProgressUpdate(progress.IncrementDone());
-            }
-
-            // TODO Add to mod loop above
-            var bootfilesMod = CreateBootfilesMod(toInstall, eventHandler);
-            try
-            {
-                var backupStrategy = modBackupStrategyProvider.BackupStrategy(null);
-                bootfilesMod.Install(installDir, backupStrategy, installCallbacks);
-            }
-            finally
-            {
-                afterInstall(bootfilesMod);
             }
 
             eventHandler.InstallEnd();
@@ -203,10 +192,9 @@ public class ModInstaller : IModInstaller
         eventHandler.ProgressUpdate(progress.DoneAll());
     }
 
-    // TODO move this after wrapping ModInstaller
-    private BootfilesInstaller CreateBootfilesMod(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler)
+    private BootfilesInstaller CreateBootfilesInstaller(IEnumerable<ModPackage> bootfilesPackages, IEventHandler eventHandler)
     {
-        var bootfilesPackage = packages.FirstOrDefault(p => BootfilesManager.IsBootFiles(p.PackageName));
+        var bootfilesPackage = bootfilesPackages.FirstOrDefault();
         var packageInstaller = bootfilesPackage is null
             ? installationFactory.GeneratedBootfilesInstaller()
             : installationFactory.ModInstaller(bootfilesPackage);
