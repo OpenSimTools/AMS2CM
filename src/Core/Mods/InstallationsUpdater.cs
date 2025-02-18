@@ -1,14 +1,13 @@
-﻿using System.Collections.Immutable;
-using Core.Backup;
+﻿using Core.Backup;
 using Core.Bootfiles;
-using Core.Mods;
 using Core.State;
 using Core.Utils;
 
-namespace Core;
+namespace Core.Mods;
 
-public class ModInstaller : IModInstaller
+public class InstallationsUpdater : IInstallationsUpdater
 {
+    // TODO move to interface!
     public interface IEventHandler : IProgress, BootfilesInstaller.IEventHandler
     {
         void InstallNoMods();
@@ -28,27 +27,20 @@ public class ModInstaller : IModInstaller
         public void ProgressUpdate(IPercent? progress);
     }
 
-    private readonly IInstallationFactory installationFactory;
     private readonly IModBackupStrategyProvider modBackupStrategyProvider;
 
-    public ModInstaller(
-        IInstallationFactory installationFactory,
+    public InstallationsUpdater(
         IBackupStrategy  backupStrategy)
     {
-        this.installationFactory = installationFactory;
         modBackupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
     }
 
-    public void Apply(
-        IReadOnlyDictionary<string, ModInstallationState> currentState,
-        IReadOnlyCollection<ModPackage> toInstall,
-        string installDir,
-        Action<IInstallation> afterCallback,
-        IEventHandler eventHandler,
-        CancellationToken cancellationToken)
+    public void Apply(IReadOnlyDictionary<string, ModInstallationState> currentState,
+        IReadOnlyCollection<IInstaller> toInstall, string installDir, Action<IInstallation> afterInstall,
+        IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        UninstallPackages(currentState, installDir, afterCallback, eventHandler, cancellationToken);
-        InstallPackages(toInstall, installDir, afterCallback, eventHandler, cancellationToken);
+        UninstallPackages(currentState, installDir, afterInstall, eventHandler, cancellationToken);
+        InstallPackages(toInstall, installDir, afterInstall, eventHandler, cancellationToken);
     }
 
     private void UninstallPackages(
@@ -143,16 +135,12 @@ public class ModInstaller : IModInstaller
     }
 
     private void InstallPackages(
-        IReadOnlyCollection<ModPackage> toInstall,
+        IReadOnlyCollection<IInstaller> installers,
         string installDir,
         Action<IInstallation> afterInstall,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var (bootfiles, notBootfiles) = toInstall.Partition(p => !BootfilesManager.IsBootFiles(p.PackageName));
-        var installers = notBootfiles.Select(p => installationFactory.ModInstaller(p))
-            .Append(CreateBootfilesInstaller(bootfiles, eventHandler)).ToImmutableArray();
-
         var installedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
         {
@@ -161,7 +149,7 @@ public class ModInstaller : IModInstaller
         };
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
-        var progress = new PercentOfTotal(installers.Length + 2);
+        var progress = new PercentOfTotal(installers.Count + 2);
         if (installers.Any())
         {
             eventHandler.InstallStart();
@@ -190,14 +178,5 @@ public class ModInstaller : IModInstaller
             eventHandler.InstallNoMods();
         }
         eventHandler.ProgressUpdate(progress.DoneAll());
-    }
-
-    private BootfilesInstaller CreateBootfilesInstaller(IEnumerable<ModPackage> bootfilesPackages, IEventHandler eventHandler)
-    {
-        var bootfilesPackage = bootfilesPackages.FirstOrDefault();
-        var packageInstaller = bootfilesPackage is null
-            ? installationFactory.GeneratedBootfilesInstaller()
-            : installationFactory.ModInstaller(bootfilesPackage);
-        return new BootfilesInstaller(packageInstaller, eventHandler);
     }
 }

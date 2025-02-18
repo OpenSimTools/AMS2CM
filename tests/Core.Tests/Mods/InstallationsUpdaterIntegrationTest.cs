@@ -5,9 +5,9 @@ using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
 
-namespace Core.Tests;
+namespace Core.Tests.Mods;
 
-public class ModInstallerIntegrationTest : AbstractFilesystemTest
+public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
 {
     #region Initialisation
 
@@ -25,23 +25,17 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
             installation.Installed) { }
     }
 
-    private readonly Mock<IInstallationFactory> installationFactoryMock;
     private readonly Mock<IBackupStrategy> backupStrategyMock;
-    private readonly ModInstaller modInstaller;
+    private readonly InstallationsUpdater installationsUpdater;
 
-    private readonly Mock<ModInstaller.IEventHandler> eventHandlerMock;
+    private readonly Mock<InstallationsUpdater.IEventHandler> eventHandlerMock = new();
 
-    private readonly Dictionary<string, InstallationResult> recordedState;
+    private readonly Dictionary<string, InstallationResult> recordedState = new();
 
-    public ModInstallerIntegrationTest()
+    public InstallationsUpdaterIntegrationTest()
     {
-        installationFactoryMock = new Mock<IInstallationFactory>();
         backupStrategyMock = new Mock<IBackupStrategy>();
-        modInstaller = new ModInstaller(
-            installationFactoryMock.Object,
-            backupStrategyMock.Object);
-        eventHandlerMock = new Mock<ModInstaller.IEventHandler>();
-        recordedState = new();
+        installationsUpdater = new InstallationsUpdater(backupStrategyMock.Object);
     }
 
     #endregion
@@ -49,7 +43,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_NoMods()
     {
-        modInstaller.Apply(
+        installationsUpdater.Apply(
             new Dictionary<string, ModInstallationState>(),
             [],
             "",
@@ -63,7 +57,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_UninstallsMods()
     {
-        modInstaller.Apply(
+        installationsUpdater.Apply(
             new Dictionary<string, ModInstallationState>{
                 ["A"] = new(
                         Time: null,
@@ -98,7 +92,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     {
         backupStrategyMock.Setup(_ => _.RestoreBackup(TestPath("Fail"))).Throws<TestException>();
 
-        modInstaller.Invoking(_ => _.Apply(
+        installationsUpdater.Invoking(_ => _.Apply(
             new Dictionary<string, ModInstallationState>
             {
                 ["A"] = new(
@@ -119,10 +113,10 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_InstallsMods()
     {
-        modInstaller.Apply(
+        installationsUpdater.Apply(
             new Dictionary<string, ModInstallationState>(),
             [
-                PackageInstalling("A", 42, [
+                InstallerOf("A", 42, [
                     "AF"
                 ])
             ],
@@ -142,7 +136,6 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
         eventHandlerMock.Verify(_ => _.UninstallNoMods());
         eventHandlerMock.Verify(_ => _.InstallStart());
         eventHandlerMock.Verify(_ => _.InstallCurrent("A"));
-        eventHandlerMock.Verify(_ => _.PostProcessingNotRequired());
         eventHandlerMock.Verify(_ => _.InstallEnd());
         eventHandlerMock.Verify(_ => _.ProgressUpdate(It.IsAny<IPercent>()));
         eventHandlerMock.VerifyNoOtherCalls();
@@ -153,10 +146,10 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     {
         backupStrategyMock.Setup(_ => _.PerformBackup(TestPath("Fail"))).Throws<TestException>();
 
-        modInstaller.Invoking(_ => _.Apply(
+        installationsUpdater.Invoking(_ => _.Apply(
             new Dictionary<string, ModInstallationState>(),
             [
-                PackageInstalling("A", 42, [
+                InstallerOf("A", 42, [
                     "AF1", "Fail", "AF2"
                 ])
             ],
@@ -172,7 +165,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
     public void Apply_UpdatesMods()
     {
         var endState = new Dictionary<string, IInstallation>();
-        modInstaller.Apply(
+        installationsUpdater.Apply(
             new Dictionary<string, ModInstallationState>
             {
                 ["A"] = new(Time: null, FsHash: 1, Partial: false, Files: [
@@ -181,7 +174,7 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
                 ])
             },
             [
-                PackageInstalling("A", 2, [
+                InstallerOf("A", 2, [
                     "AF",
                     "AF2"
                 ])
@@ -199,14 +192,9 @@ public class ModInstallerIntegrationTest : AbstractFilesystemTest
 
     #region Utility methods
 
-    private ModPackage PackageInstalling(string name, int? fsHash, IReadOnlyCollection<string> files)
+    private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files)
     {
-        var unusedPath = $@"Some\Unused\Path\{name}";
-        var unusedEnabled = Random.Shared.NextDouble() < 0.5;
-        var package = new ModPackage(name, unusedPath, unusedEnabled, fsHash);
-        var installer = new StaticFilesInstaller(name, fsHash, new SubdirectoryTempDir(testDir.FullName), files);
-        installationFactoryMock.Setup(_ => _.ModInstaller(package)).Returns(installer);
-        return package;
+        return new StaticFilesInstaller(name, fsHash, new SubdirectoryTempDir(testDir.FullName), files);
     }
 
     private class StaticFilesInstaller : BaseInstaller<object>

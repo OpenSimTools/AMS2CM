@@ -21,16 +21,16 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly IModInstaller modInstaller;
+    private readonly IModPackagesUpdater modPackagesUpdater;
 
-    internal ModManager(IGame game, IModRepository modRepository, IModInstaller modInstaller, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(IGame game, IModRepository modRepository, IModPackagesUpdater modPackagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
         this.modRepository = modRepository;
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
-        this.modInstaller = modInstaller;
+        this.modPackagesUpdater = modPackagesUpdater;
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
@@ -139,7 +139,8 @@ internal class ModManager : IModManager
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
-        UpdateMods(modRepository.ListEnabledMods(), eventHandler, cancellationToken);
+        var modsInPriorityOrder = modRepository.ListEnabledMods().Reverse();
+        UpdateMods(modsInPriorityOrder, eventHandler, cancellationToken);
         tempDir.Cleanup();
     }
 
@@ -157,13 +158,13 @@ internal class ModManager : IModManager
         }
     }
 
-    private void UpdateMods(IReadOnlyCollection<ModPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void UpdateMods(IEnumerable<ModPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
         var previousState = statePersistence.ReadState().Install.Mods;
         var currentState = new Dictionary<string, ModInstallationState>(previousState);
         try
         {
-            modInstaller.Apply(
+            modPackagesUpdater.Apply(
                 previousState,
                 packages,
                 game.InstallationDirectory,

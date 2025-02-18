@@ -52,15 +52,13 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             DirsAtRoot = [DirAtRoot],
             ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
         };
-        var installationFactory = new InstallationFactory(
-            gameMock.Object,
-            tempDir,
-            modInstallConfig);
+
+        var modPackagesUpdater = Init.ModPackagesUpdater(modInstallConfig, gameMock.Object, tempDir);
 
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            new ModInstaller(installationFactory, new SuffixBackupStrategy()),
+            modPackagesUpdater,
             persistedState,
             safeFileDeleteMock.Object,
             tempDir);
@@ -514,7 +512,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     }
 
     [Fact]
-    public void Install_ChoosesFirstOfMultipleCustomBootfiles()
+    public void Install_ChoosesLastOfMultipleCustomBootfiles()
     {
         modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
             CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
@@ -524,7 +522,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
+        persistedState.Should().HaveInstalled(["Package100", "__bootfiles901"]);
     }
 
     #region Utility methods

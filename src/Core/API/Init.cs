@@ -1,4 +1,5 @@
 ﻿using Core.Backup;
+using Core.Bootfiles;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
@@ -17,10 +18,19 @@ public static class Init
         var tempDir = new SubdirectoryTempDir(modsDir);
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var modRepository = new ModRepository(modsDir);
-        var installationFactory = new InstallationFactory(game, tempDir, config.ModInstall);
         var safeFileDelete = new WindowsRecyclingBin();
+        var modPackagesUpdater = ModPackagesUpdater(config.ModInstall, game, tempDir);
+        return new ModManager(game, modRepository, modPackagesUpdater, statePersistence, safeFileDelete, tempDir);
+    }
+
+    internal static ModPackagesUpdater ModPackagesUpdater(
+        BaseInstaller.IConfig installerConfig,
+        IGame game,
+        ITempDir tempDir)
+    {
         var backupStrategy = new SuffixBackupStrategy();
-        var modInstaller = new ModInstaller(installationFactory, backupStrategy);
-        return new ModManager(game, modRepository, modInstaller, statePersistence, safeFileDelete, tempDir);
+        var installationsUpdater = new InstallationsUpdater(backupStrategy);
+        var bootfilesAwareUpdater = new BootfilesAwareUpdater(installationsUpdater, game, tempDir, installerConfig);
+        return new ModPackagesUpdater(bootfilesAwareUpdater, tempDir, installerConfig);
     }
 }

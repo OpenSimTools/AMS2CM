@@ -1,4 +1,5 @@
 ﻿using Core.Games;
+using Core.Mods;
 using Core.SoftwareUpdates;
 using Microsoft.Extensions.Configuration;
 
@@ -34,7 +35,7 @@ public class GameConfig : Game.IConfig
     public string ProcessName { get; set; } = "Undefined";
 }
 
-public class ModInstallConfig : InstallationFactory.IConfig
+public class ModInstallConfig : BaseInstaller.IConfig
 {
     public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
     public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();

@@ -1,8 +1,10 @@
-﻿namespace Core.API;
+﻿using Core.Mods;
+
+namespace Core.API;
 
 public interface IModManager
 {
-    public interface IEventHandler : ModInstaller.IEventHandler
+    public interface IEventHandler : InstallationsUpdater.IEventHandler
     {
     }
 

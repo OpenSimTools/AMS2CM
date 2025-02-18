@@ -1,15 +1,14 @@
-﻿using Core.Mods;
-using Core.State;
+﻿using Core.State;
 
-namespace Core;
+namespace Core.Mods;
 
-public interface IModInstaller
+public interface IModPackagesUpdater
 {
     void Apply(
         IReadOnlyDictionary<string, ModInstallationState> currentState,
-        IReadOnlyCollection<ModPackage> packages,
+        IEnumerable<ModPackage> packages,
         string installDir,
         Action<IInstallation> afterInstall,
-        ModInstaller.IEventHandler eventHandler,
+        InstallationsUpdater.IEventHandler eventHandler,
         CancellationToken cancellationToken);
 }
