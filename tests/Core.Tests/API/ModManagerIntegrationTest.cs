@@ -6,6 +6,7 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 using Core.Tests.Base;
+using Core.Utils;
 using FluentAssertions;
 
 namespace Core.Tests.API;

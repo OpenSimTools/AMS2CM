@@ -9,7 +9,6 @@ internal static class PostProcessor
     internal const string TrackListFileName = "tracklist.lst";
     internal const string DrivelineFileName = "driveline.rg";
 
-    // TODO PASS ROOTED PATH AS DESTDIR AND RETURN ROOTED PATH
     public static RootedPath? AppendCrdFileEntries(RootedPath destDirPath, IEnumerable<string> crdFileEntries) =>
         AppendEntryList(destDirPath.SubPath(VehicleListFileName), crdFileEntries);
 

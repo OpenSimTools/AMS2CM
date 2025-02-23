@@ -1,4 +1,6 @@
-﻿namespace Core.Mods;
+﻿using Core.Utils;
+
+namespace Core.Mods;
 
 internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
 {

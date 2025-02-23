@@ -1,4 +1,4 @@
-﻿namespace Core;
+﻿namespace Core.Utils;
 
 public class SubdirectoryTempDir : ITempDir
 {
