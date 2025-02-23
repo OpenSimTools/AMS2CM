@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using Core.API;
-using Core.Backup;
 using Core.Bootfiles;
 using Core.Games;
 using Core.IO;
@@ -33,7 +32,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private readonly Mock<IGame> gameMock = new();
     private readonly Mock<IModRepository> modRepositoryMock = new();
     private readonly Mock<ISafeFileDelete> safeFileDeleteMock = new();
-    private readonly Mock<IModManager.IEventHandler> eventHandlerMock = new();
+    private readonly Mock<IEventHandler> eventHandlerMock = new();
 
     private readonly InMemoryStatePersistence persistedState;
 
@@ -53,7 +52,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
         };
 
-        var modPackagesUpdater = Init.ModPackagesUpdater(modInstallConfig, gameMock.Object, tempDir);
+        var modPackagesUpdater = Init.CreateModPackagesUpdater(modInstallConfig, gameMock.Object, tempDir);
 
         modManager = new ModManager(
             gameMock.Object,

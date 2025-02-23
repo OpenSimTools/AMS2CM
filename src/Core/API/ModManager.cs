@@ -4,7 +4,6 @@ using Core.IO;
 using Core.Mods;
 using Core.State;
 using Core.Utils;
-using static Core.API.IModManager;
 
 namespace Core.API;
 
@@ -21,9 +20,9 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly IModPackagesUpdater modPackagesUpdater;
+    private readonly ModPackagesUpdater<IEventHandler> modPackagesUpdater;
 
-    internal ModManager(IGame game, IModRepository modRepository, IModPackagesUpdater modPackagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(IGame game, IModRepository modRepository, ModPackagesUpdater<IEventHandler> modPackagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
         this.modRepository = modRepository;

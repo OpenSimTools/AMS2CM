@@ -1,4 +1,6 @@
-﻿using Core.Utils;
+﻿using Core.Bootfiles;
+using Core.Mods;
+using Core.Utils;
 
 namespace Core.API;
 
@@ -6,7 +8,7 @@ namespace Core.API;
 /// This class is here because of the CLI. Move it into the GUI once the CLI
 /// can be decommissioned or into a shared module that handles localisation.
 /// </summary>
-public abstract class BaseEventLogger : IModManager.IEventHandler
+public abstract class BaseEventLogger : IEventHandler
 {
     public abstract void ProgressUpdate(IPercent? progress);
     protected abstract void LogMessage(string message);

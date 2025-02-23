@@ -5,10 +5,9 @@ using Core.Utils;
 
 namespace Core.Mods;
 
-public class InstallationsUpdater : IInstallationsUpdater
+public class InstallationsUpdater : IInstallationsUpdater<InstallationsUpdater.IEventHandler>
 {
-    // TODO move to interface!
-    public interface IEventHandler : IProgress, BootfilesInstaller.IEventHandler
+    public interface IEventHandler : IProgress
     {
         void InstallNoMods();
         void InstallStart();

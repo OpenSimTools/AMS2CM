@@ -2,13 +2,13 @@
 
 namespace Core.Mods;
 
-public interface IInstallationsUpdater
+public interface IInstallationsUpdater<in TEventHandler>
 {
     void Apply(
         IReadOnlyDictionary<string, ModInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
         string installDir,
         Action<IInstallation> afterInstall,
-        InstallationsUpdater.IEventHandler eventHandler,
+        TEventHandler eventHandler,
         CancellationToken cancellationToken);
 }

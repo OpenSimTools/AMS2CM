@@ -3,13 +3,13 @@ using Core.State;
 
 namespace Core.Mods;
 
-public class ModPackagesUpdater : IModPackagesUpdater
+public class ModPackagesUpdater<TEventHandler>
 {
-    private readonly IInstallationsUpdater installationsUpdater;
+    private readonly IInstallationsUpdater<TEventHandler> installationsUpdater;
     private readonly ITempDir tempDir;
     private readonly BaseInstaller.IConfig installerConfig;
 
-    public ModPackagesUpdater(IInstallationsUpdater installationsUpdater, ITempDir tempDir, BaseInstaller.IConfig installerConfig)
+    public ModPackagesUpdater(IInstallationsUpdater<TEventHandler> installationsUpdater, ITempDir tempDir, BaseInstaller.IConfig installerConfig)
     {
         this.installationsUpdater = installationsUpdater;
         this.tempDir = tempDir;
@@ -17,7 +17,7 @@ public class ModPackagesUpdater : IModPackagesUpdater
     }
 
     public void Apply(IReadOnlyDictionary<string, ModInstallationState> currentState, IEnumerable<ModPackage> packages, string installDir, Action<IInstallation> afterInstall,
-        InstallationsUpdater.IEventHandler eventHandler, CancellationToken cancellationToken)
+        TEventHandler eventHandler, CancellationToken cancellationToken)
     {
         var installers = packages.Select(ModInstaller).ToImmutableArray();
         installationsUpdater.Apply(currentState, installers, installDir, afterInstall, eventHandler, cancellationToken);
