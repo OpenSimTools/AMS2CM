@@ -1,4 +1,5 @@
-﻿using Core.Utils;
+﻿using Core.Packages.Installation;
+using Core.Utils;
 using Newtonsoft.Json;
 
 namespace Core.State;
@@ -51,7 +52,7 @@ internal class JsonFileStatePersistence : IStatePersistence
                     Time: installTime,
                     Mods: oldState.AsEnumerable().ToDictionary(
                         kv => kv.Key,
-                        kv => new ModInstallationState(Time: installTime, FsHash: null, Partial: false, Files: kv.Value)
+                        kv => new PackageInstallationState(Time: installTime, FsHash: null, Partial: false, Files: kv.Value)
                     )
                 )
             );

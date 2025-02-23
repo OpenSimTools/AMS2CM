@@ -1,7 +1,4 @@
-﻿using Core.Bootfiles;
-using Core.Mods;
-
-namespace Core.API;
+﻿namespace Core.API;
 
 public interface IModManager
 {

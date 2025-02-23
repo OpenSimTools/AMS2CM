@@ -1,8 +1,9 @@
-﻿using Core.Backup;
-using Core.Bootfiles;
-using Core.Games;
+﻿using Core.Games;
 using Core.IO;
-using Core.Mods;
+using Core.Mods.Installation;
+using Core.Packages.Installation;
+using Core.Packages.Installation.Backup;
+using Core.Packages.Repository;
 using Core.State;
 using Core.Utils;
 
@@ -18,20 +19,20 @@ public static class Init
         var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
         var tempDir = new SubdirectoryTempDir(modsDir);
         var statePersistence = new JsonFileStatePersistence(modsDir);
-        var modRepository = new ModRepository(modsDir);
+        var modRepository = new FileSystemRepository(modsDir);
         var safeFileDelete = new WindowsRecyclingBin();
         var modPackagesUpdater = CreateModPackagesUpdater(config.ModInstall, game, tempDir);
         return new ModManager(game, modRepository, modPackagesUpdater, statePersistence, safeFileDelete, tempDir);
     }
 
-    internal static ModPackagesUpdater<IEventHandler> CreateModPackagesUpdater(
-        BaseInstaller.IConfig installerConfig,
+    internal static PackagesUpdater<IEventHandler> CreateModPackagesUpdater(
+        ModInstallConfig installerConfig,
         IGame game,
         ITempDir tempDir)
     {
         var backupStrategy = new SuffixBackupStrategy();
         var installationsUpdater = new InstallationsUpdater(backupStrategy);
-        var bootfilesAwareUpdater = new BootfilesAwareUpdater<IEventHandler>(installationsUpdater, game, tempDir, installerConfig);
-        return new ModPackagesUpdater<IEventHandler>(bootfilesAwareUpdater, tempDir, installerConfig);
+        var bootfilesAwareUpdater = new ModInstallationsUpdater<ModInstallConfig, IEventHandler>(installationsUpdater, game, tempDir, installerConfig);
+        return new PackagesUpdater<IEventHandler>(bootfilesAwareUpdater, tempDir, installerConfig);
     }
 }

@@ -1,6 +1,4 @@
-﻿using Core.Bootfiles;
-using Core.Mods;
-using Core.Utils;
+﻿using Core.Utils;
 
 namespace Core.API;
 
@@ -13,7 +11,7 @@ public abstract class BaseEventLogger : IEventHandler
     public abstract void ProgressUpdate(IPercent? progress);
     protected abstract void LogMessage(string message);
 
-    public void InstallNoMods() =>
+    public void InstallNoPackages() =>
         LogMessage($"No mod archives to install");
     public void InstallStart() =>
         LogMessage("Installing mods:");
@@ -39,7 +37,7 @@ public abstract class BaseEventLogger : IEventHandler
     {
     }
 
-    public void UninstallNoMods() =>
+    public void UninstallNoPackages() =>
         LogMessage("No previously installed mods found. Skipping uninstall phase.");
     public void UninstallStart() =>
         LogMessage($"Uninstalling mods:");

@@ -1,9 +1,12 @@
 using System.IO.Compression;
 using Core.API;
-using Core.Bootfiles;
 using Core.Games;
 using Core.IO;
 using Core.Mods;
+using Core.Mods.Installation.Installers;
+using Core.Packages.Installation;
+using Core.Packages.Installation.Installers;
+using Core.Packages.Repository;
 using Core.State;
 using Core.Tests.Base;
 using Core.Utils;
@@ -31,7 +34,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private readonly DirectoryInfo modsDir;
 
     private readonly Mock<IGame> gameMock = new();
-    private readonly Mock<IModRepository> modRepositoryMock = new();
+    private readonly Mock<IPackageRepository> modRepositoryMock = new();
     private readonly Mock<ISafeFileDelete> safeFileDeleteMock = new();
     private readonly Mock<IEventHandler> eventHandlerMock = new();
 
@@ -86,7 +89,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         (
             Install: new(
                 Time: ValueNotUsed,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     ["A"] = new(
                         Time: null, FsHash: null, Partial: false, Files: [
@@ -118,7 +121,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         (
             Install: new(
                 Time: ValueNotUsed,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     [""] = new(
                         Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
@@ -147,7 +150,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.InitState(new SavedState(
             Install: new(
                 Time: ValueNotUsed,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     ["A"] = new(
                         Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
@@ -176,7 +179,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.Should().Be(new SavedState(
             Install: new InstallationState(
                 Time: installationDateTime.ToUniversalTime(),
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     ["B"] = new(
                         Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: true, Files: [
@@ -197,7 +200,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.InitState(new SavedState(
             Install: new(
                 Time: ValueNotUsed,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     [""] = new(
                         Time: null, FsHash: null, Partial: false, Files: [
@@ -223,7 +226,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.InitState(new SavedState(
             Install: new(
                 Time: ValueNotUsed,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     [""] = new(
                         Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false, Files: [
@@ -256,7 +259,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_InstallsContentFromRootDirectories()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine("Foo", DirAtRoot, "A"),
                 Path.Combine("Bar", DirAtRoot, "B"),
@@ -272,7 +275,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         File.Exists(GamePath("C")).Should().BeTrue();
         File.Exists(GamePath("D")).Should().BeFalse();
         File.Exists(GamePath(Path.Combine("Baz", "D"))).Should().BeFalse();
-        persistedState.Should().HaveInstalled(new Dictionary<string, ModInstallationState>
+        persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package100"] = new(
                     Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
@@ -286,7 +289,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_SkipsBlacklistedFiles()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine("A", FileExcludedFromInstall),
                 Path.Combine(DirAtRoot, "B"),
@@ -297,7 +300,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         File.Exists(GamePath(Path.Combine("A", FileExcludedFromInstall))).Should().BeFalse();
         File.Exists(GamePath(Path.Combine(DirAtRoot, "B"))).Should().BeTrue();
-        persistedState.Should().HaveInstalled(new Dictionary<string, ModInstallationState>
+        persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package100"] = new(
                     Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
@@ -311,7 +314,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     {
         var modFile = Path.Combine(DirAtRoot, "A");
 
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [DeletionName(modFile)]),
         ]);
         CreateGameFile(modFile, "Orig");
@@ -325,7 +328,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_GivesPriotiryToFilesLaterInTheModList()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "A")
             ]),
@@ -337,7 +340,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A"))).Should().Be("200");
-        persistedState.Should().HaveInstalled(new Dictionary<string, ModInstallationState>
+        persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: []),
             ["Package200"] = new(Time: DateTime.UtcNow, FsHash: 200, Partial: false, Files: [
@@ -349,7 +352,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_DuplicatesAreCaseInsensitive()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine("X", DirAtRoot, "A"),
                 Path.Combine("Y", DirAtRoot, "a")
@@ -358,7 +361,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(new Dictionary<string, ModInstallationState>
+        persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "A")
@@ -369,7 +372,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_StopsAfterAnyError()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "A")
             ]),
@@ -394,7 +397,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.Should().Be(new SavedState(
             Install: new InstallationState(
                 Time: DateTime.UtcNow,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     ["Package200"] = new(
                         Time: DateTime.UtcNow, FsHash: 200, Partial: true, Files: [
@@ -412,7 +415,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     public void Install_PreventsFileCreationTimeInTheFuture()
     {
         var future = DateTime.Now.AddMinutes(1);
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "A")
             ], extractedDir =>
@@ -431,7 +434,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         var modFile = Path.Combine(DirAtRoot, "A");
         var toBeDeleted = "B";
 
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [modFile, DeletionName(toBeDeleted)]),
         ]);
         CreateGameFile(modFile, "OrigA");
@@ -447,7 +450,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     public void Install_OldVehiclesRequireBootfiles()
     {
         var drivelineRecord = $"RECORD foo";
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine("Foo", DirAtRoot, "Vehicle.crd")
             ], extractedDir =>
@@ -459,17 +462,17 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
-        File.ReadAllText(GamePath(VehicleListRelativePath)).Should().Contain("Vehicle.crd");
+        File.ReadAllText(GamePath(VehicleListRelativePath)).Should().Contain("Vehicle.crd"); // <----------------------- THIS
         File.ReadAllText(GamePath(DrivelineRelativePath)).Should().Contain(drivelineRecord);
     }
 
     [Fact]
     public void Install_NewVehiclesDoNotRequireBootfiles()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
-                Path.Combine(BaseInstaller.GameSupportedModDirectory, "Anything")
+                Path.Combine(ModInstaller.GameSupportedModDirectory, "Anything")
             ]),
             CreateCustomBootfiles(900),
         ]);
@@ -482,7 +485,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_AllTracksRequireBootfiles()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [Path.Combine(DirAtRoot, "Track.trd")]),
             CreateCustomBootfiles(900),
         ]);
@@ -496,7 +499,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_ExtractsBootfilesFromGameByDefault()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")])
         ]);
 
@@ -514,7 +517,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Install_ChoosesLastOfMultipleCustomBootfiles()
     {
-        modRepositoryMock.Setup(_ => _.ListEnabledMods()).Returns([
+        modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
             CreateCustomBootfiles(900),
             CreateCustomBootfiles(901)
@@ -527,14 +530,14 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
     #region Utility methods
 
-    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
+    private Package CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
         CreateModArchive(fsHash, relativePaths, _ => { });
 
-    private ModPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
+    private Package CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
         CreateModPackage("Package", fsHash, relativePaths, callback);
 
-    private ModPackage CreateCustomBootfiles(int fsHash) =>
-        CreateModPackage(BootfilesManager.BootfilesPrefix, fsHash, [
+    private Package CreateCustomBootfiles(int fsHash) =>
+        CreateModPackage(ModUtils.BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
             VehicleListRelativePath,
             TrackListRelativePath,
@@ -545,7 +548,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 $"{Environment.NewLine}END")
             );
 
-    private ModPackage CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
+    private Package CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths, Action<string> callback)
     {
         var modName = $"Mod{fsHash}";
         var modContentsDir = testDir.CreateSubdirectory(modName).FullName;
@@ -557,7 +560,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         var archivePath = $@"{modsDir.FullName}\{modName}.zip";
         // TODO LibArchive.Net does not support compression yet
         ZipFile.CreateFromDirectory(modContentsDir, archivePath);
-        return new ModPackage($"{packagePrefix}{fsHash}", archivePath, true, fsHash);
+        return new Package($"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
     private FileInfo CreateGameFile(string relativePath, string content = "") =>
@@ -580,7 +583,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         private static readonly SavedState SkipBootfilesCheck = new(
             Install: new(
                 Time: ValueNotUsed,
-                Mods: new Dictionary<string, ModInstallationState>
+                Mods: new Dictionary<string, PackageInstallationState>
                 {
                     ["INIT"] = new(Time: null, FsHash: null, Partial: false, Files: []),
                 }
@@ -614,7 +617,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             HaveInstalled(expected.Install.Mods);
         }
 
-        internal void HaveInstalled(IReadOnlyDictionary<string, ModInstallationState> expected)
+        internal void HaveInstalled(IReadOnlyDictionary<string, PackageInstallationState> expected)
         {
             var writtenState = WrittenState();
             var actualMods = writtenState.Install.Mods;
@@ -627,7 +630,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                     return mod;
                 }
                 ValidateDateTime(expectedTime, actualTime);
-                return new KeyValuePair<string, ModInstallationState>(mod.Key, mod.Value with { Time = actualTime });
+                return new KeyValuePair<string, PackageInstallationState>(mod.Key, mod.Value with { Time = actualTime });
             });
             actualMods.Should().BeEquivalentTo(expectedMods);
         }

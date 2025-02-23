@@ -1,5 +1,5 @@
-﻿using Core.Bootfiles;
-using Core.Mods;
+﻿using Core.Mods.Installation.Installers;
+using Core.Packages.Installation;
 
 namespace Core.API;
 
