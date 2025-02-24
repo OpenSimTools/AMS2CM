@@ -55,6 +55,6 @@ public class ModInstallationsUpdater<TConfig, TEventHandler> : IInstallationsUpd
     {
         var installer = bootfilesPackageInstallers.FirstOrDefault() ??
                         new GeneratedBootfilesInstaller(tempDir, config, game);
-        return new BootfilesInstaller(installer, eventHandler);
+        return new BootfilesInstaller(installer, tempDir, eventHandler);
     }
 }

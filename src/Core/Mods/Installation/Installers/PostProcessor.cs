@@ -4,6 +4,8 @@ namespace Core.Mods.Installation.Installers;
 
 internal static class PostProcessor
 {
+    internal static readonly string GameSupportedModDirectory = Path.Combine("UserData", "Mods");
+
     internal const string VehicleListFileName = "vehiclelist.lst";
     internal const string TrackListFileName = "tracklist.lst";
     internal const string DrivelineFileName = "driveline.rg";

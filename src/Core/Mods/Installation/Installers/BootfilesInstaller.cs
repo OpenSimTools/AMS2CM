@@ -1,11 +1,11 @@
 ﻿using System.Collections.Immutable;
-using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
 namespace Core.Mods.Installation.Installers;
-public class BootfilesInstaller : IInstaller
+
+public class BootfilesInstaller : BaseModInstaller
 {
     public interface IEventHandler
     {
@@ -22,29 +22,15 @@ public class BootfilesInstaller : IInstaller
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
     internal static readonly string DrivelineRelativeDir = Path.Combine("vehicles", "physics", "driveline");
 
-    private readonly IInstaller inner;
     private readonly IEventHandler eventHandler;
-    private bool postProcessingDone;
 
-    public BootfilesInstaller(IInstaller inner, IEventHandler eventHandler)
+    public BootfilesInstaller(IInstaller inner, ITempDir tempDir, IEventHandler eventHandler) :
+        base(inner, tempDir)
     {
-        this.inner = inner;
         this.eventHandler = eventHandler;
-        postProcessingDone = false;
     }
 
-    public string PackageName => inner.PackageName;
-
-    public IInstallation.State Installed =>
-        inner.Installed == IInstallation.State.Installed && !postProcessingDone
-            ? IInstallation.State.PartiallyInstalled
-            : inner.Installed;
-
-    public IReadOnlyCollection<string> InstalledFiles => inner.InstalledFiles;
-
-    public int? PackageFsHash => inner.PackageFsHash;
-
-    public void Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    protected override void Install(string dstPath, Action innerInstall)
     {
         var modConfigs = CollectModConfigs(dstPath);
         if (modConfigs.Any(c => c.Any()))
@@ -54,7 +40,7 @@ public class BootfilesInstaller : IInstaller
             var packageNameIfNotGenerated =
                 PackageName != GeneratedBootfilesInstaller.VirtualPackageName ? PackageName : null;
             eventHandler.ExtractingBootfiles(packageNameIfNotGenerated);
-            inner.Install(dstPath, backupStrategy, callbacks);
+            innerInstall();
             eventHandler.PostProcessingVehicles();
             PostProcessor.AppendCrdFileEntries(new RootedPath(dstPath, VehicleListRelativeDir),
                 modConfigs.SelectMany(c => c.CrdFileEntries));
@@ -70,12 +56,11 @@ public class BootfilesInstaller : IInstaller
         {
             eventHandler.PostProcessingNotRequired();
         }
-        postProcessingDone = true;
     }
 
     private static IReadOnlyList<ConfigEntries> CollectModConfigs(string dstPath)
     {
-        var modsGamePath = Path.Combine(dstPath, ModInstaller.GameSupportedModDirectory);
+        var modsGamePath = Path.Combine(dstPath, PostProcessor.GameSupportedModDirectory);
         var directoryInfo = new DirectoryInfo(modsGamePath);
         if (!directoryInfo.Exists)
             return Array.Empty<ConfigEntries>();

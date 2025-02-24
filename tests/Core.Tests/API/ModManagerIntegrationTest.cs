@@ -472,7 +472,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
-                Path.Combine(ModInstaller.GameSupportedModDirectory, "Anything")
+                Path.Combine(PostProcessor.GameSupportedModDirectory, "Anything")
             ]),
             CreateCustomBootfiles(900),
         ]);
