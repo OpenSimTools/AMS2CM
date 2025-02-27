@@ -6,19 +6,19 @@ namespace Core.Packages.Installation.Backup;
 /// <summary>
 /// It avoids restoring backups when game files have been updated by Steam.
 /// </summary>
-internal class SkipUpdatedBackupStrategy : IInstallationBackupStrategy
+internal class SkipUpdatedBackupStrategy : IBackupStrategy
 {
-    internal class Provider : IBackupStrategyProvider
+    internal class Provider : IBackupStrategyProvider<PackageInstallationState>
     {
-        private readonly IBackupStrategy defaultStrategy;
+        private readonly IBackupStrategy baseStrategy;
 
-        public Provider(IBackupStrategy defaultStrategy)
+        public Provider(IBackupStrategy baseStrategy)
         {
-            this.defaultStrategy = defaultStrategy;
+            this.baseStrategy = baseStrategy;
         }
 
-        public IInstallationBackupStrategy BackupStrategy(PackageInstallationState? state) =>
-            new SkipUpdatedBackupStrategy(defaultStrategy, state?.Time);
+        public IBackupStrategy BackupStrategy(PackageInstallationState? state) =>
+            new SkipUpdatedBackupStrategy(baseStrategy, state?.Time);
     }
 
     private readonly IFileSystem fs;
@@ -43,20 +43,20 @@ internal class SkipUpdatedBackupStrategy : IInstallationBackupStrategy
     }
 
     public void DeleteBackup(RootedPath path) =>
-        inner.DeleteBackup(path.Full);
+        inner.DeleteBackup(path);
 
     public void PerformBackup(RootedPath path) =>
-        inner.PerformBackup(path.Full);
+        inner.PerformBackup(path);
 
     public bool RestoreBackup(RootedPath path)
     {
         if (FileWasOverwritten(path))
         {
-            inner.DeleteBackup(path.Full);
+            inner.DeleteBackup(path);
             return false;
         }
 
-        return inner.RestoreBackup(path.Full);
+        return inner.RestoreBackup(path);
     }
 
     private bool FileWasOverwritten(RootedPath path) =>
@@ -66,6 +66,8 @@ internal class SkipUpdatedBackupStrategy : IInstallationBackupStrategy
 
     public void AfterInstall(RootedPath path)
     {
+        inner.AfterInstall(path);
+
         var now = DateTime.UtcNow;
         if (fs.File.Exists(path.Full) && fs.File.GetCreationTimeUtc(path.Full) > now)
         {

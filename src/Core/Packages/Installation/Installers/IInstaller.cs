@@ -5,5 +5,5 @@ namespace Core.Packages.Installation.Installers;
 
 public interface IInstaller : IInstallation
 {
-    void Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks);
+    void Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks);
 }

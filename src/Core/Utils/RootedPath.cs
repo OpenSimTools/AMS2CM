@@ -1,6 +1,6 @@
 ﻿namespace Core.Utils;
 
-public class RootedPath
+public record RootedPath
 {
     public string Root { get; }
     public string Relative { get; }

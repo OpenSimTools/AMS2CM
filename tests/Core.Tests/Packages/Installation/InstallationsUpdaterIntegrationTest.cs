@@ -1,6 +1,7 @@
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
+using Core.State;
 using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
@@ -35,7 +36,10 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     public InstallationsUpdaterIntegrationTest()
     {
         backupStrategyMock = new Mock<IBackupStrategy>();
-        installationsUpdater = new InstallationsUpdater(backupStrategyMock.Object);
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState>>();
+        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>()))
+            .Returns(backupStrategyMock.Object);
+        installationsUpdater = new InstallationsUpdater(backupStrategyProviderMock.Object);
     }
 
     #endregion
@@ -66,7 +70,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                         Files: ["AF"])
             },
             [],
-            testDir.FullName,
+            TestDir.FullName,
             RecordState,
             eventHandlerMock.Object,
             CancellationToken.None);
@@ -102,7 +106,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                         Files: ["AF1", "Fail", "AF2"])
             },
             [],
-            testDir.FullName,
+            TestDir.FullName,
             RecordState,
             eventHandlerMock.Object,
             CancellationToken.None)).Should().Throw<TestException>();
@@ -120,7 +124,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                     "AF"
                 ])
             ],
-            testDir.FullName,
+            TestDir.FullName,
             RecordState,
             eventHandlerMock.Object,
             CancellationToken.None);
@@ -131,6 +135,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
         });
 
         backupStrategyMock.Verify(_ => _.PerformBackup(TestPath("AF")));
+        backupStrategyMock.Verify(_ => _.AfterInstall(TestPath("AF")));
         backupStrategyMock.VerifyNoOtherCalls();
 
         eventHandlerMock.Verify(_ => _.UninstallNoPackages());
@@ -153,7 +158,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                     "AF1", "Fail", "AF2"
                 ])
             ],
-            testDir.FullName,
+            TestDir.FullName,
             RecordState,
             eventHandlerMock.Object,
             CancellationToken.None)).Should().Throw<TestException>();
@@ -179,7 +184,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                     "AF2"
                 ])
             ],
-            testDir.FullName,
+            TestDir.FullName,
             RecordState,
             eventHandlerMock.Object,
             CancellationToken.None);
@@ -194,7 +199,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
 
     private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files)
     {
-        return new StaticFilesInstaller(name, fsHash, new SubdirectoryTempDir(testDir.FullName), files);
+        return new StaticFilesInstaller(name, fsHash, new SubdirectoryTempDir(TestDir.FullName), files);
     }
 
     private class StaticFilesInstaller : BaseInstaller<object>

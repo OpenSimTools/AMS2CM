@@ -12,7 +12,7 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
 
     public FileSystemRepositoryIntegrationTest() : base()
     {
-        fileSystemRepository = new(testDir.FullName);
+        fileSystemRepository = new(TestDir.FullName);
     }
 
     [Fact]
@@ -27,14 +27,14 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
 
         fileSystemRepository.ListEnabled().Select(_ => _ with { FsHash = NotChecked })
             .Should().BeEquivalentTo(new Package[] {
-                new("File1.Ext", Path.Combine(testDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
-                new("File2.Ext", Path.Combine(testDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
+                new("File1.Ext", Path.Combine(TestDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
+                new("File2.Ext", Path.Combine(TestDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
             });
 
         fileSystemRepository.ListDisabled().Select(_ => _ with { FsHash = NotChecked })
             .Should().BeEquivalentTo(new Package[] {
-                new("File3.Ext", Path.Combine(testDir.FullName, @"Disabled\File3.Ext"), false, NotChecked),
-                new("File4.Ext", Path.Combine(testDir.FullName, @"Disabled\File4.Ext"), false, NotChecked)
+                new("File3.Ext", Path.Combine(TestDir.FullName, @"Disabled\File3.Ext"), false, NotChecked),
+                new("File4.Ext", Path.Combine(TestDir.FullName, @"Disabled\File4.Ext"), false, NotChecked)
             });
     }
 
@@ -50,13 +50,13 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
 
         fileSystemRepository.ListEnabled()
             .Should().BeEquivalentTo(new Package[] {
-                new(@"Dir1\", Path.Combine(testDir.FullName, @"Enabled\Dir1"), true, null),
-                new(@"Dir2\", Path.Combine(testDir.FullName, @"Enabled\Dir2"), true, null)
+                new(@"Dir1\", Path.Combine(TestDir.FullName, @"Enabled\Dir1"), true, null),
+                new(@"Dir2\", Path.Combine(TestDir.FullName, @"Enabled\Dir2"), true, null)
             });
         fileSystemRepository.ListDisabled()
             .Should().BeEquivalentTo(new Package[] {
-                new(@"Dir3\", Path.Combine(testDir.FullName, @"Disabled\Dir3"), false, null),
-                new(@"Dir4\", Path.Combine(testDir.FullName, @"Disabled\Dir4"), false, null)
+                new(@"Dir3\", Path.Combine(TestDir.FullName, @"Disabled\Dir3"), false, null),
+                new(@"Dir4\", Path.Combine(TestDir.FullName, @"Disabled\Dir4"), false, null)
             });
     }
 
@@ -67,9 +67,9 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
             @"Disabled\File.Ext"
         );
 
-        fileSystemRepository.Enable(TestPath(@"Disabled\File.Ext"));
+        fileSystemRepository.Enable(TestPath(@"Disabled\File.Ext").Full);
 
-        File.Exists(TestPath(@"Enabled\File.Ext")).Should().BeTrue();
+        File.Exists(TestPath(@"Enabled\File.Ext").Full).Should().BeTrue();
     }
 
     [Fact]
@@ -79,9 +79,9 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
             @"Disabled\Dir\Contents"
         );
 
-        fileSystemRepository.Enable(TestPath(@"Disabled\Dir"));
+        fileSystemRepository.Enable(TestPath(@"Disabled\Dir").Full);
 
-        Directory.Exists(TestPath(@"Enabled\Dir")).Should().BeTrue();
+        Directory.Exists(TestPath(@"Enabled\Dir").Full).Should().BeTrue();
     }
 
     [Fact]
@@ -91,9 +91,9 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
             @"Enabled\File.Ext"
         );
 
-        fileSystemRepository.Disable(TestPath(@"Enabled\File.Ext"));
+        fileSystemRepository.Disable(TestPath(@"Enabled\File.Ext").Full);
 
-        File.Exists(TestPath(@"Disabled\File.Ext")).Should().BeTrue();
+        File.Exists(TestPath(@"Disabled\File.Ext").Full).Should().BeTrue();
     }
 
     [Fact]
@@ -103,8 +103,8 @@ public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
             @"Enabled\Dir\Contents"
         );
 
-        fileSystemRepository.Disable(TestPath(@"Enabled\Dir"));
+        fileSystemRepository.Disable(TestPath(@"Enabled\Dir").Full);
 
-        Directory.Exists(TestPath(@"Disabled\Dir")).Should().BeTrue();
+        Directory.Exists(TestPath(@"Disabled\Dir").Full).Should().BeTrue();
     }
 }

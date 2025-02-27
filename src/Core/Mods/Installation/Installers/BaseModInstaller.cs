@@ -33,7 +33,7 @@ public abstract class BaseModInstaller : IInstaller
             ? IInstallation.State.PartiallyInstalled
             : Inner.Installed;
 
-    public void Install(string dstPath, IInstallationBackupStrategy backupStrategy,
+    public void Install(string dstPath, IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks)
     {
         Install(dstPath, () => Inner.Install(dstPath, backupStrategy, callbacks));

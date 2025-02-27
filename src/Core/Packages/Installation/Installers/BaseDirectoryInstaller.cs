@@ -12,7 +12,7 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
         RecurseSubdirectories = true,
     };
 
-    public BaseDirectoryInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config) :
+    protected BaseDirectoryInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config) :
         base(packageName, packageFsHash, tempDir, config)
     {
     }

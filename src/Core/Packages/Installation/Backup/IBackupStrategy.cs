@@ -1,8 +1,11 @@
-﻿namespace Core.Packages.Installation.Backup;
+﻿using Core.Utils;
+
+namespace Core.Packages.Installation.Backup;
 
 public interface IBackupStrategy
 {
-    public void PerformBackup(string fullPath);
-    public bool RestoreBackup(string fullPath);
-    public void DeleteBackup(string fullPath);
+    public void PerformBackup(RootedPath path);
+    public bool RestoreBackup(RootedPath path);
+    public void DeleteBackup(RootedPath path);
+    public void AfterInstall(RootedPath path);
 }

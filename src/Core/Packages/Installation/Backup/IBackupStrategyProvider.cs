@@ -1,6 +1,6 @@
 ﻿namespace Core.Packages.Installation.Backup;
 
-public interface IBackupStrategyProvider
+public interface IBackupStrategyProvider<in TState>
 {
-    IInstallationBackupStrategy BackupStrategy(PackageInstallationState? state);
+    IBackupStrategy BackupStrategy(TState? state);
 }

@@ -23,7 +23,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     private readonly Matcher filesToInstallMatcher;
     private readonly List<string> installedFiles = new();
 
-    internal BaseInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config)
+    protected BaseInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config)
     {
         PackageName = packageName;
         PackageFsHash = packageFsHash;
@@ -32,7 +32,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
     }
 
-    public void Install(string dstPath, IInstallationBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    public void Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {

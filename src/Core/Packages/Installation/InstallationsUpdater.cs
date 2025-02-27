@@ -25,12 +25,12 @@ public class InstallationsUpdater : IInstallationsUpdater<InstallationsUpdater.I
         public void ProgressUpdate(IPercent? progress);
     }
 
-    private readonly IBackupStrategyProvider backupStrategyProvider;
+    private readonly IBackupStrategyProvider<PackageInstallationState> backupStrategyProvider;
 
     public InstallationsUpdater(
-        IBackupStrategy  backupStrategy)
+        IBackupStrategyProvider<PackageInstallationState>  backupStrategyProvider)
     {
-        backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
+        this.backupStrategyProvider = backupStrategyProvider;
     }
 
     public void Apply(IReadOnlyDictionary<string, PackageInstallationState> currentState,

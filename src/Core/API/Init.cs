@@ -31,7 +31,8 @@ public static class Init
         ITempDir tempDir)
     {
         var backupStrategy = new SuffixBackupStrategy();
-        var installationsUpdater = new InstallationsUpdater(backupStrategy);
+        var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
+        var installationsUpdater = new InstallationsUpdater(backupStrategyProvider);
         var bootfilesAwareUpdater = new ModInstallationsUpdater<ModInstallConfig, IEventHandler>(installationsUpdater, game, tempDir, installerConfig);
         return new PackagesUpdater<IEventHandler>(bootfilesAwareUpdater, tempDir, installerConfig);
     }

@@ -25,7 +25,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.PerformBackup(OriginalFile);
 
-        innerStategyMock.Verify(_ => _.PerformBackup(OriginalFile.Full));
+        innerStategyMock.Verify(_ => _.PerformBackup(OriginalFile));
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.DeleteBackup(OriginalFile);
 
-        innerStategyMock.Verify(_ => _.DeleteBackup(OriginalFile.Full));
+        innerStategyMock.Verify(_ => _.DeleteBackup(OriginalFile));
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.RestoreBackup(OriginalFile);
 
-        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile.Full));
+        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile));
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.RestoreBackup(OriginalFile);
 
-        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile.Full));
+        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile));
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.RestoreBackup(OriginalFile);
 
-        innerStategyMock.Verify(_ => _.DeleteBackup(OriginalFile.Full));
+        innerStategyMock.Verify(_ => _.DeleteBackup(OriginalFile));
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.RestoreBackup(OriginalFile);
 
-        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile.Full));
+        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile));
     }
 
     [Fact]
