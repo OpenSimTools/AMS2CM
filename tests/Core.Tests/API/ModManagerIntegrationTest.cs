@@ -401,7 +401,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 {
                     ["Package200"] = new(
                         Time: DateTime.UtcNow, FsHash: 200, Partial: true, Files: [
-                            Path.Combine(DirAtRoot, "B1")
+                            Path.Combine(DirAtRoot, "B1"),
+                            Path.Combine(DirAtRoot, "B2") // We don't know when it failed
                         ]),
                     ["Package300"] = new(
                         Time: DateTime.UtcNow, FsHash: 300, Partial: false, Files: [

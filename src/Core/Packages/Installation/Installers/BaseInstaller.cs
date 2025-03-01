@@ -50,12 +50,14 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             if (relativePathInMod is null)
             {
                 // Config files only at the mod root
-                if (!pathInPackage.Contains(Path.DirectorySeparatorChar))
+                if (pathInPackage.Contains(Path.DirectorySeparatorChar))
                 {
-                    var modConfigDstPath = new RootedPath(StagingDir.FullName, pathInPackage);
-                    Directory.GetParent(modConfigDstPath.Full)?.Create();
-                    InstallFile(modConfigDstPath, context);
+                    return;
                 }
+
+                var modConfigDstPath = new RootedPath(StagingDir.FullName, pathInPackage);
+                Directory.GetParent(modConfigDstPath.Full)?.Create();
+                InstallFile(modConfigDstPath, context);
                 return;
             }
 
@@ -66,13 +68,19 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
             if (Whitelisted(gamePath) && callbacks.Accept(gamePath))
             {
                 callbacks.Before(gamePath);
-                backupStrategy.PerformBackup(gamePath);
-                if (!removeFile)
+                try
                 {
-                    Directory.GetParent(gamePath.Full)?.Create();
-                    InstallFile(gamePath, context);
+                    backupStrategy.PerformBackup(gamePath);
+                    if (!removeFile)
+                    {
+                        Directory.GetParent(gamePath.Full)?.Create();
+                        InstallFile(gamePath, context);
+                    }
                 }
-                installedFiles.Add(gamePath.Relative);
+                finally
+                {
+                    installedFiles.Add(gamePath.Relative);
+                }
                 backupStrategy.AfterInstall(gamePath);
                 callbacks.After(gamePath);
             }

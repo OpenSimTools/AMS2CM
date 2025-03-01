@@ -163,7 +163,10 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
             eventHandlerMock.Object,
             CancellationToken.None)).Should().Throw<TestException>();
 
-        recordedState["A"].InstalledFiles.Should().BeEquivalentTo(["AF1"]);
+        recordedState["A"].InstalledFiles.Should().BeEquivalentTo([
+            "AF1",
+            "Fail" // We don't know where it failed, so we add it
+        ]);
     }
 
     [Fact]
