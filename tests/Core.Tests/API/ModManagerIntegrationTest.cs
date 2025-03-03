@@ -103,13 +103,13 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 }
             )
         ));
-        CreateGameFile(Path.Combine("Y", "ExistingFile"));
+        CreateFile(GamePath("Y", "ExistingFile"));
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
         Directory.Exists(GamePath("X").Full).Should().BeFalse();
-        File.Exists(GamePath(Path.Combine("Y", "ModAFile")).Full).Should().BeFalse();
-        File.Exists(GamePath(Path.Combine("Y", "ExistingFile")).Full).Should().BeTrue();
+        File.Exists(GamePath("Y", "ModAFile").Full).Should().BeFalse();
+        File.Exists(GamePath("Y", "ExistingFile").Full).Should().BeTrue();
         persistedState.Should().BeEmpty();
     }
 
@@ -132,8 +132,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 }
             )
         ));
-        CreateGameFile("ModFile").CreationTime = installationDateTime;
-        CreateGameFile("RecreatedFile");
+        CreateFile(GamePath("ModFile")).CreationTime = installationDateTime;
+        CreateFile(GamePath("RecreatedFile"));
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
@@ -168,10 +168,10 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 }
             )));
 
-        CreateGameFile("ModAFile");
-        CreateGameFile("ModBFile1");
-        using var _ = CreateGameFile("ModBFile2").OpenRead(); // Prevent deletion
-        CreateGameFile("ModCFile");
+        CreateFile(GamePath("ModAFile"));
+        CreateFile(GamePath("ModBFile1"));
+        using var _ = CreateFile(GamePath("ModBFile2")).OpenRead(); // Prevent deletion
+        CreateFile(GamePath("ModCFile"));
 
         modManager.Invoking(_ => _.UninstallAllMods(eventHandlerMock.Object))
             .Should().Throw<IOException>();
@@ -209,8 +209,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 }
             )));
 
-        CreateGameFile("ModFile", "Mod");
-        CreateGameFile(BackupName("ModFile"), "Orig");
+        CreateFile(GamePath("ModFile"), "Mod");
+        CreateFile(GamePath(BackupName("ModFile")), "Orig");
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
@@ -235,9 +235,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 }
             )));
 
-        CreateGameFile("ModFile", "Overwritten");
+        CreateFile(GamePath("ModFile"), "Overwritten");
         File.SetCreationTime(GamePath("ModFile").Full, installationDateTime.AddHours(1));
-        CreateGameFile(BackupName("ModFile"), "Orig");
+        CreateFile(GamePath(BackupName("ModFile")), "Orig");
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
 
@@ -264,17 +264,19 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 Path.Combine("Foo", DirAtRoot, "A"),
                 Path.Combine("Bar", DirAtRoot, "B"),
                 Path.Combine("Bar", "C"),
-                Path.Combine("Baz", "D")
+                Path.Combine("Baz", "D"),
+                Path.Combine("E")
             ])
         ]);
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        File.Exists(GamePath(Path.Combine(DirAtRoot, "A")).Full).Should().BeTrue();
-        File.Exists(GamePath(Path.Combine(DirAtRoot, "B")).Full).Should().BeTrue();
+        File.Exists(GamePath(DirAtRoot, "A").Full).Should().BeTrue();
+        File.Exists(GamePath(DirAtRoot, "B").Full).Should().BeTrue();
         File.Exists(GamePath("C").Full).Should().BeTrue();
         File.Exists(GamePath("D").Full).Should().BeFalse();
-        File.Exists(GamePath(Path.Combine("Baz", "D")).Full).Should().BeFalse();
+        File.Exists(GamePath("Baz", "D").Full).Should().BeFalse();
+        File.Exists(GamePath("Baz").Full).Should().BeFalse();
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package100"] = new(
@@ -298,8 +300,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        File.Exists(GamePath(Path.Combine("A", FileExcludedFromInstall)).Full).Should().BeFalse();
-        File.Exists(GamePath(Path.Combine(DirAtRoot, "B")).Full).Should().BeTrue();
+        File.Exists(GamePath("A", FileExcludedFromInstall).Full).Should().BeFalse();
+        File.Exists(GamePath(DirAtRoot, "B").Full).Should().BeTrue();
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package100"] = new(
@@ -317,7 +319,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [DeletionName(modFile)]),
         ]);
-        CreateGameFile(modFile, "Orig");
+        CreateFile(GamePath(modFile), "Orig");
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
@@ -339,10 +341,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "A")).Full).Should().Be("200");
+        File.ReadAllText(GamePath(DirAtRoot, "A").Full).Should().Be("200");
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false, Files: []),
             ["Package200"] = new(Time: DateTime.UtcNow, FsHash: 200, Partial: false, Files: [
                     Path.Combine(DirAtRoot, "a")
                 ]),
@@ -385,15 +386,15 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
                 Path.Combine(DirAtRoot, "C"),
             ]),
         ]);
-        using var _ = CreateGameFile(Path.Combine(DirAtRoot, "B2")).OpenRead();  // Prevent overwrite
+        using var _ = CreateFile(GamePath(DirAtRoot, "B2")).OpenRead();  // Prevent overwrite
 
         modManager.Invoking(_ => _.InstallEnabledMods(eventHandlerMock.Object))
             .Should().Throw<IOException>();
 
-        File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "C")).Full).Should().Be("300");
-        File.ReadAllText(GamePath(Path.Combine(DirAtRoot, "B1")).Full).Should().Be("200");
-        File.Exists(GamePath(Path.Combine(DirAtRoot, "B3")).Full).Should().BeFalse();
-        File.Exists(GamePath(Path.Combine(DirAtRoot, "A")).Full).Should().BeFalse();
+        File.ReadAllText(GamePath(DirAtRoot, "C").Full).Should().Be("300");
+        File.ReadAllText(GamePath(DirAtRoot, "B1").Full).Should().Be("200");
+        File.Exists(GamePath(DirAtRoot, "B3").Full).Should().BeFalse();
+        File.Exists(GamePath(DirAtRoot, "A").Full).Should().BeFalse();
         persistedState.Should().Be(new SavedState(
             Install: new InstallationState(
                 Time: DateTime.UtcNow,
@@ -426,7 +427,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        File.GetCreationTime(GamePath($@"{DirAtRoot}\A").Full).Should().BeCloseTo(DateTime.Now, TimeTolerance);
+        File.GetCreationTime(GamePath(DirAtRoot, "A").Full).Should().BeCloseTo(DateTime.Now, TimeTolerance);
     }
 
     [Fact]
@@ -438,8 +439,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [modFile, DeletionName(toBeDeleted)]),
         ]);
-        CreateGameFile(modFile, "OrigA");
-        CreateGameFile(toBeDeleted, "OrigB");
+        CreateFile(GamePath(modFile), "OrigA");
+        CreateFile(GamePath(toBeDeleted), "OrigB");
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
@@ -564,9 +565,6 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         return new Package($"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
-    private FileInfo CreateGameFile(string relativePath, string content = "") =>
-        CreateFile(GamePath(relativePath), content);
-
     // This can be removed once we introduce backup strategies
     private string BackupName(string relativePath) =>
         $"{relativePath}.orig";
@@ -575,8 +573,8 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     private string DeletionName(string relativePath) =>
         $"{relativePath}{BaseInstaller.RemoveFileSuffix}";
 
-    private RootedPath GamePath(string relativePath) =>
-        new(gameDir.FullName, relativePath);
+    private RootedPath GamePath(params string[] segments) =>
+        new(gameDir.FullName, Path.Combine(segments));
 
     private class InMemoryStatePersistence : IStatePersistence
     {

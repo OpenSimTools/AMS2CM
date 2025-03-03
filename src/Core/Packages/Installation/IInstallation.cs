@@ -1,11 +1,13 @@
-﻿namespace Core.Packages.Installation;
+﻿using Core.Utils;
+
+namespace Core.Packages.Installation;
 
 public interface IInstallation
 {
     string PackageName { get; }
     int? PackageFsHash { get; }
 
-    IReadOnlyCollection<string> InstalledFiles { get; }
+    IReadOnlyCollection<RootedPath> InstalledFiles { get; }
     State Installed { get; }
     enum State
     {

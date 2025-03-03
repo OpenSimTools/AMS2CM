@@ -1,5 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Core.Packages.Installation.Backup;
+using Core.Games;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -18,37 +18,40 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
+    private const string GeneratedBootfilesPackageName = "__generated_bootfiles";
+
     internal const string VehicleListRelativeDir = "vehicles";
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
     internal static readonly string DrivelineRelativeDir = Path.Combine("vehicles", "physics", "driveline");
 
     private readonly IEventHandler eventHandler;
 
-    public BootfilesInstaller(IInstaller inner, ITempDir tempDir, IEventHandler eventHandler) :
-        base(inner, tempDir)
+    public BootfilesInstaller(IInstaller? bootfilesPackageInstaller,  IGame game, ITempDir tempDir, IEventHandler eventHandler, IConfig config) :
+        base(PackageOrGenerated(bootfilesPackageInstaller, game, tempDir), game, tempDir, config)
     {
         this.eventHandler = eventHandler;
     }
 
-    protected override void Install(string dstPath, Action innerInstall)
+    private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller, IGame game, ITempDir tempDir) =>
+        bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(GeneratedBootfilesPackageName, game, tempDir);
+
+    protected override void Install(Action innerInstall)
     {
-        var modConfigs = CollectModConfigs(dstPath);
+        var modConfigs = CollectModConfigs();
         if (modConfigs.Any(c => c.Any()))
         {
             eventHandler.PostProcessingStart();
-            // TODO
-            var packageNameIfNotGenerated =
-                PackageName != GeneratedBootfilesInstaller.VirtualPackageName ? PackageName : null;
+            var packageNameIfNotGenerated = PackageName != GeneratedBootfilesPackageName ? PackageName : null;
             eventHandler.ExtractingBootfiles(packageNameIfNotGenerated);
             innerInstall();
             eventHandler.PostProcessingVehicles();
-            PostProcessor.AppendCrdFileEntries(new RootedPath(dstPath, VehicleListRelativeDir),
+            PostProcessor.AppendCrdFileEntries(new RootedPath(Game.InstallationDirectory, VehicleListRelativeDir),
                 modConfigs.SelectMany(c => c.CrdFileEntries));
             eventHandler.PostProcessingTracks();
-            PostProcessor.AppendTrdFileEntries(new RootedPath(dstPath, TrackListRelativeDir),
+            PostProcessor.AppendTrdFileEntries(new RootedPath(Game.InstallationDirectory, TrackListRelativeDir),
                 modConfigs.SelectMany(c => c.TrdFileEntries));
             eventHandler.PostProcessingDrivelines();
-            PostProcessor.AppendDrivelineRecords(new RootedPath(dstPath, DrivelineRelativeDir),
+            PostProcessor.AppendDrivelineRecords(new RootedPath(Game.InstallationDirectory, DrivelineRelativeDir),
                 modConfigs.SelectMany(c => c.DrivelineRecords));
             eventHandler.PostProcessingEnd();
         }
@@ -58,9 +61,9 @@ public class BootfilesInstaller : BaseModInstaller
         }
     }
 
-    private static IReadOnlyList<ConfigEntries> CollectModConfigs(string dstPath)
+    private IReadOnlyList<ConfigEntries> CollectModConfigs()
     {
-        var modsGamePath = Path.Combine(dstPath, PostProcessor.GameSupportedModDirectory);
+        var modsGamePath = Path.Combine(Game.InstallationDirectory, PostProcessor.GameSupportedModDirectory);
         var directoryInfo = new DirectoryInfo(modsGamePath);
         if (!directoryInfo.Exists)
             return Array.Empty<ConfigEntries>();

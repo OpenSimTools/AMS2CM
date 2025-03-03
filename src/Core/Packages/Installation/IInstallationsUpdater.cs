@@ -8,7 +8,7 @@ public interface IInstallationsUpdater<in TEventHandler>
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
         string installDir,
-        Action<IInstallation> afterInstall,
+        Action<string, PackageInstallationState?> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken);
 }

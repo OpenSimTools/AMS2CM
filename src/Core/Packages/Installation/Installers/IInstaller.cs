@@ -5,5 +5,12 @@ namespace Core.Packages.Installation.Installers;
 
 public interface IInstaller : IInstallation
 {
-    void Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks);
+    delegate RootedPath Destination(string packagePath);
+
+    void Install(Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks);
+
+    /// <summary>
+    /// Directories, relative to the source root.
+    /// </summary>
+    IEnumerable<string> RelativeDirectoryPaths { get; }
 }

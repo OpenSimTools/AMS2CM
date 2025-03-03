@@ -10,8 +10,8 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
 
     private readonly string archivePath;
 
-    public ArchiveInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config, string archivePath) :
-        base(packageName, packageFsHash, tempDir, config)
+    public ArchiveInstaller(string packageName, int? packageFsHash,  string archivePath) :
+        base(packageName, packageFsHash)
     {
         this.archivePath = archivePath;
     }
@@ -20,7 +20,7 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
     // LINQ expressions as they can lead to <see cref="LibArchiveReader.Entries"/> or
     // <see cref="LibArchiveReader.Entry.Stream"/> being called out of order.
 
-    protected override IEnumerable<string> RelativeDirectoryPaths
+    public override IEnumerable<string> RelativeDirectoryPaths
     {
         get
         {

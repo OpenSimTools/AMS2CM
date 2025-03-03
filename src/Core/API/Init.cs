@@ -32,8 +32,8 @@ public static class Init
     {
         var backupStrategy = new SuffixBackupStrategy();
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
-        var installationsUpdater = new InstallationsUpdater(backupStrategyProvider);
-        var bootfilesAwareUpdater = new ModInstallationsUpdater<ModInstallConfig, IEventHandler>(installationsUpdater, game, tempDir, installerConfig);
-        return new PackagesUpdater<IEventHandler>(bootfilesAwareUpdater, tempDir, installerConfig);
+        var installationsUpdater = new InstallationsUpdater(backupStrategyProvider, TimeProvider.System);
+        var bootfilesAwareUpdater = new ModInstallationsUpdater<IEventHandler>(installationsUpdater, game, tempDir, installerConfig);
+        return new PackagesUpdater<IEventHandler>(bootfilesAwareUpdater);
     }
 }

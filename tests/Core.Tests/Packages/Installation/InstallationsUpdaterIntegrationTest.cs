@@ -5,6 +5,8 @@ using Core.State;
 using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
+using FluentAssertions.Extensions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Packages.Installation;
 
@@ -14,24 +16,12 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
 
     private class TestException : Exception {}
 
-    private record InstallationResult(
-        int? PackageFsHash,
-        HashSet<string> InstalledFiles,
-        IInstallation.State Installed
-    )
-    {
-        internal InstallationResult(IInstallation installation) : this(
-            installation.PackageFsHash,
-            installation.InstalledFiles.ToHashSet(),
-            installation.Installed) { }
-    }
-
     private readonly Mock<IBackupStrategy> backupStrategyMock;
-    private readonly InstallationsUpdater installationsUpdater;
-
     private readonly Mock<InstallationsUpdater.IEventHandler> eventHandlerMock = new();
-
-    private readonly Dictionary<string, InstallationResult> recordedState = new();
+    private readonly DateTime fakeUtcInstallationDate = DateTime.Today.AddDays(10).ToUniversalTime();
+    private readonly TimeSpan fakeLocalTimeOffset = TimeSpan.FromHours(3);
+    private readonly InstallationsUpdater installationsUpdater;
+    private readonly Dictionary<string, PackageInstallationState?> recordedState = new();
 
     public InstallationsUpdaterIntegrationTest()
     {
@@ -39,7 +29,9 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
         var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState>>();
         backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>()))
             .Returns(backupStrategyMock.Object);
-        installationsUpdater = new InstallationsUpdater(backupStrategyProviderMock.Object);
+        installationsUpdater = new InstallationsUpdater(
+            backupStrategyProviderMock.Object,
+            new FakeTimeProvider(fakeUtcInstallationDate.WithOffset(fakeLocalTimeOffset)));
     }
 
     #endregion
@@ -75,8 +67,8 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
             eventHandlerMock.Object,
             CancellationToken.None);
 
-        recordedState.Should().BeEquivalentTo(new Dictionary<string, InstallationResult>{
-            ["A"] = new(42, [], IInstallation.State.NotInstalled),
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState?>{
+            ["A"] = null,
         });
 
         backupStrategyMock.Verify(_ => _.RestoreBackup(TestPath("AF")));
@@ -111,7 +103,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
             eventHandlerMock.Object,
             CancellationToken.None)).Should().Throw<TestException>();
 
-        recordedState["A"].InstalledFiles.Should().BeEquivalentTo(["Fail", "AF2"]);
+        recordedState["A"]?.Files.Should().BeEquivalentTo(["Fail", "AF2"]);
     }
 
     [Fact]
@@ -129,9 +121,9 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
             eventHandlerMock.Object,
             CancellationToken.None);
 
-        recordedState.Should().BeEquivalentTo(new Dictionary<string, InstallationResult>
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(42, ["AF"], IInstallation.State.Installed)
+            ["A"] = new(fakeUtcInstallationDate, 42, false, ["AF"])
         });
 
         backupStrategyMock.Verify(_ => _.PerformBackup(TestPath("AF")));
@@ -163,7 +155,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
             eventHandlerMock.Object,
             CancellationToken.None)).Should().Throw<TestException>();
 
-        recordedState["A"].InstalledFiles.Should().BeEquivalentTo([
+        recordedState["A"]?.Files.Should().BeEquivalentTo([
             "AF1",
             "Fail" // We don't know where it failed, so we add it
         ]);
@@ -192,9 +184,9 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
             eventHandlerMock.Object,
             CancellationToken.None);
 
-        recordedState.Should().BeEquivalentTo(new Dictionary<string, InstallationResult>
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(2, ["AF", "AF2"], IInstallation.State.Installed)
+            ["A"] = new(fakeUtcInstallationDate, 2, false, ["AF", "AF2"])
         });
     }
 
@@ -202,7 +194,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
 
     private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files)
     {
-        return new StaticFilesInstaller(name, fsHash, new SubdirectoryTempDir(TestDir.FullName), files);
+        return new StaticFilesInstaller(name, fsHash, files);
     }
 
     private class StaticFilesInstaller : BaseInstaller<object>
@@ -210,8 +202,8 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
         private static readonly object NoContext = new();
         private readonly IReadOnlyCollection<string> files;
 
-        internal StaticFilesInstaller(string packageName, int? packageFsHash, ITempDir tempDir, IReadOnlyCollection<string> files) :
-            base(packageName, packageFsHash, tempDir, Config())
+        internal StaticFilesInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> files) :
+            base(packageName, packageFsHash)
         {
             this.files = files;
         }
@@ -233,19 +225,12 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
 
         private static readonly string DirAtRoot = "X";
 
-        private static BaseInstaller.IConfig Config()
-        {
-            var mock = new Mock<BaseInstaller.IConfig>();
-            mock.Setup(_ => _.DirsAtRoot).Returns([DirAtRoot]);
-            return mock.Object;
-        }
-
-        protected override IEnumerable<string> RelativeDirectoryPaths => [DirAtRoot];
+        public override IEnumerable<string> RelativeDirectoryPaths => [DirAtRoot];
     }
 
-    private void RecordState(IInstallation state)
+    private void RecordState(string packageName, PackageInstallationState? state)
     {
-        recordedState[state.PackageName] = new InstallationResult(state);
+        recordedState[packageName] = state;
     }
 
     #endregion

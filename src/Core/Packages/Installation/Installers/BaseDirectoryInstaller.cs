@@ -12,14 +12,14 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
         RecurseSubdirectories = true,
     };
 
-    protected BaseDirectoryInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config) :
-        base(packageName, packageFsHash, tempDir, config)
+    protected BaseDirectoryInstaller(string packageName, int? packageFsHash) :
+        base(packageName, packageFsHash)
     {
     }
 
     protected abstract DirectoryInfo Source { get; }
 
-    protected override IEnumerable<string> RelativeDirectoryPaths =>
+    public override IEnumerable<string> RelativeDirectoryPaths =>
         Source.EnumerateDirectories("*", RecursiveEnumeration)
             .Select(_ => Path.GetRelativePath(Source.FullName, _.FullName));
 

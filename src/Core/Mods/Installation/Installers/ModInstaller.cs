@@ -1,4 +1,5 @@
-﻿using Core.Packages.Installation.Backup;
+﻿using Core.Games;
+using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -10,7 +11,7 @@ namespace Core.Mods.Installation.Installers;
  */
 public class ModInstaller : BaseModInstaller
 {
-    public interface IConfig
+    public new interface IConfig : BaseModInstaller.IConfig
     {
         IEnumerable<string> ExcludedFromConfig
         {
@@ -20,8 +21,8 @@ public class ModInstaller : BaseModInstaller
 
     private readonly Matcher filesToConfigureMatcher;
 
-    internal ModInstaller(IInstaller inner, ITempDir tempDir, IConfig config) :
-        base(inner, tempDir)
+    internal ModInstaller(IInstaller inner, IGame game, ITempDir tempDir, IConfig config) :
+        base(inner, game, tempDir, config)
     {
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
     }
@@ -29,24 +30,24 @@ public class ModInstaller : BaseModInstaller
     // TODO Generate a better name
     private string NormalisedName => string.Concat(PackageName.Where(char.IsAsciiLetterOrDigit));
 
-    protected override void Install(string dstPath, Action innerInstall)
+    protected override void Install(Action innerInstall)
     {
         innerInstall();
 
-        GenerateModConfig(dstPath);
+        GenerateModConfig();
     }
 
-    private void GenerateModConfig(string dstPath)
+    private void GenerateModConfig()
     {
         var gameSupportedMod = FileEntriesToConfigure()
             .Any(p => p.StartsWith(PostProcessor.GameSupportedModDirectory));
         var modConfig = gameSupportedMod
             ? ConfigEntries.Empty
             : new ConfigEntries(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
-        WriteModConfigFiles(dstPath, modConfig);
+        WriteModConfigFiles(modConfig);
     }
 
-    private void WriteModConfigFiles(string dstPath, ConfigEntries modConfig)
+    private void WriteModConfigFiles(ConfigEntries modConfig)
     {
         // TODO remove in later bootfiles refactoring
         if (ModUtils.IsBootFiles(PackageName))
@@ -54,7 +55,9 @@ public class ModInstaller : BaseModInstaller
         if (modConfig.None())
             return;
         // TODO this can fail
-        var modConfigDirPath = new RootedPath(dstPath, Path.Combine(PostProcessor.GameSupportedModDirectory, NormalisedName));
+        var modConfigDirPath = new RootedPath(
+            Game.InstallationDirectory,
+            Path.Combine(PostProcessor.GameSupportedModDirectory, NormalisedName));
         Directory.CreateDirectory(modConfigDirPath.Full);
         AddToInstalledFiles(PostProcessor.AppendCrdFileEntries(modConfigDirPath, modConfig.CrdFileEntries));
         AddToInstalledFiles(PostProcessor.AppendTrdFileEntries(modConfigDirPath, modConfig.TrdFileEntries));
@@ -73,7 +76,9 @@ public class ModInstaller : BaseModInstaller
             .ToList();
 
     private IEnumerable<string> FileEntriesToConfigure() =>
-        Inner.InstalledFiles.Where(_ => filesToConfigureMatcher.Match(_).HasMatches);
+        Inner.InstalledFiles
+            .Select(rp => rp.Relative)
+            .Where(p => filesToConfigureMatcher.Match(p).HasMatches);
 
     private List<string> FindDrivelineRecords()
     {

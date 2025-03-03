@@ -7,9 +7,8 @@ using Core.Utils;
 
 namespace Core.Mods.Installation;
 
-public class ModInstallationsUpdater<TConfig, TEventHandler> : IInstallationsUpdater<TEventHandler>
+public class ModInstallationsUpdater<TEventHandler> : IInstallationsUpdater<TEventHandler>
     where TEventHandler : BootfilesInstaller.IEventHandler
-    where TConfig : ModInstaller.IConfig, BaseInstaller.IConfig
 {
     #region TODO Move to a better place when not called all over the place
 
@@ -24,9 +23,9 @@ public class ModInstallationsUpdater<TConfig, TEventHandler> : IInstallationsUpd
 
     private readonly IGame game;
     private readonly ITempDir tempDir;
-    private readonly TConfig config;
+    private readonly ModInstaller.IConfig config;
 
-    public ModInstallationsUpdater(IInstallationsUpdater<TEventHandler> inner, IGame game, ITempDir tempDir, TConfig config)
+    public ModInstallationsUpdater(IInstallationsUpdater<TEventHandler> inner, IGame game, ITempDir tempDir, ModInstaller.IConfig config)
     {
         this.inner = inner;
         this.game = game;
@@ -38,14 +37,14 @@ public class ModInstallationsUpdater<TConfig, TEventHandler> : IInstallationsUpd
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> packageInstallers,
         string installDir,
-        Action<IInstallation>  afterInstall,
+        Action<string, PackageInstallationState?> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
         var (bootfiles, notBootfiles) = packageInstallers.Partition(p => IsBootFiles(p.PackageName));
 
         var allInstallers = notBootfiles
-            .Select(i => new ModInstaller(i, tempDir, config))
+            .Select(i => new ModInstaller(i, game, tempDir, config))
             .Append(CreateBootfilesInstaller(bootfiles, eventHandler)).ToImmutableArray();
 
         inner.Apply(currentState, allInstallers, installDir, afterInstall, eventHandler, cancellationToken);
@@ -53,8 +52,7 @@ public class ModInstallationsUpdater<TConfig, TEventHandler> : IInstallationsUpd
 
     private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
     {
-        var installer = bootfilesPackageInstallers.FirstOrDefault() ??
-                        new GeneratedBootfilesInstaller(tempDir, config, game);
-        return new BootfilesInstaller(installer, tempDir, eventHandler);
+        var installer = bootfilesPackageInstallers.FirstOrDefault();
+        return new BootfilesInstaller(installer, game, tempDir, eventHandler, config);
     }
 }

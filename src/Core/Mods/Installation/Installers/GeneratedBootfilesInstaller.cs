@@ -8,7 +8,6 @@ namespace Core.Mods.Installation.Installers;
 
 internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 {
-    internal const string VirtualPackageName = "__bootfiles_generated";
     internal const string PakfilesDirectory = "Pakfiles";
     internal const string BootFlowPakFileName = "BOOTFLOW.bff";
     internal const string BootSplashPakFileName = "BOOTSPLASH.bff";
@@ -18,13 +17,15 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
     private readonly string BmtFilesWildcard =
         Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
-    public GeneratedBootfilesInstaller(ITempDir tempDir, BaseInstaller.IConfig config, IGame game) :
-        base(VirtualPackageName, null, tempDir, config)
+    public GeneratedBootfilesInstaller(string packageName, IGame game, ITempDir tempDir) :
+        base(packageName, null)
     {
         pakPath = Path.Combine(game.InstallationDirectory, PakfilesDirectory);
+        var extractionPath = Path.Combine(tempDir.BasePath, Guid.NewGuid().ToString());
+        Source = Directory.CreateDirectory(extractionPath);
     }
 
-    protected override DirectoryInfo Source => StagingDir;
+    protected override DirectoryInfo Source { get; }
 
     protected override void InstalAllFiles(InstallBody body)
     {
@@ -53,11 +54,11 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
         var filePath = Path.Combine(pakPath, fileName);
         BPakFileEncryption.SetKeyset(KeysetType.PC2AndAbove);
         using var pakFile = BPakFile.FromFile(filePath, withExtraInfo: true, outputWriter: TextWriter.Null);
-        pakFile.UnpackAll(StagingDir.FullName);
+        pakFile.UnpackAll(Source.FullName);
     }
 
     private string ExtractedPakPath(string name) =>
-        Path.Combine(StagingDir.FullName, PakfilesDirectory, name);
+        Path.Combine(Source.FullName, PakfilesDirectory, name);
 
     private void CreateEmptyFile(string path)
     {
@@ -74,7 +75,7 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     private void DeleteFromExtractedFiles(string wildcardRelative)
     {
-        foreach (var file in Directory.EnumerateFiles(StagingDir.FullName, wildcardRelative))
+        foreach (var file in Directory.EnumerateFiles(Source.FullName, wildcardRelative))
         {
             File.Delete(file);
         }

@@ -1,7 +1,5 @@
-﻿using Core.Mods.Installation.Installers;
-using Core.Packages.Installation.Backup;
+﻿using Core.Packages.Installation.Backup;
 using Core.Utils;
-using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Packages.Installation.Installers;
 
@@ -11,28 +9,21 @@ namespace Core.Packages.Installation.Installers;
 /// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
 internal abstract class BaseInstaller<TPassthrough> : IInstaller
 {
-    protected readonly DirectoryInfo StagingDir;
-
     public string PackageName { get; }
     public int? PackageFsHash { get; }
 
     public IInstallation.State Installed { get; private set; }
-    public IReadOnlyCollection<string> InstalledFiles => installedFiles;
+    public IReadOnlyCollection<RootedPath> InstalledFiles => installedFiles;
 
-    private readonly IRootFinder rootFinder;
-    private readonly Matcher filesToInstallMatcher;
-    private readonly List<string> installedFiles = new();
+    private readonly List<RootedPath> installedFiles = new();
 
-    protected BaseInstaller(string packageName, int? packageFsHash, ITempDir tempDir, BaseInstaller.IConfig config)
+    protected BaseInstaller(string packageName, int? packageFsHash)
     {
         PackageName = packageName;
         PackageFsHash = packageFsHash;
-        StagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, packageName));
-        rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
-        filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
     }
 
-    public void Install(string dstPath, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
@@ -40,53 +31,32 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         }
         Installed = IInstallation.State.PartiallyInstalled;
 
-        var rootPaths = rootFinder.FromDirectoryList(RelativeDirectoryPaths);
-
         InstalAllFiles((pathInPackage, context) =>
         {
-            var relativePathInMod = rootPaths.GetPathFromRoot(pathInPackage);
+            var (destPath, removeFile) = NeedsRemoving(destination(pathInPackage));
 
-            // If not part of any game root
-            if (relativePathInMod is null)
+            if (callbacks.Accept(destPath))
             {
-                // Config files only at the mod root
-                if (pathInPackage.Contains(Path.DirectorySeparatorChar))
-                {
-                    return;
-                }
-
-                var modConfigDstPath = new RootedPath(StagingDir.FullName, pathInPackage);
-                Directory.GetParent(modConfigDstPath.Full)?.Create();
-                InstallFile(modConfigDstPath, context);
-                return;
-            }
-
-            var (relativePath, removeFile) = NeedsRemoving(relativePathInMod);
-
-            var gamePath = new RootedPath(dstPath, relativePath);
-
-            if (Whitelisted(gamePath) && callbacks.Accept(gamePath))
-            {
-                callbacks.Before(gamePath);
+                callbacks.Before(destPath);
                 try
                 {
-                    backupStrategy.PerformBackup(gamePath);
+                    backupStrategy.PerformBackup(destPath);
                     if (!removeFile)
                     {
-                        Directory.GetParent(gamePath.Full)?.Create();
-                        InstallFile(gamePath, context);
+                        Directory.GetParent(destPath.Full)?.Create();
+                        InstallFile(destPath, context);
                     }
                 }
                 finally
                 {
-                    installedFiles.Add(gamePath.Relative);
+                    installedFiles.Add(destPath);
                 }
-                backupStrategy.AfterInstall(gamePath);
-                callbacks.After(gamePath);
+                backupStrategy.AfterInstall(destPath);
+                callbacks.After(destPath);
             }
             else
             {
-                callbacks.NotAccepted(gamePath);
+                callbacks.NotAccepted(destPath);
             }
         });
 
@@ -94,9 +64,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     }
 
     /// <summary>
-    /// Mod directories, relative to the source root.
+    /// Directories, relative to the source root.
     /// </summary>
-    protected abstract IEnumerable<string> RelativeDirectoryPaths { get; }
+    public abstract IEnumerable<string> RelativeDirectoryPaths { get; }
 
     /// <summary>
     /// Installation loop.
@@ -108,31 +78,16 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
     protected abstract void InstallFile(RootedPath destinationPath, TPassthrough context);
 
-    private bool Whitelisted(RootedPath path) =>
-        filesToInstallMatcher.Match(path.Relative).HasMatches;
-
-    private static (string, bool) NeedsRemoving(string filePath)
+    private static (RootedPath, bool) NeedsRemoving(RootedPath destPath)
     {
-        return filePath.EndsWith(BaseInstaller.RemoveFileSuffix) ?
-            (filePath.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true) :
-            (filePath, false);
+        var (relativePath, remove) = destPath.Relative.EndsWith(BaseInstaller.RemoveFileSuffix) ?
+            (destPath.Relative.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true) :
+            (destPath.Relative, false);
+        return (new RootedPath(destPath.Root, relativePath), remove);
     }
 }
 
 public static class BaseInstaller
 {
-    public interface IConfig
-    {
-        IEnumerable<string> DirsAtRoot
-        {
-            get;
-        }
-
-        IEnumerable<string> ExcludedFromInstall
-        {
-            get;
-        }
-    }
-
     public const string RemoveFileSuffix = "-remove";
 }
