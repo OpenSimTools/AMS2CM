@@ -21,19 +21,19 @@ public static class Init
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var modRepository = new FileSystemRepository(modsDir);
         var safeFileDelete = new WindowsRecyclingBin();
-        var modPackagesUpdater = CreateModPackagesUpdater(config.ModInstall, game, tempDir);
-        return new ModManager(game, modRepository, modPackagesUpdater, statePersistence, safeFileDelete, tempDir);
+        var packagesUpdater = CreateModPackagesUpdater(config.ModInstall, game, tempDir);
+        return new ModManager(game, modRepository, packagesUpdater, statePersistence, safeFileDelete, tempDir);
     }
 
-    internal static PackagesUpdater<IEventHandler> CreateModPackagesUpdater(
+    internal static ModPackagesesUpdater CreateModPackagesUpdater(
         ModInstallConfig installerConfig,
         IGame game,
         ITempDir tempDir)
     {
         var backupStrategy = new SuffixBackupStrategy();
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
-        var installationsUpdater = new InstallationsUpdater(backupStrategyProvider, TimeProvider.System);
-        var bootfilesAwareUpdater = new ModInstallationsUpdater<IEventHandler>(installationsUpdater, game, tempDir, installerConfig);
-        return new PackagesUpdater<IEventHandler>(bootfilesAwareUpdater);
+        return new ModPackagesesUpdater(
+            new FileSystemInstallerFactory(), backupStrategyProvider,
+            TimeProvider.System, game, tempDir, installerConfig);
     }
 }

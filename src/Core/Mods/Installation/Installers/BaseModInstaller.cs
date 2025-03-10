@@ -27,7 +27,7 @@ public abstract class BaseModInstaller : IInstaller
     protected readonly IGame Game;
     protected readonly DirectoryInfo StagingDir;
 
-    private readonly IRootFinder rootFinder;
+    private readonly Lazy<IRootFinder.RootPaths> rootPaths;
     private readonly Matcher filesToInstallMatcher;
 
     private bool postProcessingDone;
@@ -39,7 +39,9 @@ public abstract class BaseModInstaller : IInstaller
         Inner = inner;
         Game = game;
         StagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, inner.PackageName));
-        rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
+        var rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
+        rootPaths = new Lazy<IRootFinder.RootPaths>(
+            () => rootFinder.FromDirectoryList(Inner.RelativeDirectoryPaths));
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         postProcessingDone = false;
     }
@@ -70,8 +72,8 @@ public abstract class BaseModInstaller : IInstaller
         postProcessingDone = true;
     }
 
-    // TODO This should remove the roots and what is not inside a root directory
-    public IEnumerable<string> RelativeDirectoryPaths => Inner.RelativeDirectoryPaths;
+    public IEnumerable<string> RelativeDirectoryPaths =>
+        Inner.RelativeDirectoryPaths.SelectNotNull(rootPaths.Value.GetPathFromRoot);
 
     protected abstract void Install(Action innerInstall);
 
@@ -83,18 +85,15 @@ public abstract class BaseModInstaller : IInstaller
         }
     }
 
-    private IInstaller.Destination ConfigToStagingDir(IInstaller.Destination destination)
-    {
-        var rootPaths = rootFinder.FromDirectoryList(Inner.RelativeDirectoryPaths);
-        return pathInPackage =>
+    private IInstaller.Destination ConfigToStagingDir(IInstaller.Destination destination) =>
+        pathInPackage =>
         {
-            var relativePathFromRoot = rootPaths.GetPathFromRoot(pathInPackage);
+            var relativePathFromRoot = rootPaths.Value.GetPathFromRoot(pathInPackage);
             return relativePathFromRoot is null
                 ? new RootedPath(StagingDir.FullName, pathInPackage)
                 // If part of a game root, return the destination relative to that root
                 : destination(relativePathFromRoot);
         };
-    }
 
     private bool Whitelisted(RootedPath path) =>
         filesToInstallMatcher.Match(path.Relative).HasMatches;

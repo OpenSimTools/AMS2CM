@@ -1,9 +1,8 @@
-﻿using Core.Mods.Installation.Installers;
-using Core.Packages.Installation;
+﻿using Core.Mods.Installation;
 
 namespace Core.API;
 
-public interface IEventHandler : BootfilesInstaller.IEventHandler, InstallationsUpdater.IEventHandler
+public interface IEventHandler : ModPackagesesUpdater.IEventHandler
 {
 
 }

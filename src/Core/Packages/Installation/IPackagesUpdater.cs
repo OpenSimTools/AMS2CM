@@ -2,7 +2,7 @@
 
 namespace Core.Packages.Installation;
 
-public interface IInstallationsUpdater<in TEventHandler>
+public interface IPackagesUpdater<in TEventHandler>
 {
     void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,

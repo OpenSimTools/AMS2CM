@@ -1,7 +1,7 @@
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
-using Core.State;
+using Core.Packages.Repository;
 using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
@@ -10,28 +10,29 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Packages.Installation;
 
-public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
+public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
 {
     #region Initialisation
 
     private class TestException : Exception {}
 
-    private readonly Mock<IBackupStrategy> backupStrategyMock;
-    private readonly Mock<InstallationsUpdater.IEventHandler> eventHandlerMock = new();
+    private readonly Mock<IBackupStrategy> backupStrategyMock = new();
+    private readonly Mock<PackagesUpdater.IEventHandler> eventHandlerMock = new();
     private readonly DateTime fakeUtcInstallationDate = DateTime.Today.AddDays(10).ToUniversalTime();
     private readonly TimeSpan fakeLocalTimeOffset = TimeSpan.FromHours(3);
-    private readonly InstallationsUpdater installationsUpdater;
-    private readonly Dictionary<string, PackageInstallationState?> recordedState = new();
+    private IReadOnlyDictionary<string, PackageInstallationState>? recordedState;
 
-    public InstallationsUpdaterIntegrationTest()
+    private class InstallerForPackage : IInstallerFactory
     {
-        backupStrategyMock = new Mock<IBackupStrategy>();
-        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState>>();
-        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>()))
-            .Returns(backupStrategyMock.Object);
-        installationsUpdater = new InstallationsUpdater(
-            backupStrategyProviderMock.Object,
-            new FakeTimeProvider(fakeUtcInstallationDate.WithOffset(fakeLocalTimeOffset)));
+        private readonly IReadOnlyCollection<IInstaller> installers;
+
+        internal InstallerForPackage(IReadOnlyCollection<IInstaller> installers)
+        {
+            this.installers = installers;
+        }
+
+        public IInstaller PackageInstaller(Package package) =>
+            installers.First(installer => installer.PackageName == package.Name);
     }
 
     #endregion
@@ -39,13 +40,10 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_NoMods()
     {
-        installationsUpdater.Apply(
+        Apply(
             new Dictionary<string, PackageInstallationState>(),
-            [],
-            "",
-            RecordState,
-            eventHandlerMock.Object,
-            CancellationToken.None);
+            []
+        );
 
         recordedState.Should().BeEmpty();
     }
@@ -53,7 +51,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_UninstallsMods()
     {
-        installationsUpdater.Apply(
+        Apply(
             new Dictionary<string, PackageInstallationState>{
                 ["A"] = new(
                         Time: null,
@@ -61,15 +59,10 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                         Partial: false,
                         Files: ["AF"])
             },
-            [],
-            TestDir.FullName,
-            RecordState,
-            eventHandlerMock.Object,
-            CancellationToken.None);
+            []
+        );
 
-        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState?>{
-            ["A"] = null,
-        });
+        recordedState.Should().BeEmpty();
 
         backupStrategyMock.Verify(_ => _.RestoreBackup(TestPath("AF")));
         backupStrategyMock.VerifyNoOtherCalls();
@@ -88,7 +81,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     {
         backupStrategyMock.Setup(_ => _.RestoreBackup(TestPath("Fail"))).Throws<TestException>();
 
-        installationsUpdater.Invoking(_ => _.Apply(
+        this.Invoking(_ => _.Apply(
             new Dictionary<string, PackageInstallationState>
             {
                 ["A"] = new(
@@ -97,11 +90,8 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                         Partial: false,
                         Files: ["AF1", "Fail", "AF2"])
             },
-            [],
-            TestDir.FullName,
-            RecordState,
-            eventHandlerMock.Object,
-            CancellationToken.None)).Should().Throw<TestException>();
+            []
+        )).Should().Throw<TestException>();
 
         recordedState["A"]?.Files.Should().BeEquivalentTo(["Fail", "AF2"]);
     }
@@ -109,17 +99,14 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_InstallsMods()
     {
-        installationsUpdater.Apply(
+        Apply(
             new Dictionary<string, PackageInstallationState>(),
             [
                 InstallerOf("A", 42, [
                     "AF"
                 ])
-            ],
-            TestDir.FullName,
-            RecordState,
-            eventHandlerMock.Object,
-            CancellationToken.None);
+            ]
+        );
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
@@ -143,17 +130,14 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     {
         backupStrategyMock.Setup(_ => _.PerformBackup(TestPath("Fail"))).Throws<TestException>();
 
-        installationsUpdater.Invoking(_ => _.Apply(
+        this.Invoking(_ => _.Apply(
             new Dictionary<string, PackageInstallationState>(),
             [
                 InstallerOf("A", 42, [
                     "AF1", "Fail", "AF2"
                 ])
-            ],
-            TestDir.FullName,
-            RecordState,
-            eventHandlerMock.Object,
-            CancellationToken.None)).Should().Throw<TestException>();
+            ]
+        )).Should().Throw<TestException>();
 
         recordedState["A"]?.Files.Should().BeEquivalentTo([
             "AF1",
@@ -164,8 +148,7 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     [Fact]
     public void Apply_UpdatesMods()
     {
-        var endState = new Dictionary<string, IInstallation>();
-        installationsUpdater.Apply(
+        Apply(
             new Dictionary<string, PackageInstallationState>
             {
                 ["A"] = new(Time: null, FsHash: 1, Partial: false, Files: [
@@ -178,11 +161,8 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
                     "AF",
                     "AF2"
                 ])
-            ],
-            TestDir.FullName,
-            RecordState,
-            eventHandlerMock.Object,
-            CancellationToken.None);
+            ]
+        );
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
@@ -191,6 +171,27 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
     }
 
     #region Utility methods
+
+    private void Apply(
+        IReadOnlyDictionary<string, PackageInstallationState> oldState,
+        IReadOnlyCollection<IInstaller> installers)
+    {
+        var packages = installers.Select(i => new Package(i.PackageName, "", true, null));
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState>>();
+        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>()))
+            .Returns(backupStrategyMock.Object);
+        var packagesUpdater = new PackagesUpdater<PackagesUpdater.IEventHandler>(
+            new InstallerForPackage(installers),
+            backupStrategyProviderMock.Object,
+            new FakeTimeProvider(fakeUtcInstallationDate.WithOffset(fakeLocalTimeOffset)));
+        packagesUpdater.Apply(
+            oldState,
+            packages,
+            TestDir.FullName,
+            newState => recordedState = newState,
+            eventHandlerMock.Object,
+            CancellationToken.None);
+    }
 
     private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files)
     {
@@ -226,11 +227,6 @@ public class InstallationsUpdaterIntegrationTest : AbstractFilesystemTest
         private static readonly string DirAtRoot = "X";
 
         public override IEnumerable<string> RelativeDirectoryPaths => [DirAtRoot];
-    }
-
-    private void RecordState(string packageName, PackageInstallationState? state)
-    {
-        recordedState[packageName] = state;
     }
 
     #endregion

@@ -1,6 +1,7 @@
 using Core.Games;
 using Core.IO;
 using Core.Mods;
+using Core.Mods.Installation;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
@@ -22,16 +23,16 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly PackagesUpdater<IEventHandler> packagesUpdater;
+    private readonly ModPackagesesUpdater packagesesUpdater;
 
-    internal ModManager(IGame game, IPackageRepository packageRepository, PackagesUpdater<IEventHandler> packagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(IGame game, IPackageRepository packageRepository, ModPackagesesUpdater packagesesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
         this.packageRepository = packageRepository;
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
-        this.packagesUpdater = packagesUpdater;
+        this.packagesesUpdater = packagesesUpdater;
     }
 
     private static void AddToEnvionmentPath(string additionalPath)
@@ -161,7 +162,7 @@ internal class ModManager : IModManager
 
     private void UpdateMods(IEnumerable<Package> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        packagesUpdater.Apply(
+        packagesesUpdater.Apply(
             statePersistence.ReadState().Install.Mods,
             packages,
             game.InstallationDirectory,
