@@ -20,15 +20,11 @@ public class ModInstaller : BaseModInstaller
     }
 
     private readonly Matcher filesToConfigureMatcher;
-    private readonly string normalisedName;
 
     internal ModInstaller(IInstaller inner, IGame game, ITempDir tempDir, IConfig config) :
         base(inner, game, tempDir, config)
     {
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
-        normalisedName = string.Format("{0}_{1}",
-            Path.GetFileNameWithoutExtension(inner.PackageName).Where(char.IsAsciiLetterOrDigit),
-            PackageFsHash ?? 0);
     }
 
     protected override void Install(Action innerInstall)
@@ -55,10 +51,16 @@ public class ModInstaller : BaseModInstaller
             return;
         if (modConfig.None())
             return;
-        // TODO this can fail
+
+        var normalisedName = string.Concat(
+            Path.GetFileNameWithoutExtension(Inner.PackageName)
+                .Where(char.IsAsciiLetterOrDigit));
+        var hexFsHash = (PackageFsHash ?? 0).ToString("x");
         var modConfigDirPath = new RootedPath(
             Game.InstallationDirectory,
-            Path.Combine(PostProcessor.GameSupportedModDirectory, normalisedName));
+            Path.Combine(PostProcessor.GameSupportedModDirectory, $"{normalisedName}_{hexFsHash}"));
+
+        // TODO this can fail
         Directory.CreateDirectory(modConfigDirPath.Full);
         AddToInstalledFiles(PostProcessor.AppendCrdFileEntries(modConfigDirPath, modConfig.CrdFileEntries));
         AddToInstalledFiles(PostProcessor.AppendTrdFileEntries(modConfigDirPath, modConfig.TrdFileEntries));
