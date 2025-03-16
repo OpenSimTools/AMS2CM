@@ -46,19 +46,24 @@ public class BootfilesInstaller : BaseModInstaller
             innerInstall();
             eventHandler.PostProcessingVehicles();
             PostProcessor.AppendCrdFileEntries(new RootedPath(Game.InstallationDirectory, VehicleListRelativeDir),
-                modConfigs.SelectMany(c => c.CrdFileEntries));
+                modConfigs.SelectMany(c => c.CrdFileEntries), WrapInComments);
             eventHandler.PostProcessingTracks();
             PostProcessor.AppendTrdFileEntries(new RootedPath(Game.InstallationDirectory, TrackListRelativeDir),
-                modConfigs.SelectMany(c => c.TrdFileEntries));
+                modConfigs.SelectMany(c => c.TrdFileEntries), WrapInComments);
             eventHandler.PostProcessingDrivelines();
             PostProcessor.AppendDrivelineRecords(new RootedPath(Game.InstallationDirectory, DrivelineRelativeDir),
-                modConfigs.SelectMany(c => c.DrivelineRecords));
+                modConfigs.SelectMany(c => c.DrivelineRecords), WrapInComments);
             eventHandler.PostProcessingEnd();
         }
         else
         {
             eventHandler.PostProcessingNotRequired();
         }
+    }
+
+    private static string WrapInComments(string content)
+    {
+        return $"{Environment.NewLine}### BEGIN AMS2CM{Environment.NewLine}{content}{Environment.NewLine}### END AMS2CM{Environment.NewLine}";
     }
 
     private IReadOnlyList<ConfigEntries> CollectModConfigs()

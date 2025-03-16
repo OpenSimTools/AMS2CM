@@ -10,13 +10,30 @@ internal static class PostProcessor
     internal const string TrackListFileName = "tracklist.lst";
     internal const string DrivelineFileName = "driveline.rg";
 
-    public static RootedPath? AppendCrdFileEntries(RootedPath destDirPath, IEnumerable<string> crdFileEntries) =>
-        AppendEntryList(destDirPath.SubPath(VehicleListFileName), crdFileEntries);
+    public static RootedPath? AppendCrdFileEntries(
+        RootedPath destDirPath, IEnumerable<string> crdFileEntries) =>
+        AppendCrdFileEntries(destDirPath, crdFileEntries, IdentityProcessor);
 
-    public static RootedPath? AppendTrdFileEntries(RootedPath destDirPath, IEnumerable<string> trdFileEntries) =>
-        AppendEntryList(destDirPath.SubPath(TrackListFileName), trdFileEntries);
+    public static RootedPath? AppendCrdFileEntries(
+        RootedPath destDirPath,
+        IEnumerable<string> crdFileEntries,
+        Func<string, string> blockProcessor) =>
+        AppendEntryList(destDirPath.SubPath(VehicleListFileName), crdFileEntries, blockProcessor);
 
-    private static RootedPath? AppendEntryList(RootedPath filePath, IEnumerable<string> entries)
+    public static RootedPath? AppendTrdFileEntries(
+        RootedPath destDirPath, IEnumerable<string> trdFileEntries) =>
+        AppendTrdFileEntries(destDirPath, trdFileEntries, IdentityProcessor);
+
+    public static RootedPath? AppendTrdFileEntries(
+        RootedPath destDirPath,
+        IEnumerable<string> trdFileEntries,
+        Func<string, string> blockProcessor) =>
+        AppendEntryList(destDirPath.SubPath(TrackListFileName), trdFileEntries, blockProcessor);
+
+    private static RootedPath? AppendEntryList(
+        RootedPath filePath,
+        IEnumerable<string> entries,
+        Func<string, string> blockProcessor)
     {
         var entriesBlock = string.Join(Environment.NewLine, entries);
         if (entriesBlock.Length == 0)
@@ -25,12 +42,19 @@ internal static class PostProcessor
         }
 
         var f = File.AppendText(filePath.Full);
-        f.Write(WrapInComments(entriesBlock));
+        f.Write(blockProcessor(entriesBlock));
         f.Close();
         return filePath;
     }
 
-    public static RootedPath? AppendDrivelineRecords(RootedPath destDirPath, IEnumerable<string> recordBlocks)
+    public static RootedPath? AppendDrivelineRecords(
+        RootedPath destDirPath, IEnumerable<string> recordBlocks) =>
+        AppendDrivelineRecords(destDirPath, recordBlocks, IdentityProcessor);
+
+    public static RootedPath? AppendDrivelineRecords(
+        RootedPath destDirPath,
+        IEnumerable<string> recordBlocks,
+        Func<string, string> blockProcessor)
     {
         var recordsTextBlock = DrivelineBlock(recordBlocks);
         if (recordsTextBlock.Length == 0)
@@ -39,25 +63,9 @@ internal static class PostProcessor
         }
 
         var driveLineFilePath = destDirPath.SubPath(DrivelineFileName);
-        var newContents = DrivelineFileContents(driveLineFilePath, recordsTextBlock);
+        var newContents = DrivelineFileContents(driveLineFilePath, blockProcessor(recordsTextBlock));
         File.WriteAllText(driveLineFilePath.Full, newContents);
         return driveLineFilePath;
-    }
-
-    private static string DrivelineFileContents(RootedPath driveLineFilePath, string recordsTextBlock)
-    {
-        if (!File.Exists(driveLineFilePath.Full))
-        {
-            return recordsTextBlock;
-        }
-
-        var contents = File.ReadAllText(driveLineFilePath.Full);
-        var endIndex = contents.LastIndexOf("END", StringComparison.Ordinal);
-        if (endIndex < 0)
-        {
-            throw new Exception("Could not find insertion point in driveline file");
-        }
-        return contents.Insert(endIndex, WrapInComments(recordsTextBlock));
     }
 
     private static string DrivelineBlock(IEnumerable<string> recordBlocks)
@@ -83,8 +91,21 @@ internal static class PostProcessor
         return deduped.Reverse<string>();
     }
 
-    private static string WrapInComments(string content)
+    private static string DrivelineFileContents(RootedPath driveLineFilePath, string recordsTextBlock)
     {
-        return $"{Environment.NewLine}### BEGIN AMS2CM{Environment.NewLine}{content}{Environment.NewLine}### END AMS2CM{Environment.NewLine}";
+        if (!File.Exists(driveLineFilePath.Full))
+        {
+            return recordsTextBlock;
+        }
+
+        var contents = File.ReadAllText(driveLineFilePath.Full);
+        var endIndex = contents.LastIndexOf("END", StringComparison.Ordinal);
+        if (endIndex < 0)
+        {
+            throw new Exception("Could not find insertion point in driveline file");
+        }
+        return contents.Insert(endIndex, recordsTextBlock);
     }
+
+    private static string IdentityProcessor(string block) => block;
 }
