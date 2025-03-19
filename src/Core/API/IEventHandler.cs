@@ -4,5 +4,4 @@ namespace Core.API;
 
 public interface IEventHandler : ModPackagesesUpdater.IEventHandler
 {
-
 }

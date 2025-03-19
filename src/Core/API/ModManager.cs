@@ -2,7 +2,6 @@ using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.Mods.Installation;
-using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
 using Core.State;
@@ -12,11 +11,6 @@ namespace Core.API;
 
 internal class ModManager : IModManager
 {
-    internal static readonly string FileRemovedByBootfiles = Path.Combine(
-        GeneratedBootfilesInstaller.PakfilesDirectory,
-        GeneratedBootfilesInstaller.PhysicsPersistentPakFileName
-    );
-
     private readonly IGame game;
     private readonly IPackageRepository packageRepository;
     private readonly IStatePersistence statePersistence;

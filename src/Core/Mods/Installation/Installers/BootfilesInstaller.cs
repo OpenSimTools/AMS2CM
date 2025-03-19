@@ -22,7 +22,7 @@ public class BootfilesInstaller : BaseModInstaller
 
     internal const string VehicleListRelativeDir = "vehicles";
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
-    internal static readonly string DrivelineRelativeDir = Path.Combine("vehicles", "physics", "driveline");
+    internal static readonly string DrivelineRelativeDir = Path.Combine(VehicleListRelativeDir, "physics", "driveline");
 
     private readonly IEventHandler eventHandler;
 

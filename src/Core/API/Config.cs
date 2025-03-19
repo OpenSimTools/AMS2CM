@@ -1,6 +1,5 @@
 ﻿using Core.Games;
 using Core.Mods.Installation.Installers;
-using Core.Packages.Installation.Installers;
 using Core.SoftwareUpdates;
 using Microsoft.Extensions.Configuration;
 
