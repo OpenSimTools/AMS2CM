@@ -1,18 +1,20 @@
-﻿namespace Core.Tests.Base;
+﻿using Core.Utils;
+
+namespace Core.Tests.Base;
 
 [IntegrationTest]
 public abstract class AbstractFilesystemTest : IDisposable
 {
-    protected readonly DirectoryInfo testDir;
+    protected readonly DirectoryInfo TestDir;
 
     protected AbstractFilesystemTest()
     {
-        testDir = Directory.CreateTempSubdirectory(GetType().Name);
+        TestDir = Directory.CreateTempSubdirectory(GetType().Name);
     }
 
     public void Dispose()
     {
-        testDir.Delete(recursive: true);
+        TestDir.Delete(recursive: true);
     }
 
     protected void CreateTestFiles(params string[] relativePaths)
@@ -26,17 +28,16 @@ public abstract class AbstractFilesystemTest : IDisposable
     protected FileInfo CreateTestFile(string relativePath, string content = "") =>
         CreateFile(TestPath(relativePath), content);
 
-    protected string TestPath(string relativePath) =>
-        Path.Combine(testDir.FullName, relativePath);
+    protected RootedPath TestPath(string relativePath) => new(TestDir.FullName, relativePath);
 
-    protected static FileInfo CreateFile(string fullPath, string content = "")
+    protected static FileInfo CreateFile(RootedPath path, string content = "")
     {
-        var parentDirFullPath = Path.GetDirectoryName(fullPath);
+        var parentDirFullPath = Path.GetDirectoryName(path.Full);
         if (parentDirFullPath is not null)
         {
             Directory.CreateDirectory(parentDirFullPath);
         }
-        File.WriteAllText(fullPath, content);
-        return new FileInfo(fullPath);
+        File.WriteAllText(path.Full, content);
+        return new FileInfo(path.Full);
     }
 }

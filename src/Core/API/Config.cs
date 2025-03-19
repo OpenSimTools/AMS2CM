@@ -1,4 +1,5 @@
 ﻿using Core.Games;
+using Core.Mods.Installation.Installers;
 using Core.SoftwareUpdates;
 using Microsoft.Extensions.Configuration;
 
@@ -8,7 +9,7 @@ public class Config
 {
     public GitHubUpdateChecker.IConfig Updates { get; set; } = new UpdateConfig();
     public Game.IConfig Game { get; set; } = new GameConfig();
-    public ModInstallConfig ModInstall { get; set; } = new ModInstallConfig();
+    public ModInstallConfig ModInstall { get; set; } = new();
 
     public static Config Load(string[] args)
     {
@@ -34,7 +35,7 @@ public class GameConfig : Game.IConfig
     public string ProcessName { get; set; } = "Undefined";
 }
 
-public class ModInstallConfig : InstallationFactory.IConfig
+public class ModInstallConfig : ModInstaller.IConfig
 {
     public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
     public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();

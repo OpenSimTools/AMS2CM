@@ -6,12 +6,12 @@ namespace Core.API;
 /// This class is here because of the CLI. Move it into the GUI once the CLI
 /// can be decommissioned or into a shared module that handles localisation.
 /// </summary>
-public abstract class BaseEventLogger : IModManager.IEventHandler
+public abstract class BaseEventLogger : IEventHandler
 {
     public abstract void ProgressUpdate(IPercent? progress);
     protected abstract void LogMessage(string message);
 
-    public void InstallNoMods() =>
+    public void InstallNoPackages() =>
         LogMessage($"No mod archives to install");
     public void InstallStart() =>
         LogMessage("Installing mods:");
@@ -37,7 +37,7 @@ public abstract class BaseEventLogger : IModManager.IEventHandler
     {
     }
 
-    public void UninstallNoMods() =>
+    public void UninstallNoPackages() =>
         LogMessage("No previously installed mods found. Skipping uninstall phase.");
     public void UninstallStart() =>
         LogMessage($"Uninstalling mods:");

@@ -1,6 +1,4 @@
-﻿using Core.Mods;
-
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 public static class DictionaryExtensions
 {

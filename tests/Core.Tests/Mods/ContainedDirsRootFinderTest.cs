@@ -1,4 +1,4 @@
-﻿using Core.Mods;
+﻿using Core.Mods.Installation.Installers;
 using FluentAssertions;
 
 namespace Core.Tests.Mods;
