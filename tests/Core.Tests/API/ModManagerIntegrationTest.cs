@@ -449,7 +449,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     }
 
     [Fact]
-    public void Install_OldVehiclesRequireBootfiles()
+    public void Install_OldVehiclesDoNotRequireBootfiles()
     {
         var drivelineRecord = $"RECORD foo";
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
@@ -463,9 +463,14 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
-        File.ReadAllText(GamePath(VehicleListRelativePath).Full).Should().Contain("Vehicle.crd");
-        File.ReadAllText(GamePath(DrivelineRelativePath).Full).Should().Contain(drivelineRecord);
+        persistedState.Should().HaveInstalled(["Package100"]);
+        var generatedConfigDir = $"Package100_{100:x}";
+        File.ReadAllText(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir,
+            PostProcessor.VehicleListFileName).Full).Should().Contain("Vehicle.crd");
+        File.ReadAllText(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir,
+                PostProcessor.DrivelineFileName).Full).Should().Contain(drivelineRecord);
+        File.Exists(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
+            .Full).Should().BeTrue();
     }
 
     [Fact]
@@ -495,6 +500,12 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
+        var generatedConfigDir = $"Package100_{100:x}";
+        File.ReadAllText(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir,
+            PostProcessor.TrackListFileName).Full).Should().Contain("Track.trd");
+        File.Exists(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
+            .Full).Should().BeFalse();
+
         File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Contain("Track.trd");
     }
 
@@ -502,7 +513,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     public void Install_ExtractsBootfilesFromGameByDefault()
     {
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
-            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")])
+            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.trd")])
         ]);
 
         // Unfortunately, there is no easy way to create pak files!
@@ -520,7 +531,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     public void Install_ChoosesLastOfMultipleCustomBootfiles()
     {
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
-            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.crd")]),
+            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.trd")]),
             CreateCustomBootfiles(900),
             CreateCustomBootfiles(901)
         ]);

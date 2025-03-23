@@ -1,4 +1,5 @@
-﻿using Core.Utils;
+﻿using Core.Packages.Installation;
+using Core.Utils;
 
 namespace Core.Mods.Installation.Installers;
 
@@ -108,4 +109,26 @@ internal static class PostProcessor
     }
 
     private static string IdentityProcessor(string block) => block;
+
+    public static RootedPath GenerateModDetails(RootedPath destDirPath, IInstallation installation)
+    {
+        var modName = Path.GetFileName(destDirPath.Full);
+        var filePath = destDirPath.SubPath($"{modName}.xml");
+        var contents = @$"<?xml version=""1.0""?>
+<Reflection>
+    <class name=""BRTTIRefCount"" base=""root class"" />
+    <class name=""BPersistent"" base=""BRTTIRefCount"">
+        <prop name=""Name"" type=""String"" />
+    </class>
+    <class name=""ModDetails"" base=""BPersistent"">
+        <prop name=""DisplayName"" type=""String"" />
+    </class>
+    <data class=""ModDetails"" id=""0x{installation.PackageFsHash:x08}"">
+        <prop name=""Name"" data=""{modName}"" />
+        <prop name=""DisplayName"" data=""{installation.PackageName}"" />
+    </data>
+</Reflection>";
+        File.WriteAllText(filePath.Full, contents);
+        return filePath;
+    }
 }
