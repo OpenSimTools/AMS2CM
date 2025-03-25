@@ -16,6 +16,7 @@ ModInstall:
   - upgrade
   - vehicles
   ExcludedFromInstall:
+  - '**\*.orig'
   - '**\*.dll'
   - '**\*.exe'
   ExcludedFromConfig:
