@@ -63,36 +63,51 @@ public class PackagesUpdater<TEventHandler>
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
         string installDir,
-        Action<string, PackageInstallationState?> afterInstall,
+        Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        UninstallPackages(currentState, installDir, afterInstall, eventHandler, cancellationToken);
-        InstallPackages(installers, installDir, afterInstall, eventHandler, cancellationToken);
+        UninstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
+        InstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
+    // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+    // - [x] Remove all mod files that have a different version or not to be installed
+    // - [ ] Remove duplicate files in multiple mods (from last to first)
+    // Notes:
+    // - When a mod shadows another, we should create a dependency between the two so
+    //   that the dependency being partial makes the mod partial as well
     private void UninstallPackages(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
+        IReadOnlyCollection<IInstaller> installers,
         string installDir,
-        Action<string, PackageInstallationState?> afterUninstall,
+        Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
         if (currentState.Any())
         {
             eventHandler.UninstallStart();
-            foreach (var (packageName, packagePackageInstallationState) in currentState)
+            var fsHashesToInstall = installers.ToDictionary(i => i.PackageName, i => i.PackageFsHash);
+            foreach (var (packageName, packageInstallationState) in currentState)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
+                // Skip packages at the same version
+                var fsHashToInstall = fsHashesToInstall.GetValueOrDefault(packageName);
+                if (fsHashToInstall != null && fsHashToInstall == packageInstallationState.FsHash)
+                {
+                    continue;
+                }
+
                 eventHandler.UninstallCurrent(packageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(packagePackageInstallationState);
-                var filesLeft = packagePackageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState);
+                var filesLeft = packageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    foreach (var relativePath in packagePackageInstallationState.Files)
+                    foreach (var relativePath in packageInstallationState.Files)
                     {
                         var gamePath = new RootedPath(installDir, relativePath);
                         if (!backupStrategy.RestoreBackup(gamePath))
@@ -101,21 +116,19 @@ public class PackagesUpdater<TEventHandler>
                         }
                         filesLeft.Remove(gamePath.Relative);
                     }
-                    DeleteEmptyDirectories(installDir, packagePackageInstallationState.Files);
+                    DeleteEmptyDirectories(installDir, packageInstallationState.Files);
                 }
                 finally
                 {
                     if (filesLeft.Count == 0)
                     {
-                        afterUninstall(packageName, null);
+                        updatePackageState(packageName, null);
                     }
                     else
                     {
-                        afterUninstall(packageName, packagePackageInstallationState with
+                        updatePackageState(packageName, packageInstallationState with
                         {
-                            // // Once partially uninstalled, it will stay that way unless fully uninstalled
-                            Partial = packagePackageInstallationState.Partial ||
-                                      filesLeft.Count != packagePackageInstallationState.Files.Count,
+                            Partial = true,
                             Files = filesLeft
                         });
                     }
@@ -156,13 +169,59 @@ public class PackagesUpdater<TEventHandler>
         return ancestors;
     }
 
+    // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+    // - [ ] Go through all mods to be installed and extract files...
+    //   - Skip if file already installed in this loop
+    //   - Otherwise install with backup
+    // - [ ] If files are shadowed by a mod, mark it as a dependency
+    //   - We might have to pass the package name in the callback to keep track of that
+    //     since it's a callback in the installation loop
+    // Notes:
+    // - If files have been installed previously by a mod, they will be either installed
+    //   by a higher priority mod or skipped and not appear in the installed files
+    //   (not sure what this meant)
+    // - When can we skip mod installation entirely?
+    //   - When it does not depend on a mod that was removed?
     private void InstallPackages(
+        IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
-        string destinationDir,
-        Action<string, PackageInstallationState?> afterInstall,
+        string installDir,
+        Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
+        foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
+        {
+            var installationState = currentState.GetValueOrDefault(installer.PackageName);
+            var backupStrategy = backupStrategyProvider.BackupStrategy(installationState);
+            try
+            {
+                installer.Install(InstallTo(installDir), backupStrategy, SkipAlreadyInstalledFiles());
+            }
+            finally
+            {
+                var packageInstalledFiles = installer.InstalledFiles
+                    .Where(rp => rp.Root == installDir)
+                    .Select(rp => rp.Relative)
+                    .ToImmutableList();
+                updatePackageState(installer.PackageName,
+                    packageInstalledFiles.Count == 0
+                        ? null
+                        : new PackageInstallationState(
+                            Time: timeProvider.GetUtcNow().DateTime,
+                            FsHash: installer.PackageFsHash,
+                            Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
+                            Files: packageInstalledFiles
+                        ));
+            }
+        }
+
+        // OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS
+        // OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS
+        // OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS
+        // OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS
+        // OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS OLD CODE FOLLOWS
+
         var allInstalledFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
         {
@@ -212,6 +271,16 @@ public class PackagesUpdater<TEventHandler>
             eventHandler.InstallNoPackages();
         }
         eventHandler.ProgressUpdate(progress.DoneAll());
+    }
+
+    private static ProcessingCallbacks<RootedPath> SkipAlreadyInstalledFiles()
+    {
+        var alreadyInstalledFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return new ProcessingCallbacks<RootedPath>
+        {
+            Accept = gamePath => !alreadyInstalledFiles.Contains(gamePath.Relative),
+            Before = gamePath => alreadyInstalledFiles.Add(gamePath.Relative)
+        };
     }
 
     private static IInstaller.Destination InstallTo(string destDir) =>
