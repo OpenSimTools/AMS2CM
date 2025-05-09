@@ -45,7 +45,7 @@ public class ModPackagesesUpdater : PackagesUpdater<ModPackagesesUpdater.IEventH
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
         string installDir,
-        Action<string, PackageInstallationState?> afterInstall,
+        Action<string, PackageInstallationState?> updatePackageState,
         IEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
@@ -55,7 +55,7 @@ public class ModPackagesesUpdater : PackagesUpdater<ModPackagesesUpdater.IEventH
             .Select(i => new ModInstaller(i, game, tempDir, config))
             .Append(CreateBootfilesInstaller(bootfiles, eventHandler)).ToImmutableArray();
 
-        base.Apply(currentState, allInstallers, installDir, afterInstall, eventHandler, cancellationToken);
+        base.Apply(currentState, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
     private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, IEventHandler eventHandler)
