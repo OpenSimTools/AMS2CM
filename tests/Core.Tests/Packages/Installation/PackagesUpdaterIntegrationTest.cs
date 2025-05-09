@@ -104,7 +104,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
         Apply(
             new Dictionary<string, PackageInstallationState>(),
             [
-                InstallerOf("A", 42, [
+                InstallerOf("A", fsHash: 42, files: [
                     "AF"
                 ])
             ]
@@ -135,13 +135,13 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
         this.Invoking(_ => _.Apply(
             new Dictionary<string, PackageInstallationState>(),
             [
-                InstallerOf("A", 42, [
+                InstallerOf("A", fsHash: 42, files: [
                     "AF1", "Fail", "AF2"
                 ])
             ]
         )).Should().Throw<TestException>();
 
-        recordedState["A"]?.Files.Should().BeEquivalentTo([
+        recordedState["A"].Files.Should().BeEquivalentTo([
             "AF1",
             "Fail" // We don't know where it failed, so we add it
         ]);
@@ -159,7 +159,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
                 ])
             },
             [
-                InstallerOf("A", 2, [
+                InstallerOf("A", fsHash: 2, [
                     "AF",
                     "AF2"
                 ])
@@ -168,7 +168,41 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(fakeUtcInstallationDate, 2, false, [], ["AF", "AF2"])
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 2, Partial: false, Dependencies: [], Files: [
+                "AF",
+                "AF2"
+            ])
+        });
+    }
+
+    [Fact]
+    public void Apply_RestoresFilesPreviouslyShadowedByUninstalledMod()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                    "AF1",
+                ]),
+                ["B"] = new(Time: null, FsHash: 2, Partial: false, Dependencies: [], Files: [
+                    "SF", // SF in A was shadowed by B
+                    "BF1",
+                ])
+            },
+            [
+                InstallerOf("A", fsHash: 1, [
+                    "SF",
+                    "AF1"
+                ])
+            ]
+        );
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                "SF",
+                "AF1"
+            ])
         });
     }
 

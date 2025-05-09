@@ -6,7 +6,7 @@ public record RootedPath
     public string Relative { get; }
     public string Full { get; }
 
-    public RootedPath(string rootPath, string relativePath)
+    public RootedPath(string rootPath, string relativePath = "")
     {
         Root = rootPath;
         Relative = relativePath;
