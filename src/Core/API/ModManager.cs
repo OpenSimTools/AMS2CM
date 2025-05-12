@@ -1,6 +1,5 @@
 using Core.Games;
 using Core.IO;
-using Core.Mods;
 using Core.Mods.Installation;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
