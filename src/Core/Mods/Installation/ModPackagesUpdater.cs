@@ -8,7 +8,7 @@ using Core.Utils;
 
 namespace Core.Mods.Installation;
 
-public class ModPackagesesUpdater : PackagesUpdater<ModPackagesesUpdater.IEventHandler>
+public class ModPackagesUpdater : PackagesUpdater<ModPackagesUpdater.IEventHandler>
 {
     #region TODO Move to a better place when not called all over the place
 
@@ -19,7 +19,7 @@ public class ModPackagesesUpdater : PackagesUpdater<ModPackagesesUpdater.IEventH
 
     #endregion
 
-    public new interface IEventHandler : PackagesUpdater.IEventHandler, BootfilesInstaller.IEventHandler
+    public interface IEventHandler : PackagesUpdater.IEventHandler, BootfilesInstaller.IEventHandler
     {
     }
 
@@ -27,7 +27,7 @@ public class ModPackagesesUpdater : PackagesUpdater<ModPackagesesUpdater.IEventH
     private readonly ITempDir tempDir;
     private readonly ModInstaller.IConfig config;
 
-    public ModPackagesesUpdater(
+    public ModPackagesUpdater(
         IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState> backupStrategyProvider,
         TimeProvider timeProvider,

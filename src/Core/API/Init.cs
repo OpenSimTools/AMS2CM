@@ -25,14 +25,14 @@ public static class Init
         return new ModManager(game, modRepository, packagesUpdater, statePersistence, safeFileDelete, tempDir);
     }
 
-    internal static ModPackagesesUpdater CreateModPackagesUpdater(
+    internal static ModPackagesUpdater CreateModPackagesUpdater(
         ModInstallConfig installerConfig,
         IGame game,
         ITempDir tempDir)
     {
         var backupStrategy = new SuffixBackupStrategy();
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider(backupStrategy);
-        return new ModPackagesesUpdater(
+        return new ModPackagesUpdater(
             new FileSystemInstallerFactory(), backupStrategyProvider,
             TimeProvider.System, game, tempDir, installerConfig);
     }
