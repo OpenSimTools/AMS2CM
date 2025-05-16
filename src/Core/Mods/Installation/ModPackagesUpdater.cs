@@ -51,9 +51,10 @@ public class ModPackagesUpdater : PackagesUpdater<ModPackagesUpdater.IEventHandl
     {
         var (bootfiles, notBootfiles) = installers.Partition(p => IsBootFiles(p.PackageName));
 
+        var bootfilesInstaller = CreateBootfilesInstaller(bootfiles, eventHandler);
         var allInstallers = notBootfiles
-            .Select(i => new ModInstaller(i, game, tempDir, config))
-            .Append(CreateBootfilesInstaller(bootfiles, eventHandler)).ToImmutableArray();
+            .Select(i => new ModInstaller(i, bootfilesInstaller.PackageName, game, tempDir, config))
+            .Append(bootfilesInstaller).ToImmutableArray();
 
         base.Apply(currentState, allInstallers, installDir, afterInstall, eventHandler, cancellationToken);
     }

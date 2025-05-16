@@ -50,6 +50,8 @@ public abstract class BaseModInstaller : IInstaller
 
     public int? PackageFsHash => Inner.PackageFsHash;
 
+    public abstract IReadOnlyCollection<string> PackageDependencies { get; }
+
     public IReadOnlyCollection<RootedPath> InstalledFiles =>
         Inner.InstalledFiles
             .Concat(localInstalledFiles)

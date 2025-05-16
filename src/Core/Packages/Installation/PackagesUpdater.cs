@@ -198,6 +198,7 @@ public class PackagesUpdater<TEventHandler>
                                 Time: timeProvider.GetUtcNow().DateTime,
                                 FsHash: installer.PackageFsHash,
                                 Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
+                                Dependencies: installer.PackageDependencies,
                                 Files: packageInstalledFiles
                         ));
                 }

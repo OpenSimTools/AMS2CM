@@ -35,6 +35,9 @@ public class BootfilesInstaller : BaseModInstaller
     private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller, IGame game, ITempDir tempDir) =>
         bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(GeneratedBootfilesPackageName, game, tempDir);
 
+    // Bootfiles cannot have dependencies.
+    public override IReadOnlyCollection<string> PackageDependencies => Array.Empty<string>();
+
     protected override void Install(Action innerInstall)
     {
         var modConfigs = CollectModConfigs();
