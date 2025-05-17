@@ -352,11 +352,12 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     }
 
     [Fact]
-    public void Install_GivesPriotiryToFilesLaterInTheModList()
+    public void Install_GivesPriorityToFilesLaterInTheModList()
     {
         modRepositoryMock.Setup(_ => _.ListEnabled()).Returns([
             CreateModArchive(100, [
-                Path.Combine(DirAtRoot, "A")
+                Path.Combine(DirAtRoot, "A"),
+                Path.Combine(DirAtRoot, "B")
             ]),
             CreateModArchive(200, [
                 Path.Combine("X", DirAtRoot, "a")
@@ -368,6 +369,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         File.ReadAllText(GamePath(DirAtRoot, "A").Full).Should().Be("200");
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
+            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false,
+                Dependencies: ["Package200"],
+                Files: [
+                    Path.Combine(DirAtRoot, "B")
+                ]),
             ["Package200"] = new(Time: DateTime.UtcNow, FsHash: 200, Partial: false,
                 Dependencies: [],
                 Files: [
