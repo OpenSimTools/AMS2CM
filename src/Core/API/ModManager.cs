@@ -28,7 +28,7 @@ internal class ModManager : IModManager
         this.packagesUpdater = packagesUpdater;
     }
 
-    private static void AddToEnvionmentPath(string additionalPath)
+    private static void AddToEnvironmentPath(string additionalPath)
     {
         const string pathEnvVar = "PATH";
         var env = Environment.GetEnvironmentVariable(pathEnvVar);
@@ -128,9 +128,9 @@ internal class ModManager : IModManager
     public void InstallEnabledMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        // It shoulnd't be needed, but some systems seem to want to load oo2core
+        // It shouldn't be needed, but some systems seem to want to load oo2core
         // even when Mermaid and Kraken compression are not used in pak files!
-        AddToEnvionmentPath(game.InstallationDirectory);
+        AddToEnvironmentPath(game.InstallationDirectory);
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
