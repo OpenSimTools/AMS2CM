@@ -18,7 +18,7 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
-    private const string GeneratedBootfilesPackageName = $"{ModPackagesesUpdater.BootfilesPrefix}_generated";
+    private const string GeneratedBootfilesPackageName = $"{ModPackagesUpdater.BootfilesPrefix}_generated";
 
     internal const string VehicleListRelativeDir = "vehicles";
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");

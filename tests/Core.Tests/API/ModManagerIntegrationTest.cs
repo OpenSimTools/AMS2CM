@@ -598,7 +598,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         CreateModPackage("Package", fsHash, relativePaths, callback);
 
     private Package CreateCustomBootfiles(int fsHash) =>
-        CreateModPackage(ModPackagesesUpdater.BootfilesPrefix, fsHash, [
+        CreateModPackage(ModPackagesUpdater.BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
             VehicleListRelativePath,
             TrackListRelativePath,

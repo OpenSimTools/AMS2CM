@@ -42,13 +42,13 @@ internal class ModManager : IModManager
     public List<ModState> FetchState()
     {
         var installedMods = statePersistence.ReadState().Install.Mods;
-        var enabledModPackages = packageRepository.ListEnabled().ToDictionary(_ => _.Name);
-        var disabledModPackages = packageRepository.ListDisabled().ToDictionary(_ => _.Name);
+        var enabledModPackages = packageRepository.ListEnabled().ToDictionary(p => p.Name);
+        var disabledModPackages = packageRepository.ListDisabled().ToDictionary(p => p.Name);
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
-        var bootfilesFailed = installedMods.Where(kv => ModPackagesesUpdater.IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
+        var bootfilesFailed = installedMods.Any(kv => ModPackagesUpdater.IsBootFiles(kv.Key) && kv.Value.Partial);
         var isModInstalled = installedMods.SelectValues<string, PackageInstallationState, bool?>(modInstallationState =>
-            modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
+            modInstallationState.Partial || bootfilesFailed ? null : true
         );
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
         {
@@ -56,23 +56,19 @@ internal class ModManager : IModManager
             return IsOutOfDate(modPackage, modInstallationState);
         });
 
-        var allPackageNames = installedMods.Keys
-            .Where(_ => !ModPackagesesUpdater.IsBootFiles(_))
+        var allPackageNames = installedMods.Keys.Where(packageName => !ModPackagesUpdater.IsBootFiles(packageName))
             .Concat(enabledModPackages.Keys)
             .Concat(disabledModPackages.Keys)
             .Distinct();
 
         return allPackageNames
-            .Select(packageName =>
-            {
-                return new ModState(
-                    PackageName: packageName,
-                    PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
-                    IsInstalled: isModInstalled.TryGetValue(packageName, out var isInstalled) ? isInstalled : false,
-                    IsEnabled: enabledModPackages.ContainsKey(packageName),
-                    IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
-                );
-            }).ToList();
+            .Select(packageName => new ModState(
+                PackageName: packageName,
+                PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
+                IsInstalled: isModInstalled.GetValueOrDefault(packageName, false),
+                IsEnabled: enabledModPackages.ContainsKey(packageName),
+                IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
+            )).ToList();
     }
 
     private static bool IsOutOfDate(Package? modPackage, PackageInstallationState? modInstallationState)
@@ -162,7 +158,7 @@ internal class ModManager : IModManager
             nextState =>
                 statePersistence.WriteState(new SavedState(
                     Install: new InstallationState(
-                        Time: nextState.Values.Max(_ => _.Time),
+                        Time: nextState.Values.Max(s => s.Time),
                         Mods: nextState
                     )
                 )),
