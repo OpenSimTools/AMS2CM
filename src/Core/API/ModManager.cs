@@ -46,10 +46,10 @@ internal class ModManager : IModManager
         var disabledModPackages = packageRepository.ListDisabled().ToDictionary(p => p.Name);
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
-        var bootfilesFailed = installedMods.Any(kv => ModPackagesUpdater.IsBootFiles(kv.Key) && kv.Value.Partial);
-        var isModInstalled = installedMods.SelectValues<string, PackageInstallationState, bool?>(modInstallationState =>
-            modInstallationState.Partial || bootfilesFailed ? null : true
-        );
+        var isModInstalled = DependencyResolver
+            .CollectValues(installedMods, s => s.Dependencies, s => s?.Partial ?? true)
+            .SelectValues<string, IReadOnlySet<bool>, bool?>(partials => partials.Any(p => p) ? null : true);
+
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
         {
             availableModPackages.TryGetValue(packageName, out var modPackage);

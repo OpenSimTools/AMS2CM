@@ -6,19 +6,22 @@ namespace Core.Tests.Utils;
 [UnitTest]
 public class DependencyResolverTest
 {
-    private record Item(string Key, string[] Dependencies, string[] Values);
+    private record Item(string Key, string[] Dependencies, string Value);
 
-    private IDictionary<string, IReadOnlySet<string>> CollectsValues(IReadOnlyCollection<Item> items) =>
-        DependencyResolver.CollectValues(items, i => i.Key, i => i.Dependencies, i => i.Values);
+    private static IReadOnlyDictionary<string, IReadOnlySet<string>> CollectsValues(IReadOnlyCollection<Item> items) =>
+        DependencyResolver.CollectValues(
+            items.ToDictionary(i => i.Key, i => i),
+            i => i.Dependencies,
+            i => i?.Value ?? "XXX");
 
     [Fact]
-    public void Transitive_IgnoresMissingDependencies()
+    public void Transitive_DefaultsMissingDependencies()
     {
         CollectsValues([
-            new Item("A", ["B"], ["A1"])
+            new Item("A", ["B"], "AV")
         ]).Should().BeEquivalentTo(new Dictionary<string, IReadOnlySet<string>>
         {
-            ["A"] = new HashSet<string>(["A1"])
+            ["A"] = new HashSet<string>(["AV", "XXX"])
         });
     }
 
@@ -26,18 +29,14 @@ public class DependencyResolverTest
     public void Transitive_FollowsDependencyTree()
     {
         CollectsValues([
-            new Item("A", ["B"], ["AV"]),
-            new Item("B", ["C", "D"], ["BV"]),
-            new Item("C", ["E"], []),
-            new Item("D", ["E"], ["DV"]),
-            new Item("E", [], ["EV"])
+            new Item("A", ["B"], "AV"),
+            new Item("B", ["C"], "BV"),
+            new Item("C", [], "CV")
         ]).Should().BeEquivalentTo(new Dictionary<string, IReadOnlySet<string>>
         {
-            ["A"] = new HashSet<string>(["AV", "BV", "DV", "EV"]),
-            ["B"] = new HashSet<string>(["BV", "DV", "EV"]),
-            ["C"] = new HashSet<string>(["EV"]),
-            ["D"] = new HashSet<string>(["DV", "EV"]),
-            ["E"] = new HashSet<string>(["EV"])
+            ["A"] = new HashSet<string>(["AV", "BV", "CV"]),
+            ["B"] = new HashSet<string>(["BV", "CV"]),
+            ["C"] = new HashSet<string>(["CV"])
         });
     }
 }
