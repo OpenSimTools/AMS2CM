@@ -5,36 +5,46 @@ namespace Core.Utils;
 public static class DependencyResolver
 {
     /// <summary>
-    /// Resolves individual dependencies into transitive ones.
+    /// Collects values from transitive dependencies.
     /// </summary>
-    /// <param name="individualDependencies">Individual dependencies</param>
-    /// <returns>Transitive dependencies</returns>
-    public static IDictionary<string, IReadOnlySet<string>> Transitive(
-        IDictionary<string, IReadOnlyCollection<string>> individualDependencies)
+    /// <param name="items">Items to collect values from</param>
+    /// <param name="keySelector">Select item key</param>
+    /// <param name="dependenciesSelector">Select item dependencies</param>
+    /// <param name="valueSelector">Select item value</param>
+    /// <returns>Values from item and transitive dependencies</returns>
+    public static IDictionary<TKey, IReadOnlySet<TValue>> CollectValues<TItem, TKey, TValue>(
+        IReadOnlyCollection<TItem> items,
+        Func<TItem, TKey> keySelector,
+        Func<TItem, ICollection<TKey>> dependenciesSelector,
+        Func<TItem, ICollection<TValue>> valueSelector) where TKey : notnull
     {
-        var transitiveDependencies = new Dictionary<string, IReadOnlySet<string>>();
+        var itemsByKey = items.ToDictionary(keySelector, i => i);
+        var transitiveValuesByKey = new Dictionary<TKey, IReadOnlySet<TValue>>();
 
-        IEnumerable<string> TransitiveDependencies(string item)
+        foreach (var key in items.Select(keySelector))
         {
-            if (transitiveDependencies.TryGetValue(item, out var td))
+            TransitiveValues(key);
+        }
+        return transitiveValuesByKey;
+
+        IReadOnlySet<TValue> TransitiveValues(TKey key)
+        {
+            if (transitiveValuesByKey.TryGetValue(key, out var tv))
             {
-                return td;
+                return tv;
             }
 
-            if (!individualDependencies.TryGetValue(item, out var id))
+            if (!itemsByKey.TryGetValue(key, out var item))
             {
-                return ImmutableHashSet<string>.Empty;
+                return ImmutableHashSet<TValue>.Empty;
             }
 
-            td = id.Concat(id.SelectMany(TransitiveDependencies)).ToHashSet();
-            transitiveDependencies.Add(item, td);
-            return td;
-        }
+            var transitiveValues = dependenciesSelector(item)
+                .SelectMany(TransitiveValues)
+                .Concat(valueSelector(item)).ToHashSet();
+            transitiveValuesByKey.Add(key, transitiveValues);
 
-        foreach (var item in individualDependencies.Keys)
-        {
-            TransitiveDependencies(item);
+            return transitiveValues;
         }
-        return transitiveDependencies;
     }
 }
