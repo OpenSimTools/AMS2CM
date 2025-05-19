@@ -8,6 +8,7 @@ public record PackageInstallationState(
     // TODO: needed for backward compatibility
     // infer from null hash after the first install
     bool Partial,
-    IReadOnlyCollection<string> Dependencies,
+    // TODO: needed for backward compatibility
+    IReadOnlyCollection<string>? Dependencies,
     IReadOnlyCollection<string> Files
 );

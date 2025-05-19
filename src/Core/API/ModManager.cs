@@ -47,7 +47,7 @@ internal class ModManager : IModManager
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
         var isModInstalled = DependencyResolver
-            .CollectValues(installedMods, s => s.Dependencies, s => s?.Partial ?? true)
+            .CollectValues(installedMods, s => s.Dependencies ?? Array.Empty<string>(), s => s?.Partial ?? true)
             .SelectValues<string, IReadOnlySet<bool>, bool?>(partials => partials.Any(p => p) ? null : true);
 
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
