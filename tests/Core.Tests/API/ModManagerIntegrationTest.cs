@@ -2,7 +2,7 @@ using System.IO.Compression;
 using Core.API;
 using Core.Games;
 using Core.IO;
-using Core.Mods;
+using Core.Mods.Installation;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Installers;
@@ -550,7 +550,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         CreateModPackage("Package", fsHash, relativePaths, callback);
 
     private Package CreateCustomBootfiles(int fsHash) =>
-        CreateModPackage(ModUtils.BootfilesPrefix, fsHash, [
+        CreateModPackage(ModPackagesesUpdater.BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
             VehicleListRelativePath,
             TrackListRelativePath,

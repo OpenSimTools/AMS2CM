@@ -12,7 +12,7 @@ public class ModPackagesesUpdater : PackagesUpdater<ModPackagesesUpdater.IEventH
 {
     #region TODO Move to a better place when not called all over the place
 
-    public const string BootfilesPrefix = "__bootfiles";
+    internal const string BootfilesPrefix = "__bootfiles";
 
     internal static bool IsBootFiles(string packageName) =>
         packageName.StartsWith(BootfilesPrefix);
