@@ -53,7 +53,7 @@ public class ModInstaller : BaseModInstaller
     private void WriteModConfigFiles(ConfigEntries modConfig)
     {
         // TODO remove in later bootfiles refactoring
-        if (ModUtils.IsBootFiles(PackageName))
+        if (ModPackagesesUpdater.IsBootFiles(PackageName))
             return;
         if (modConfig.None())
             return;
