@@ -12,6 +12,9 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     public string PackageName { get; }
     public int? PackageFsHash { get; }
 
+    // A package cannot currently specify dependencies.
+    public IReadOnlyCollection<string> PackageDependencies => Array.Empty<string>();
+
     public IInstallation.State Installed { get; private set; }
     public IReadOnlyCollection<RootedPath> InstalledFiles => installedFiles;
 

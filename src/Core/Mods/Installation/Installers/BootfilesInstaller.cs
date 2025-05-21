@@ -18,7 +18,7 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
-    private const string GeneratedBootfilesPackageName = $"{ModPackagesesUpdater.BootfilesPrefix}_generated";
+    private const string GeneratedBootfilesPackageName = $"{ModPackagesUpdater.BootfilesPrefix}_generated";
 
     internal const string VehicleListRelativeDir = "vehicles";
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
@@ -34,6 +34,9 @@ public class BootfilesInstaller : BaseModInstaller
 
     private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller, IGame game, ITempDir tempDir) =>
         bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(GeneratedBootfilesPackageName, game, tempDir);
+
+    // Bootfiles cannot have dependencies.
+    public override IReadOnlyCollection<string> PackageDependencies => Array.Empty<string>();
 
     protected override void Install(Action innerInstall)
     {

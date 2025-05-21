@@ -1,4 +1,5 @@
-﻿using Core.Games;
+﻿using System.Collections.Immutable;
+using Core.Games;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -26,12 +27,19 @@ public class ModInstaller : BaseModInstaller
     private readonly Matcher filesToConfigureMatcher;
     private readonly bool generateModDetails;
 
-    internal ModInstaller(IInstaller inner, IGame game, ITempDir tempDir, IConfig config) :
+    private IReadOnlyCollection<string> bootfilesDependency = Array.Empty<string>();
+    private readonly string bootfilesPackageName;
+
+    internal ModInstaller(IInstaller inner, string bootfilesPackageName, IGame game, ITempDir tempDir, IConfig config) :
         base(inner, game, tempDir, config)
     {
+        this.bootfilesPackageName = bootfilesPackageName;
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
         generateModDetails = config.GenerateModDetails;
     }
+
+    public override IReadOnlyCollection<string> PackageDependencies =>
+        Inner.PackageDependencies.Concat(bootfilesDependency).ToImmutableList();
 
     protected override void Install(Action innerInstall)
     {
@@ -52,9 +60,6 @@ public class ModInstaller : BaseModInstaller
 
     private void WriteModConfigFiles(ConfigEntries modConfig)
     {
-        // TODO remove in later bootfiles refactoring
-        if (ModPackagesesUpdater.IsBootFiles(PackageName))
-            return;
         if (modConfig.None())
             return;
 
@@ -71,9 +76,12 @@ public class ModInstaller : BaseModInstaller
         AddToInstalledFiles(PostProcessor.AppendCrdFileEntries(modConfigDirPath, modConfig.CrdFileEntries));
         AddToInstalledFiles(PostProcessor.AppendTrdFileEntries(modConfigDirPath, modConfig.TrdFileEntries));
         AddToInstalledFiles(PostProcessor.AppendDrivelineRecords(modConfigDirPath, modConfig.DrivelineRecords));
-        if (generateModDetails && (modConfig.CrdFileEntries.Any() || modConfig.DrivelineRecords.Any()))
+        if (generateModDetails && !modConfig.TrdFileEntries.Any())
         {
             AddToInstalledFiles(PostProcessor.GenerateModDetails(modConfigDirPath, Inner));
+        } else
+        {
+            bootfilesDependency = new[] { bootfilesPackageName };
         }
     }
 

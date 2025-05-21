@@ -2,6 +2,6 @@
 
 namespace Core.API;
 
-public interface IEventHandler : ModPackagesesUpdater.IEventHandler
+public interface IEventHandler : ModPackagesUpdater.IEventHandler
 {
 }

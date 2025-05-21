@@ -163,12 +163,7 @@ public class PackagesUpdater<TEventHandler>
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var allInstalledFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var installCallbacks = new ProcessingCallbacks<RootedPath>
-        {
-            Accept = gamePath => !allInstalledFiles.Contains(gamePath.Relative),
-            Before = gamePath => allInstalledFiles.Add(gamePath.Relative)
-        };
+        var allInstalledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
         var progress = new PercentOfTotal(installers.Count + 2);
@@ -181,6 +176,24 @@ public class PackagesUpdater<TEventHandler>
             {
                 eventHandler.InstallCurrent(installer.PackageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(null);
+                var automaticDependencies = new HashSet<string>();
+                var installCallbacks = new ProcessingCallbacks<RootedPath>
+                {
+                    Accept = gamePath =>
+                    {
+                        var overridingPackageName = allInstalledFiles.GetValueOrDefault(gamePath.Relative);
+                        if (overridingPackageName is null)
+                        {
+                            return true;
+                        }
+                        if (overridingPackageName != installer.PackageName)
+                        {
+                            automaticDependencies.Add(overridingPackageName);
+                        }
+                        return false;
+                    },
+                    Before = gamePath => allInstalledFiles.Add(gamePath.Relative, installer.PackageName)
+                };
                 try
                 {
                     installer.Install(InstallTo(destinationDir), backupStrategy, installCallbacks);
@@ -191,6 +204,7 @@ public class PackagesUpdater<TEventHandler>
                         .Where(rp => rp.Root == destinationDir)
                         .Select(rp => rp.Relative)
                         .ToImmutableList();
+                    automaticDependencies.UnionWith(installer.PackageDependencies);
                     afterInstall(installer.PackageName,
                         packageInstalledFiles.Count == 0
                             ? null
@@ -198,6 +212,7 @@ public class PackagesUpdater<TEventHandler>
                                 Time: timeProvider.GetUtcNow().DateTime,
                                 FsHash: installer.PackageFsHash,
                                 Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
+                                Dependencies: automaticDependencies,
                                 Files: packageInstalledFiles
                         ));
                 }

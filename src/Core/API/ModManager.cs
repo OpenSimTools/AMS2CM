@@ -1,6 +1,5 @@
 using Core.Games;
 using Core.IO;
-using Core.Mods;
 using Core.Mods.Installation;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
@@ -17,19 +16,19 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly ModPackagesesUpdater packagesesUpdater;
+    private readonly ModPackagesUpdater packagesUpdater;
 
-    internal ModManager(IGame game, IPackageRepository packageRepository, ModPackagesesUpdater packagesesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(IGame game, IPackageRepository packageRepository, ModPackagesUpdater packagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
         this.packageRepository = packageRepository;
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
-        this.packagesesUpdater = packagesesUpdater;
+        this.packagesUpdater = packagesUpdater;
     }
 
-    private static void AddToEnvionmentPath(string additionalPath)
+    private static void AddToEnvironmentPath(string additionalPath)
     {
         const string pathEnvVar = "PATH";
         var env = Environment.GetEnvironmentVariable(pathEnvVar);
@@ -43,37 +42,33 @@ internal class ModManager : IModManager
     public List<ModState> FetchState()
     {
         var installedMods = statePersistence.ReadState().Install.Mods;
-        var enabledModPackages = packageRepository.ListEnabled().ToDictionary(_ => _.Name);
-        var disabledModPackages = packageRepository.ListDisabled().ToDictionary(_ => _.Name);
+        var enabledModPackages = packageRepository.ListEnabled().ToDictionary(p => p.Name);
+        var disabledModPackages = packageRepository.ListDisabled().ToDictionary(p => p.Name);
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
-        var bootfilesFailed = installedMods.Where(kv => ModPackagesesUpdater.IsBootFiles(kv.Key) && (kv.Value?.Partial ?? false)).Any();
-        var isModInstalled = installedMods.SelectValues<string, PackageInstallationState, bool?>(modInstallationState =>
-            modInstallationState is null ? false : ((modInstallationState.Partial || bootfilesFailed) ? null : true)
-        );
+        var isModInstalled = DependencyResolver
+            .CollectValues(installedMods, s => s.Dependencies ?? Array.Empty<string>(), s => s?.Partial ?? true)
+            .SelectValues<string, IReadOnlySet<bool>, bool?>(partials => partials.Any(p => p) ? null : true);
+
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
         {
             availableModPackages.TryGetValue(packageName, out var modPackage);
             return IsOutOfDate(modPackage, modInstallationState);
         });
 
-        var allPackageNames = installedMods.Keys
-            .Where(_ => !ModPackagesesUpdater.IsBootFiles(_))
+        var allPackageNames = installedMods.Keys.Where(packageName => !ModPackagesUpdater.IsBootFiles(packageName))
             .Concat(enabledModPackages.Keys)
             .Concat(disabledModPackages.Keys)
             .Distinct();
 
         return allPackageNames
-            .Select(packageName =>
-            {
-                return new ModState(
-                    PackageName: packageName,
-                    PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
-                    IsInstalled: isModInstalled.TryGetValue(packageName, out var isInstalled) ? isInstalled : false,
-                    IsEnabled: enabledModPackages.ContainsKey(packageName),
-                    IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
-                );
-            }).ToList();
+            .Select(packageName => new ModState(
+                PackageName: packageName,
+                PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
+                IsInstalled: isModInstalled.GetValueOrDefault(packageName, false),
+                IsEnabled: enabledModPackages.ContainsKey(packageName),
+                IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
+            )).ToList();
     }
 
     private static bool IsOutOfDate(Package? modPackage, PackageInstallationState? modInstallationState)
@@ -129,9 +124,9 @@ internal class ModManager : IModManager
     public void InstallEnabledMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        // It shoulnd't be needed, but some systems seem to want to load oo2core
+        // It shouldn't be needed, but some systems seem to want to load oo2core
         // even when Mermaid and Kraken compression are not used in pak files!
-        AddToEnvionmentPath(game.InstallationDirectory);
+        AddToEnvironmentPath(game.InstallationDirectory);
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
@@ -156,14 +151,14 @@ internal class ModManager : IModManager
 
     private void UpdateMods(IEnumerable<Package> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        packagesesUpdater.Apply(
+        packagesUpdater.Apply(
             statePersistence.ReadState().Install.Mods,
             packages,
             game.InstallationDirectory,
             nextState =>
                 statePersistence.WriteState(new SavedState(
                     Install: new InstallationState(
-                        Time: nextState.Values.Max(_ => _.Time),
+                        Time: nextState.Values.Max(s => s.Time),
                         Mods: nextState
                     )
                 )),

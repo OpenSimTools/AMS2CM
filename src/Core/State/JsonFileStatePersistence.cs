@@ -52,7 +52,10 @@ internal class JsonFileStatePersistence : IStatePersistence
                     Time: installTime,
                     Mods: oldState.AsEnumerable().ToDictionary(
                         kv => kv.Key,
-                        kv => new PackageInstallationState(Time: installTime, FsHash: null, Partial: false, Files: kv.Value)
+                        kv => new PackageInstallationState(
+                            Time: installTime, FsHash: null, Partial: false,
+                            Dependencies: Array.Empty<string>(),
+                            Files: kv.Value)
                     )
                 )
             );

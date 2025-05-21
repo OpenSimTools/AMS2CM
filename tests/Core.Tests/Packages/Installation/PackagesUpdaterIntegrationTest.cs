@@ -57,6 +57,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
                         Time: null,
                         FsHash: 42,
                         Partial: false,
+                        Dependencies: [],
                         Files: ["AF"])
             },
             []
@@ -88,6 +89,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
                         Time: null,
                         FsHash: 42,
                         Partial: false,
+                        Dependencies: [],
                         Files: ["AF1", "Fail", "AF2"])
             },
             []
@@ -110,7 +112,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(fakeUtcInstallationDate, 42, false, ["AF"])
+            ["A"] = new(fakeUtcInstallationDate, 42, false, [], ["AF"])
         });
 
         backupStrategyMock.Verify(_ => _.PerformBackup(TestPath("AF")));
@@ -151,7 +153,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: 1, Partial: false, Files: [
+                ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
                     "AF",
                     "AF1",
                 ])
@@ -166,7 +168,7 @@ public class PackagesUpdaterIntegrationTest : AbstractFilesystemTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(fakeUtcInstallationDate, 2, false, ["AF", "AF2"])
+            ["A"] = new(fakeUtcInstallationDate, 2, false, [], ["AF", "AF2"])
         });
     }
 
