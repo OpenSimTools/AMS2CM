@@ -168,6 +168,44 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
     }
 
     [Fact]
+    public void FetchState_RemovesUnavailableBootfiles()
+    {
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [$"{ModPackagesUpdater.BootfilesPrefix}_IU"] = new(
+                Time: null, FsHash: null, Partial: false,
+                Dependencies: [],
+                Files: []),
+            [$"{ModPackagesUpdater.BootfilesPrefix}_IE"] = new(
+                Time: null, FsHash: null, Partial: false,
+                Dependencies: [],
+                Files: []),
+            [$"{ModPackagesUpdater.BootfilesPrefix}_ID"] = new(
+                Time: null, FsHash: null, Partial: false,
+                Dependencies: [],
+                Files: [])
+        });
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
+        [
+            new Package(Name: $"{ModPackagesUpdater.BootfilesPrefix}_IE", FullPath: "ie/path", Enabled: true, FsHash: null),
+            new Package(Name: $"{ModPackagesUpdater.BootfilesPrefix}_UE", FullPath: "ue/path", Enabled: true, FsHash: null)
+        ]);
+        modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
+        [
+            new Package(Name: $"{ModPackagesUpdater.BootfilesPrefix}_ID", FullPath: "id/path", Enabled: false, FsHash: null),
+            new Package(Name: $"{ModPackagesUpdater.BootfilesPrefix}_UD", FullPath: "ud/path", Enabled: false, FsHash: null)
+        ]);
+
+        modManager.FetchState().Should().BeEquivalentTo(
+        [
+            new ModState($"{ModPackagesUpdater.BootfilesPrefix}_IE", "ie/path", IsInstalled: true, IsEnabled: true, IsOutOfDate: true),
+            new ModState($"{ModPackagesUpdater.BootfilesPrefix}_UE", "ue/path", IsInstalled: false, IsEnabled: true, IsOutOfDate: false),
+            new ModState($"{ModPackagesUpdater.BootfilesPrefix}_ID", "id/path", IsInstalled: true, IsEnabled: false, IsOutOfDate: true),
+            new ModState($"{ModPackagesUpdater.BootfilesPrefix}_UD", "ud/path", IsInstalled: false, IsEnabled: false, IsOutOfDate: false),
+        ]);
+    }
+
+    [Fact]
     public void Uninstall_FailsIfGameRunning()
     {
         gameMock.Setup(m => m.IsRunning).Returns(true);
