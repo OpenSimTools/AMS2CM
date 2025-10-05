@@ -7,7 +7,10 @@
   <ItemGroup>
     <PackageReference Include="WixToolset.Heat" Version="4.0.4" />
     <PackageReference Include="WixToolset.UI.wixext" Version="4.0.4" />
-    <PackageReference Include="GitVersion.MsBuild" Version="5.12.*" />
+    <PackageReference Include="GitVersion.MsBuild" Version="5.12.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CLI\CLI.csproj" />
