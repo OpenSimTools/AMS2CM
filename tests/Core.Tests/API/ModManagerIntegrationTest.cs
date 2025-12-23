@@ -11,6 +11,7 @@ using Core.State;
 using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
+using LibArchive.Net;
 
 namespace Core.Tests.API;
 
@@ -747,9 +748,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         }
 
         callback(modContentsDir);
+
         var archivePath = $@"{modsDir.FullName}\{modName}.zip";
-        // TODO LibArchive.Net does not support compression yet
-        ZipFile.CreateFromDirectory(modContentsDir, archivePath);
+        using var writer = new LibArchiveWriter(archivePath, ArchiveFormat.Zip);
+        writer.AddDirectory(modContentsDir, recursive: true);
+
         return new Package($"{packagePrefix}{fsHash}", archivePath, true, fsHash);
     }
 
