@@ -26,8 +26,7 @@
     <PackageReference Include="Gameloop.Vdf" Version="0.6.2" />
     <PackageReference Include="Gameloop.Vdf.JsonConverter" Version="0.2.1" />
     <PackageReference Include="PCarsTools" Version="1.1.2.5" />
-    <!-- FIXME enter the correct version once PR merges and released (0.1.6?) -->
-    <PackageReference Include="OpenSimTools.LibArchive.Net" Version="0.1.6-beta0001" />
+    <PackageReference Include="LibArchive.Net" Version="0.3.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.9" />
