@@ -63,36 +63,38 @@ public class PackagesUpdater<TEventHandler>
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
         string installDir,
-        Action<string, PackageInstallationState?> afterInstall,
+        Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        UninstallPackages(currentState, installDir, afterInstall, eventHandler, cancellationToken);
-        InstallPackages(installers, installDir, afterInstall, eventHandler, cancellationToken);
+        UninstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
+        InstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
     private void UninstallPackages(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
+        IReadOnlyCollection<IInstaller> installers,
         string installDir,
-        Action<string, PackageInstallationState?> afterUninstall,
+        Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
         if (currentState.Any())
         {
             eventHandler.UninstallStart();
-            foreach (var (packageName, packagePackageInstallationState) in currentState)
+            foreach (var (packageName, packageInstallationState) in currentState)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
                 eventHandler.UninstallCurrent(packageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(packagePackageInstallationState);
-                var filesLeft = packagePackageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState);
+                var filesLeft = packageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var error = false;
                 try
                 {
-                    foreach (var relativePath in packagePackageInstallationState.Files)
+                    foreach (var relativePath in packageInstallationState.Files)
                     {
                         var gamePath = new RootedPath(installDir, relativePath);
                         if (!backupStrategy.RestoreBackup(gamePath))
@@ -101,24 +103,24 @@ public class PackagesUpdater<TEventHandler>
                         }
                         filesLeft.Remove(gamePath.Relative);
                     }
-                    DeleteEmptyDirectories(installDir, packagePackageInstallationState.Files);
+                    DeleteEmptyDirectories(installDir, packageInstallationState.Files);
+                }
+                catch
+                {
+                    error = true;
+                    throw;
                 }
                 finally
                 {
-                    if (filesLeft.Count == 0)
-                    {
-                        afterUninstall(packageName, null);
-                    }
-                    else
-                    {
-                        afterUninstall(packageName, packagePackageInstallationState with
-                        {
-                            // // Once partially uninstalled, it will stay that way unless fully uninstalled
-                            Partial = packagePackageInstallationState.Partial ||
-                                      filesLeft.Count != packagePackageInstallationState.Files.Count,
-                            Files = filesLeft
-                        });
-                    }
+                    updatePackageState(packageName,
+                        filesLeft.Count == 0 ?
+                            null :
+                            packageInstallationState with
+                            {
+                                Partial = error,
+                                Files = filesLeft
+                            }
+                        );
                 }
             }
             eventHandler.UninstallEnd();
@@ -157,9 +159,10 @@ public class PackagesUpdater<TEventHandler>
     }
 
     private void InstallPackages(
+        IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
-        string destinationDir,
-        Action<string, PackageInstallationState?> afterInstall,
+        string installDir,
+        Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
@@ -196,17 +199,17 @@ public class PackagesUpdater<TEventHandler>
                 };
                 try
                 {
-                    installer.Install(InstallTo(destinationDir), backupStrategy, installCallbacks);
+                    installer.Install(InstallTo(installDir), backupStrategy, installCallbacks);
                 }
                 finally
                 {
                     var packageInstalledFiles = installer.InstalledFiles
-                        .Where(rp => rp.Root == destinationDir)
+                        .Where(rp => rp.Root == installDir)
                         .Select(rp => rp.Relative)
                         .ToImmutableList();
                     automaticDependencies.UnionWith(installer.PackageDependencies);
-                    afterInstall(installer.PackageName,
-                        packageInstalledFiles.Count == 0
+                    updatePackageState(installer.PackageName,
+                        packageInstalledFiles.IsEmpty
                             ? null
                             : new PackageInstallationState(
                                 Time: timeProvider.GetUtcNow().DateTime,
