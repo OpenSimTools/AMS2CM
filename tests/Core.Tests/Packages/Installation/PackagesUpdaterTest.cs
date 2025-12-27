@@ -210,7 +210,7 @@ public class PackagesUpdaterTest
     }
 
 
-    [Fact(Skip = "Bug in code")]
+    [Fact]
     public void Apply_UninstallFailuresResultsInPartialInstallation()
     {
         backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();

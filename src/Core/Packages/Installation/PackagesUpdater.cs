@@ -91,6 +91,7 @@ public class PackagesUpdater<TEventHandler>
                 eventHandler.UninstallCurrent(packageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState);
                 var filesLeft = packageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var error = false;
                 try
                 {
                     foreach (var relativePath in packageInstallationState.Files)
@@ -104,22 +105,22 @@ public class PackagesUpdater<TEventHandler>
                     }
                     DeleteEmptyDirectories(installDir, packageInstallationState.Files);
                 }
+                catch
+                {
+                    error = true;
+                    throw;
+                }
                 finally
                 {
-                    if (filesLeft.Count == 0)
-                    {
-                        updatePackageState(packageName, null);
-                    }
-                    else
-                    {
-                        updatePackageState(packageName, packageInstallationState with
-                        {
-                            // // Once partially uninstalled, it will stay that way unless fully uninstalled
-                            Partial = packageInstallationState.Partial ||
-                                      filesLeft.Count != packageInstallationState.Files.Count,
-                            Files = filesLeft
-                        });
-                    }
+                    updatePackageState(packageName,
+                        filesLeft.Count == 0 ?
+                            null :
+                            packageInstallationState with
+                            {
+                                Partial = error,
+                                Files = filesLeft
+                            }
+                        );
                 }
             }
             eventHandler.UninstallEnd();
@@ -208,7 +209,7 @@ public class PackagesUpdater<TEventHandler>
                         .ToImmutableList();
                     automaticDependencies.UnionWith(installer.PackageDependencies);
                     updatePackageState(installer.PackageName,
-                        packageInstalledFiles.Count == 0
+                        packageInstalledFiles.IsEmpty
                             ? null
                             : new PackageInstallationState(
                                 Time: timeProvider.GetUtcNow().DateTime,
