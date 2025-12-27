@@ -70,6 +70,7 @@ public class PackagesUpdater<TEventHandler>
         UninstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
         InstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
+
     private void UninstallPackages(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IInstaller> installers,
@@ -167,9 +168,6 @@ public class PackagesUpdater<TEventHandler>
         var allInstalledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         // Increase by one in case bootfiles are needed and another one to show that something is happening
-        // TODO this should not know about bootfiles!
-        // - We could have an undefined progress bar at the end, managed by modpackageinstaller?
-        // - We could make progress hierarchical and each part (this, modupdater, ...) providing its own progress
         var progress = new PercentOfTotal(installers.Count + 2);
         if (installers.Any())
         {

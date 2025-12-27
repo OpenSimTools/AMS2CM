@@ -1,0 +1,365 @@
+using Core.Packages.Installation;
+using Core.Packages.Installation.Backup;
+using Core.Packages.Installation.Installers;
+using Core.Packages.Repository;
+using Core.Utils;
+using FluentAssertions;
+using FluentAssertions.Extensions;
+using Microsoft.Extensions.Time.Testing;
+
+namespace Core.Tests.Packages.Installation;
+
+public class PackagesUpdaterTest
+{
+    #region Initialisation
+
+    private class TestException : Exception;
+
+    private readonly Mock<IBackupStrategy> backupStrategyMock = new();
+    private readonly Mock<PackagesUpdater.IEventHandler> eventHandlerMock = new();
+    private readonly DateTime fakeUtcInstallationDate = DateTime.Today.AddDays(10).ToUniversalTime();
+    private readonly TimeSpan fakeLocalTimeOffset = TimeSpan.FromHours(3);
+    private IReadOnlyDictionary<string, PackageInstallationState>? recordedState;
+    private readonly string destinationDir = Path.GetRandomFileName();
+
+    #endregion
+
+    [Fact]
+    public void Apply_NoMods()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>(),
+            []
+        );
+
+        recordedState.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_InstallsSelectedMods()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>(),
+            [
+                InstallerOf("A", fsHash: 42, files: [
+                    "AF"
+                ])
+            ]
+        );
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(fakeUtcInstallationDate, 42, false, [], ["AF"])
+        });
+
+        backupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF")));
+        backupStrategyMock.Verify(m => m.AfterInstall(DestinationPath("AF")));
+        backupStrategyMock.VerifyNoOtherCalls();
+
+        eventHandlerMock.Verify(m => m.UninstallNoPackages());
+        eventHandlerMock.Verify(m => m.InstallStart());
+        eventHandlerMock.Verify(m => m.InstallCurrent("A"));
+        eventHandlerMock.Verify(m => m.InstallEnd());
+        eventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
+        eventHandlerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void Apply_UninstallsUnselectedMods()
+    {
+        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("AF"))).Returns(true);
+        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("SkipRestore"))).Returns(false);
+
+        Apply(
+            new Dictionary<string, PackageInstallationState>{
+                ["A"] = new(
+                        Time: null,
+                        FsHash: 42,
+                        Partial: false,
+                        Dependencies: [],
+                        Files: ["AF", "SkipRestore"])
+            },
+            []
+        );
+
+        recordedState.Should().BeEmpty();
+
+        backupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF")));
+        backupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("SkipRestore")));
+        backupStrategyMock.VerifyNoOtherCalls();
+
+        eventHandlerMock.Verify(m => m.UninstallStart());
+        eventHandlerMock.Verify(m => m.UninstallCurrent("A"));
+        eventHandlerMock.Verify(m => m.UninstallSkipModified("SkipRestore"));
+        eventHandlerMock.Verify(m => m.UninstallEnd());
+        eventHandlerMock.Verify(m => m.InstallNoPackages());
+        eventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
+        eventHandlerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void Apply_UpdatesChangedMods()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                    "AF",
+                    "AF1",
+                ])
+            },
+            [
+                InstallerOf("A", fsHash: 2, [
+                    "AF",
+                    "AF2"
+                ])
+            ]
+        );
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 2, Partial: false, Dependencies: [], Files: [
+                "AF",
+                "AF2"
+            ])
+        });
+
+        backupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
+        backupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF2")));
+    }
+
+    [Fact]
+    public void Apply_RestoresFilesPreviouslyShadowedByUninstalledMod()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                    "AF1",
+                ]),
+                ["B"] = new(Time: null, FsHash: 2, Partial: false, Dependencies: [], Files: [
+                    "SF", // SF in A was shadowed by B
+                    "BF1",
+                ])
+            },
+            [
+                InstallerOf("A", fsHash: 1, [
+                    "SF",
+                    "AF1"
+                ])
+            ]
+        );
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                "SF",
+                "AF1"
+            ])
+        });
+    }
+
+    [Fact]
+    public void Apply_InstallStopsIfBackupFails()
+    {
+        backupStrategyMock.Setup(m => m.PerformBackup(DestinationPath("Fail"))).Throws<TestException>();
+
+        this.Invoking(m => m.Apply(
+            new Dictionary<string, PackageInstallationState>(),
+            [
+                InstallerOf("A", fsHash: 42, files: [
+                    "AF1", "Fail", "AF2"
+                ])
+            ]
+        )).Should().Throw<TestException>();
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 42, Partial: true, Dependencies: [], Files: [
+                "AF1",
+                "Fail" // We don't know where it failed, so we add it
+            ])
+        });
+    }
+
+    [Fact]
+    public void Apply_UninstallStopsIfBackupFails()
+    {
+        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();
+
+        this.Invoking(m => m.Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(
+                    Time: null,
+                    FsHash: 42,
+                    Partial: false,
+                    Dependencies: [],
+                    Files: ["AF1", "Fail", "AF2"])
+            },
+            []
+        )).Should().Throw<TestException>();
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: null, FsHash: 42, Partial: true, Dependencies: [], Files: [
+                "Fail", // We don't know where it failed, so we leave it
+                "AF2"
+            ])
+        });
+    }
+
+
+    [Fact(Skip = "Bug in code")]
+    public void Apply_UninstallFailuresResultsInPartialInstallation()
+    {
+        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();
+
+        this.Invoking(m => m.Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(
+                    Time: null,
+                    FsHash: null,
+                    Partial: false,
+                    Dependencies: [],
+                    Files: ["Fail"])
+            },
+            []
+        )).Should().Throw<TestException>();
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+                "Fail"
+            ])
+        });
+    }
+
+    [Fact]
+    public void Apply_PartialPackagesStayPartial()
+    {
+        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();
+
+        this.Invoking(m => m.Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(
+                    Time: null,
+                    FsHash: null,
+                    Partial: true,
+                    Dependencies: [],
+                    Files: ["Fail"])
+            },
+            []
+        )).Should().Throw<TestException>();
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+                "Fail"
+            ])
+        });
+    }
+
+
+    [Fact]
+    public void Apply_UninstallRemovesEmptyDirectories()
+    {
+        var subDir = Path.Combine("D1", "D2");
+        Directory.CreateDirectory(DestinationPath(subDir).Full);
+
+        Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["A"] = new(
+                    Time: null,
+                    FsHash: null,
+                    Partial: true,
+                    Dependencies: [],
+                    Files: [Path.Combine(subDir, "F1")])
+            },
+            []
+        );
+
+        recordedState.Should().BeEmpty();
+
+        Directory.Exists(DestinationPath("D1").Full).Should().BeFalse();
+    }
+
+    #region Utility methods
+
+    protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
+
+    private void Apply(
+        IReadOnlyDictionary<string, PackageInstallationState> oldState,
+        IReadOnlyCollection<IInstaller> installers)
+    {
+        var packages = installers.Select(i => new Package(i.PackageName, "", true, null));
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState>>();
+        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>()))
+            .Returns(backupStrategyMock.Object);
+        var packagesUpdater = new PackagesUpdater<PackagesUpdater.IEventHandler>(
+            new InstallerForPackage(installers),
+            backupStrategyProviderMock.Object,
+            new FakeTimeProvider(fakeUtcInstallationDate.WithOffset(fakeLocalTimeOffset)));
+        packagesUpdater.Apply(
+            oldState,
+            packages,
+            destinationDir,
+            newState => recordedState = newState,
+            eventHandlerMock.Object,
+            CancellationToken.None);
+    }
+
+    private class InstallerForPackage : IInstallerFactory
+    {
+        private readonly IReadOnlyCollection<IInstaller> installers;
+
+        internal InstallerForPackage(IReadOnlyCollection<IInstaller> installers)
+        {
+            this.installers = installers;
+        }
+
+        public IInstaller PackageInstaller(Package package) =>
+            installers.First(installer => installer.PackageName == package.Name);
+    }
+
+    private static IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files)
+    {
+        return new StaticFilesInstaller(name, fsHash, files);
+    }
+
+    private class StaticFilesInstaller : BaseInstaller<object>
+    {
+        private static readonly object NoContext = new();
+        private readonly IReadOnlyCollection<string> files;
+
+        internal StaticFilesInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> files) :
+            base(packageName, packageFsHash)
+        {
+            this.files = files;
+        }
+
+        protected override void InstalAllFiles(InstallBody body)
+        {
+            foreach (var file in files)
+            {
+                body(file, NoContext);
+            }
+        }
+
+        protected override void InstallFile(RootedPath destinationPath, object context)
+        {
+            // Do not install any file for real
+        }
+
+        // Install everything from the root directory
+
+        private static readonly string DirAtRoot = "X";
+
+        public override IEnumerable<string> RelativeDirectoryPaths => [DirAtRoot];
+    }
+
+    #endregion
+}
