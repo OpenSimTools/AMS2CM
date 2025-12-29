@@ -13,16 +13,18 @@ public class MoveFileBackupStrategy : IBackupStrategy
 
     private readonly IFileSystem fs;
     private readonly IBackupFileNaming backupFileNaming;
+    private readonly IBackupEventHandler? eventHandler;
 
-    public MoveFileBackupStrategy(IBackupFileNaming backupFileNaming) :
-        this(new FileSystem(), backupFileNaming)
+    public MoveFileBackupStrategy(IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler) :
+        this(new FileSystem(), backupFileNaming, eventHandler)
     {
     }
 
-    public MoveFileBackupStrategy(IFileSystem fs, IBackupFileNaming backupFileNaming)
+    internal MoveFileBackupStrategy(IFileSystem fs, IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler)
     {
         this.fs = fs;
         this.backupFileNaming = backupFileNaming;
+        this.eventHandler = eventHandler;
     }
 
     public virtual void PerformBackup(RootedPath path)
@@ -33,21 +35,23 @@ public class MoveFileBackupStrategy : IBackupStrategy
         }
         if (!fs.File.Exists(path.Full))
         {
+            eventHandler?.BackupSkipped(path);
             return;
         }
 
         var backupFilePath = backupFileNaming.ToBackup(path.Full);
+
         if (fs.File.Exists(backupFilePath))
         {
             fs.File.Delete(path.Full);
+            eventHandler?.BackupSkipped(path);
+            return;
         }
-        else
-        {
-            fs.File.Move(path.Full, backupFilePath);
-        }
+
+        fs.File.Move(path.Full, backupFilePath);
     }
 
-    public bool RestoreBackup(RootedPath path)
+    public void RestoreBackup(RootedPath path)
     {
         if (fs.File.Exists(path.Full))
         {
@@ -58,8 +62,6 @@ public class MoveFileBackupStrategy : IBackupStrategy
         {
             fs.File.Move(backupFilePath, path.Full);
         }
-
-        return true;
     }
 
     public void DeleteBackup(RootedPath path)

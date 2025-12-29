@@ -67,9 +67,6 @@ public class PackagesUpdaterTest
     [Fact]
     public void Apply_UninstallsUnselectedMods()
     {
-        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("AF"))).Returns(true);
-        backupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("SkipRestore"))).Returns(false);
-
         Apply(
             new Dictionary<string, PackageInstallationState>{
                 ["A"] = new(
@@ -77,7 +74,7 @@ public class PackagesUpdaterTest
                         FsHash: 42,
                         Partial: false,
                         Dependencies: [],
-                        Files: ["AF", "SkipRestore"])
+                        Files: ["AF"])
             },
             []
         );
@@ -85,12 +82,10 @@ public class PackagesUpdaterTest
         recordedState.Should().BeEmpty();
 
         backupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF")));
-        backupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("SkipRestore")));
         backupStrategyMock.VerifyNoOtherCalls();
 
         eventHandlerMock.Verify(m => m.UninstallStart());
         eventHandlerMock.Verify(m => m.UninstallCurrent("A"));
-        eventHandlerMock.Verify(m => m.UninstallSkipModified("SkipRestore"));
         eventHandlerMock.Verify(m => m.UninstallEnd());
         eventHandlerMock.Verify(m => m.InstallNoPackages());
         eventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
@@ -296,8 +291,8 @@ public class PackagesUpdaterTest
         IReadOnlyCollection<IInstaller> installers)
     {
         var packages = installers.Select(i => new Package(i.PackageName, "", true, null));
-        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState>>();
-        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>()))
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState, PackagesUpdater.IEventHandler>>();
+        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>(), eventHandlerMock.Object))
             .Returns(backupStrategyMock.Object);
         var packagesUpdater = new PackagesUpdater<PackagesUpdater.IEventHandler>(
             new InstallerForPackage(installers),

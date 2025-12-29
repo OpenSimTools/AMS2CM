@@ -8,28 +8,16 @@ using Core.Utils;
 
 namespace Core.Mods.Installation;
 
-public class ModPackagesUpdater : PackagesUpdater<ModPackagesUpdater.IEventHandler>
+public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
+    where TEventHandler : ModPackagesUpdater.IEventHandler
 {
-    #region TODO Move to a better place when not called all over the place
-
-    internal const string BootfilesPrefix = "__bootfiles";
-
-    internal static bool IsBootFiles(string packageName) =>
-        packageName.StartsWith(BootfilesPrefix);
-
-    #endregion
-
-    public interface IEventHandler : PackagesUpdater.IEventHandler, BootfilesInstaller.IEventHandler
-    {
-    }
-
     private readonly IGame game;
     private readonly ITempDir tempDir;
     private readonly ModInstaller.IConfig config;
 
     public ModPackagesUpdater(
         IInstallerFactory installerFactory,
-        IBackupStrategyProvider<PackageInstallationState> backupStrategyProvider,
+        IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider,
         IGame game,
         ITempDir tempDir,
@@ -46,10 +34,10 @@ public class ModPackagesUpdater : PackagesUpdater<ModPackagesUpdater.IEventHandl
         IReadOnlyCollection<IInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
-        IEventHandler eventHandler,
+        TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var (bootfiles, notBootfiles) = installers.Partition(p => IsBootFiles(p.PackageName));
+        var (bootfiles, notBootfiles) = installers.Partition(p => ModPackagesUpdater.IsBootFiles(p.PackageName));
 
         var bootfilesInstaller = CreateBootfilesInstaller(bootfiles, eventHandler);
         var allInstallers = notBootfiles
@@ -59,9 +47,25 @@ public class ModPackagesUpdater : PackagesUpdater<ModPackagesUpdater.IEventHandl
         base.Apply(currentState, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
-    private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, IEventHandler eventHandler)
+    private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, ModPackagesUpdater.IEventHandler eventHandler)
     {
         var installer = bootfilesPackageInstallers.FirstOrDefault();
         return new BootfilesInstaller(installer, game, tempDir, eventHandler, config);
+    }
+}
+
+public static class ModPackagesUpdater
+{
+    #region TODO Move to a better place when not called all over the place
+
+    internal const string BootfilesPrefix = "__bootfiles";
+
+    internal static bool IsBootFiles(string packageName) =>
+        packageName.StartsWith(BootfilesPrefix);
+
+    #endregion
+
+    public interface IEventHandler : PackagesUpdater.IEventHandler, BootfilesInstaller.IEventHandler
+    {
     }
 }

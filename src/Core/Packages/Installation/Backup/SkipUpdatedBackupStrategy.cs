@@ -8,38 +8,45 @@ namespace Core.Packages.Installation.Backup;
 /// </summary>
 internal class SkipUpdatedBackupStrategy : IBackupStrategy
 {
-    internal class Provider : IBackupStrategyProvider<PackageInstallationState>
+    internal class Provider<TEventHandler> : IBackupStrategyProvider<PackageInstallationState, TEventHandler>
+        where TEventHandler : IBackupEventHandler
     {
-        private readonly IBackupStrategy baseStrategy;
+        private readonly IBackupStrategyProvider<PackageInstallationState, TEventHandler> baseProvider;
 
-        public Provider(IBackupStrategy baseStrategy)
+        public Provider(IBackupStrategyProvider<PackageInstallationState, TEventHandler> baseProvider)
         {
-            this.baseStrategy = baseStrategy;
+            this.baseProvider = baseProvider;
         }
 
-        public IBackupStrategy BackupStrategy(PackageInstallationState? state) =>
-            new SkipUpdatedBackupStrategy(baseStrategy, state?.Time);
+        public IBackupStrategy BackupStrategy(PackageInstallationState? state, TEventHandler? eventHandler) {
+            var baseStrategy = baseProvider.BackupStrategy(state, eventHandler);
+            return new SkipUpdatedBackupStrategy(baseStrategy, state?.Time, eventHandler);
+        }
     }
 
     private readonly IFileSystem fs;
     private readonly IBackupStrategy inner;
     private readonly DateTime? backupTimeUtc;
+    private readonly IBackupEventHandler? eventHandler;
 
     private SkipUpdatedBackupStrategy(
         IBackupStrategy backupStrategy,
-        DateTime? backupTimeUtc) :
-        this(new FileSystem(), backupStrategy, backupTimeUtc)
+        DateTime? backupTimeUtc,
+        IBackupEventHandler? eventHandler) :
+        this(new FileSystem(), backupStrategy, backupTimeUtc, eventHandler)
     {
     }
 
     internal SkipUpdatedBackupStrategy(
         IFileSystem fs,
         IBackupStrategy backupStrategy,
-        DateTime? backupTimeUtc)
+        DateTime? backupTimeUtc,
+        IBackupEventHandler? eventHandler)
     {
         this.fs = fs;
         inner = backupStrategy;
         this.backupTimeUtc = backupTimeUtc;
+        this.eventHandler = eventHandler;
     }
 
     public void DeleteBackup(RootedPath path) =>
@@ -48,15 +55,15 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
     public void PerformBackup(RootedPath path) =>
         inner.PerformBackup(path);
 
-    public bool RestoreBackup(RootedPath path)
+    public void RestoreBackup(RootedPath path)
     {
         if (FileWasOverwritten(path))
         {
             inner.DeleteBackup(path);
-            return false;
+            eventHandler?.RestoreSkipped(path);
+            return;
         }
-
-        return inner.RestoreBackup(path);
+        inner.RestoreBackup(path);
     }
 
     private bool FileWasOverwritten(RootedPath path) =>

@@ -14,8 +14,7 @@ public interface IBackupStrategy
     /// Restores and deletes a previously performed backup.
     /// </summary>
     /// <param name="path">File to restore.</param>
-    /// <returns>If restoring the backup was skipped successfully.</returns>
-    public bool RestoreBackup(RootedPath path);
+    public void RestoreBackup(RootedPath path);
 
     /// <summary>
     /// Removes an existing backup without restoring it.

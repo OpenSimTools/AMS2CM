@@ -6,16 +6,16 @@ using Core.Utils;
 
 namespace Core.Packages.Installation;
 
-public class PackagesUpdater<TEventHandler>
+public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
     private readonly IInstallerFactory installerFactory;
-    private readonly IBackupStrategyProvider<PackageInstallationState> backupStrategyProvider;
+    private readonly IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider;
     private readonly TimeProvider timeProvider;
 
     public PackagesUpdater(
         IInstallerFactory installerFactory,
-        IBackupStrategyProvider<PackageInstallationState>  backupStrategyProvider,
+        IBackupStrategyProvider<PackageInstallationState, TEventHandler>  backupStrategyProvider,
         TimeProvider timeProvider)
     {
         this.installerFactory = installerFactory;
@@ -28,7 +28,8 @@ public class PackagesUpdater<TEventHandler>
         IEnumerable<Package> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
-        TEventHandler eventHandler, CancellationToken cancellationToken)
+        TEventHandler eventHandler,
+        CancellationToken cancellationToken)
     {
         var installers = packages.Select(installerFactory.PackageInstaller).ToImmutableArray();
 
@@ -89,7 +90,7 @@ public class PackagesUpdater<TEventHandler>
                     break;
                 }
                 eventHandler.UninstallCurrent(packageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState, eventHandler);
                 var filesLeft = packageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var error = false;
                 try
@@ -97,10 +98,7 @@ public class PackagesUpdater<TEventHandler>
                     foreach (var relativePath in packageInstallationState.Files)
                     {
                         var gamePath = new RootedPath(installDir, relativePath);
-                        if (!backupStrategy.RestoreBackup(gamePath))
-                        {
-                            eventHandler.UninstallSkipModified(gamePath.Relative);
-                        }
+                        backupStrategy.RestoreBackup(gamePath);
                         filesLeft.Remove(gamePath.Relative);
                     }
                     DeleteEmptyDirectories(installDir, packageInstallationState.Files);
@@ -178,7 +176,7 @@ public class PackagesUpdater<TEventHandler>
             foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
                 eventHandler.InstallCurrent(installer.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(null);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(state: null, eventHandler);
                 var automaticDependencies = new HashSet<string>();
                 var installCallbacks = new ProcessingCallbacks<RootedPath>
                 {
@@ -238,7 +236,7 @@ public class PackagesUpdater<TEventHandler>
 
 public static class PackagesUpdater
 {
-    public interface IEventHandler : IProgress
+    public interface IEventHandler : IProgress, IBackupEventHandler
     {
         void InstallNoPackages();
         void InstallStart();
@@ -248,7 +246,6 @@ public static class PackagesUpdater
         void UninstallNoPackages();
         void UninstallStart();
         void UninstallCurrent(string packageName);
-        void UninstallSkipModified(string filePath);
         void UninstallEnd();
     }
 

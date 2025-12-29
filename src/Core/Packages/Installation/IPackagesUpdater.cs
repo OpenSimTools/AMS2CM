@@ -1,14 +1,14 @@
-﻿using Core.Packages.Installation.Installers;
+﻿using Core.Packages.Repository;
 
 namespace Core.Packages.Installation;
 
 public interface IPackagesUpdater<in TEventHandler>
 {
     void Apply(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState,
-        IReadOnlyCollection<IInstaller> installers,
+        IReadOnlyDictionary<string, PackageInstallationState> previousState,
+        IEnumerable<Package> packages,
         string installDir,
-        Action<string, PackageInstallationState?> afterInstall,
+        Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken);
 }

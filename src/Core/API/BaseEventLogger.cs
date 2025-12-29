@@ -43,9 +43,12 @@ public abstract class BaseEventLogger : IEventHandler
         LogMessage($"Uninstalling mods:");
     public void UninstallCurrent(string packageName) =>
         LogMessage($"- {packageName}");
-    public void UninstallSkipModified(string filePath) =>
-        LogMessage($"  Skipping modified file {filePath}");
     public void UninstallEnd()
     {
     }
+
+    public void BackupSkipped(RootedPath path) =>
+        LogMessage($"  Skipping backup of {path.Full}");
+    public void RestoreSkipped(RootedPath path) =>
+        LogMessage($"  Skipping restore of {path.Full}");
 }
