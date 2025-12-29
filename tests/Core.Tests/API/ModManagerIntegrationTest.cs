@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using Core.API;
 using Core.Games;
 using Core.IO;
@@ -61,12 +60,12 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             DirsAtRoot = [DirAtRoot], ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
         };
 
-        var modPackagesUpdater = Init.CreateModPackagesUpdater(modInstallConfig, gameMock.Object, tempDir);
+        var packagesUpdater = Init.CreatePackagesUpdater(modInstallConfig, gameMock.Object, tempDir);
 
         modManager = new ModManager(
             gameMock.Object,
             modRepositoryMock.Object,
-            modPackagesUpdater,
+            packagesUpdater,
             persistedState,
             safeFileDeleteMock.Object,
             tempDir);
@@ -796,7 +795,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         {
             var state = savedState?.Install.Mods[packageName];
             state.Should().NotBeNull();
-            return state!;
+            return state;
         }
     }
 

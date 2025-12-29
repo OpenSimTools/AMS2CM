@@ -16,9 +16,9 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly ModPackagesUpdater packagesUpdater;
+    private readonly IPackagesUpdater<IEventHandler> packagesUpdater;
 
-    internal ModManager(IGame game, IPackageRepository packageRepository, ModPackagesUpdater packagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(IGame game, IPackageRepository packageRepository, IPackagesUpdater<IEventHandler> packagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
     {
         this.game = game;
         this.packageRepository = packageRepository;
