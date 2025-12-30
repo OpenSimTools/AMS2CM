@@ -74,4 +74,36 @@ public class ProcessingCallbacksTest
         ma1.Verify(a => a.Invoke(SomeValue), Times.Once);
         ma2.Verify(a => a.Invoke(SomeValue), Times.Once);
     }
+
+    [Fact]
+    public void BuilderMethodsKeepOtherCallbacks()
+    {
+        var mpAccept = new Mock<Predicate<int>>();
+        var maBefore = new Mock<Action<int>>();
+        var maAfter = new Mock<Action<int>>();
+        var maNotAccepted = new Mock<Action<int>>();
+        var maFinally = new Mock<Action<int>>();
+
+        var callbacks = new ProcessingCallbacks<int>()
+            .AndAccept(mpAccept.Object)
+            .AndBefore(maBefore.Object)
+            .AndAfter(maAfter.Object)
+            .AndNotAccepted(maNotAccepted.Object)
+            .AndFinally(maFinally.Object)
+            .AndAccept(new Mock<Predicate<int>>().Object);
+
+        callbacks.Accept(SomeValue);
+        mpAccept.Verify(a => a.Invoke(SomeValue), Times.Once);
+
+        callbacks.Before(SomeValue);
+        maBefore.Verify(a => a.Invoke(SomeValue), Times.Once);
+
+        callbacks.After(SomeValue);
+        maAfter.Verify(a => a.Invoke(SomeValue), Times.Once);
+        maFinally.Verify(a => a.Invoke(SomeValue), Times.Once);
+
+        callbacks.NotAccepted(SomeValue);
+        maNotAccepted.Verify(a => a.Invoke(SomeValue), Times.Once);
+        maFinally.Verify(a => a.Invoke(SomeValue), Times.Exactly(2));
+    }
 }

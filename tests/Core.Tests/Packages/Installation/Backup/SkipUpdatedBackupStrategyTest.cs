@@ -8,57 +8,61 @@ namespace Core.Tests.Packages.Installation.Backup;
 [IntegrationTest]
 public class SkipUpdatedBackupStrategyTest
 {
-    private readonly RootedPath OriginalFile = new("root", "original");
+    private readonly RootedPath originalFile = new("root", "original");
 
-    private readonly Mock<IBackupStrategy> innerStategyMock;
-
-    public SkipUpdatedBackupStrategyTest()
-    {
-        innerStategyMock = new();
-    }
+    private readonly Mock<IBackupStrategy> innerStrategyMock = new();
+    private readonly Mock<IBackupEventHandler> eventHandlerMock = new();
 
     [Fact]
     public void PerformBackup_ProxiesCallToInnerStategy()
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>());
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, null);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, null, eventHandlerMock.Object);
 
-        subs.PerformBackup(OriginalFile);
+        subs.PerformBackup(originalFile);
 
-        innerStategyMock.Verify(_ => _.PerformBackup(OriginalFile));
+        innerStrategyMock.Verify(m => m.PerformBackup(originalFile));
+
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
     public void DeleteBackup_ProxiesCallToInnerStategy()
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>());
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, null);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, null, eventHandlerMock.Object);
 
-        subs.DeleteBackup(OriginalFile);
+        subs.DeleteBackup(originalFile);
 
-        innerStategyMock.Verify(_ => _.DeleteBackup(OriginalFile));
+        innerStrategyMock.Verify(m => m.DeleteBackup(originalFile));
+
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
     public void RestoreBackup_ProxiesCallToInnerStategyIfNoBackupTime()
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>());
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, null);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, null, eventHandlerMock.Object);
 
-        subs.RestoreBackup(OriginalFile);
+        subs.RestoreBackup(originalFile);
 
-        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile));
+        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile));
+
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
     public void RestoreBackup_ProxiesCallToInnerStategyIfNoOriginalFile()
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>());
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, DateTime.UtcNow);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, DateTime.UtcNow, eventHandlerMock.Object);
 
-        subs.RestoreBackup(OriginalFile);
+        subs.RestoreBackup(originalFile);
 
-        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile));
+        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile));
+
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -68,42 +72,49 @@ public class SkipUpdatedBackupStrategyTest
         var backupTime = fileCreationTime.Subtract(TimeSpan.FromSeconds(1));
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
-            { OriginalFile.Full, new MockFileData("") { CreationTime = fileCreationTime } },
+            { originalFile.Full, new MockFileData("") { CreationTime = fileCreationTime } },
         });
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, backupTime);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, backupTime, eventHandlerMock.Object);
 
-        subs.RestoreBackup(OriginalFile);
+        subs.RestoreBackup(originalFile);
 
-        innerStategyMock.Verify(_ => _.DeleteBackup(OriginalFile));
+        innerStrategyMock.Verify(m => m.DeleteBackup(originalFile));
+
+        eventHandlerMock.Verify(m => m.RestoreSkipped(originalFile));
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void RestoreBackup_ProxiesCallToInnerStategyIfNotOverwritten()
+    public void RestoreBackup_ProxiesCallToInnerStrategyIfNotOverwritten()
     {
         var backupTime = DateTime.UtcNow;
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
-            { OriginalFile.Full, new MockFileData("") { CreationTime = backupTime } },
+            { originalFile.Full, new MockFileData("") { CreationTime = backupTime } },
         });
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, backupTime);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, backupTime, eventHandlerMock.Object);
 
-        subs.RestoreBackup(OriginalFile);
+        subs.RestoreBackup(originalFile);
 
-        innerStategyMock.Verify(_ => _.RestoreBackup(OriginalFile));
+        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile));
+
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void AfterInstall_EnduresDateInThePast()
+    public void AfterInstall_EnsuresDateInThePast()
     {
         var futureDate = DateTime.UtcNow.AddDays(1);
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
-            { OriginalFile.Full, new MockFileData("") { CreationTime = futureDate } },
+            { originalFile.Full, new MockFileData("") { CreationTime = futureDate } },
         });
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStategyMock.Object, null);
+        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, null, eventHandlerMock.Object);
 
-        subs.AfterInstall(OriginalFile);
+        subs.AfterInstall(originalFile);
 
-        fs.File.GetCreationTimeUtc(OriginalFile.Full).Should().BeOnOrBefore(DateTime.UtcNow);
+        fs.File.GetCreationTimeUtc(originalFile.Full).Should().BeOnOrBefore(DateTime.UtcNow);
+
+        eventHandlerMock.VerifyNoOtherCalls();
     }
 }
