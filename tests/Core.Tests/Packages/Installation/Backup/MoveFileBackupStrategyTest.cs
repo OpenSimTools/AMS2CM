@@ -66,7 +66,6 @@ public class MoveFileBackupStrategyTest
 
         fs.FileExists(BackupFile).Should().BeFalse();
 
-        eventHandlerMock.Verify(m => m.BackupSkipped(OriginalPath));
         eventHandlerMock.VerifyNoOtherCalls();
     }
 

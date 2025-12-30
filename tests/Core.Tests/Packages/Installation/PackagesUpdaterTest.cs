@@ -27,12 +27,43 @@ public class PackagesUpdaterTest
     [Fact]
     public void Apply_NoMods()
     {
+        var progress = new List<double>();
+        eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
+            .Callback<IPercent>(p => progress.Add(p.Percent));
+
         Apply(
             new Dictionary<string, PackageInstallationState>(),
             []
         );
 
         recordedState.Should().BeEmpty();
+
+        progress.Should().Equal(1.0);
+    }
+
+    [Fact]
+    public void Apply_TracksProgress()
+    {
+        var progress = new List<double>();
+        eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
+            .Callback<IPercent>(p => progress.Add(p.Percent));
+
+        Apply(
+            new Dictionary<string, PackageInstallationState>
+            {
+                ["U1"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: []),
+                ["U2"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [])
+            },                                       // 25%
+            [
+                InstallerOf("I1", fsHash: null, []), // 50%
+                InstallerOf("I2", fsHash: null, []), // 75%
+                InstallerOf("I3", fsHash: null, []), // 100%
+            ]
+        );
+
+        recordedState.Should().BeEmpty();
+
+        progress.Should().Equal(0.25, 0.5, 0.75, 1.0);
     }
 
     [Fact]

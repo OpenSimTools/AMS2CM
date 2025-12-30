@@ -35,7 +35,6 @@ public class MoveFileBackupStrategy : IBackupStrategy
         }
         if (!fs.File.Exists(path.Full))
         {
-            eventHandler?.BackupSkipped(path);
             return;
         }
 

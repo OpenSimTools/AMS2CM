@@ -164,17 +164,17 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var allInstalledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Increase by one for uninstall step
+        var progress = new PercentOfTotal(installers.Count + 1);
 
-        // Increase by one in case bootfiles are needed and another one to show that something is happening
-        var progress = new PercentOfTotal(installers.Count + 2);
-        if (installers.Any())
+        var allInstalledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (installers.Count > 0)
         {
             eventHandler.InstallStart();
-            eventHandler.ProgressUpdate(progress.IncrementDone());
 
             foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
+                eventHandler.ProgressUpdate(progress.IncrementDone());
                 eventHandler.InstallCurrent(installer.PackageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(state: null, eventHandler);
                 var automaticDependencies = new HashSet<string>();
@@ -217,11 +217,9 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                                 Files: packageInstalledFiles
                         ));
                 }
-                eventHandler.ProgressUpdate(progress.IncrementDone());
             }
 
             eventHandler.InstallEnd();
-            eventHandler.ProgressUpdate(progress.IncrementDone());
         }
         else
         {
