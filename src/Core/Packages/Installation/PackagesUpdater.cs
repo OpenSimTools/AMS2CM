@@ -177,7 +177,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                 eventHandler.ProgressUpdate(progress.IncrementDone());
                 eventHandler.InstallCurrent(installer.PackageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(state: null, eventHandler);
-                var automaticDependencies = new HashSet<string>();
+                var shadowedBy = new HashSet<string>();
                 var installCallbacks = new ProcessingCallbacks<RootedPath>
                 {
                     Accept = gamePath =>
@@ -189,7 +189,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                         }
                         if (overridingPackageName != installer.PackageName)
                         {
-                            automaticDependencies.Add(overridingPackageName);
+                            shadowedBy.Add(overridingPackageName);
                         }
                         return false;
                     },
@@ -205,7 +205,6 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                         .Where(rp => rp.Root == installDir)
                         .Select(rp => rp.Relative)
                         .ToImmutableList();
-                    automaticDependencies.UnionWith(installer.PackageDependencies);
                     updatePackageState(installer.PackageName,
                         packageInstalledFiles.IsEmpty
                             ? null
@@ -213,7 +212,8 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                                 Time: timeProvider.GetUtcNow().DateTime,
                                 FsHash: installer.PackageFsHash,
                                 Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
-                                Dependencies: automaticDependencies,
+                                Dependencies: installer.PackageDependencies,
+                                ShadowedBy: shadowedBy,
                                 Files: packageInstalledFiles
                         ));
                 }

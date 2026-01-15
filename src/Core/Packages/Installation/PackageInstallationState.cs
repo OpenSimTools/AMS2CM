@@ -1,4 +1,6 @@
-﻿namespace Core.Packages.Installation;
+﻿using Newtonsoft.Json;
+
+namespace Core.Packages.Installation;
 
 public record PackageInstallationState(
     // TODO: nullable for backward compatibility
@@ -8,7 +10,11 @@ public record PackageInstallationState(
     // TODO: needed for backward compatibility
     // infer from null hash after the first install
     bool Partial,
-    // TODO: needed for backward compatibility
-    IReadOnlyCollection<string>? Dependencies,
-    IReadOnlyCollection<string> Files
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    IReadOnlyCollection<string> Dependencies,
+
+    IReadOnlyCollection<string> Files,
+
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    IReadOnlyCollection<string> ShadowedBy
 );

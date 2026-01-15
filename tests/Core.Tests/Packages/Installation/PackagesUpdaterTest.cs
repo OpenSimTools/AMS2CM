@@ -25,7 +25,7 @@ public class PackagesUpdaterTest
     #endregion
 
     [Fact]
-    public void Apply_NoMods()
+    public void Apply_NoPackages()
     {
         var progress = new List<double>();
         eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
@@ -51,8 +51,8 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["U1"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: []),
-                ["U2"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [])
+                ["U1"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: []),
+                ["U2"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: [])
             },                                       // 25%
             [
                 InstallerOf("I1", fsHash: null, []), // 50%
@@ -67,7 +67,7 @@ public class PackagesUpdaterTest
     }
 
     [Fact]
-    public void Apply_InstallsSelectedMods()
+    public void Apply_InstallsSelectedPackages()
     {
         Apply(
             new Dictionary<string, PackageInstallationState>(),
@@ -80,7 +80,9 @@ public class PackagesUpdaterTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(fakeUtcInstallationDate, 42, false, [], ["AF"])
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 42, Partial: false, Dependencies: [], Files: [
+                "AF"
+            ], ShadowedBy: [])
         });
 
         backupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF")));
@@ -96,7 +98,7 @@ public class PackagesUpdaterTest
     }
 
     [Fact]
-    public void Apply_UninstallsUnselectedMods()
+    public void Apply_UninstallsUnselectedPackages()
     {
         Apply(
             new Dictionary<string, PackageInstallationState>{
@@ -105,7 +107,8 @@ public class PackagesUpdaterTest
                         FsHash: 42,
                         Partial: false,
                         Dependencies: [],
-                        Files: ["AF"])
+                        Files: ["AF"],
+                        ShadowedBy: [])
             },
             []
         );
@@ -124,7 +127,7 @@ public class PackagesUpdaterTest
     }
 
     [Fact]
-    public void Apply_UpdatesChangedMods()
+    public void Apply_UpdatesChangedPackages()
     {
         Apply(
             new Dictionary<string, PackageInstallationState>
@@ -132,7 +135,7 @@ public class PackagesUpdaterTest
                 ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
                     "AF",
                     "AF1",
-                ])
+                ], ShadowedBy: [])
             },
             [
                 InstallerOf("A", fsHash: 2, [
@@ -147,7 +150,7 @@ public class PackagesUpdaterTest
             ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 2, Partial: false, Dependencies: [], Files: [
                 "AF",
                 "AF2"
-            ])
+            ], ShadowedBy: [])
         });
 
         backupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
@@ -155,18 +158,70 @@ public class PackagesUpdaterTest
     }
 
     [Fact]
-    public void Apply_RestoresFilesPreviouslyShadowedByUninstalledMod()
+    public void Apply_PreservesPackageDependencies()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>(),
+            [
+                InstallerOf("A", fsHash: 42, files: [
+                    "AF"
+                ], dependencies: ["X"])
+            ]
+        );
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 42, Partial: false, Dependencies: ["X"], Files: [
+                "AF"
+            ], ShadowedBy: [])
+        });
+    }
+
+    [Fact]
+    public void Apply_FirstInstalledFilesTakePrecedence()
+    {
+        Apply(
+            new Dictionary<string, PackageInstallationState>(),
+            [
+                InstallerOf("A", fsHash: 1, files: [
+                    "AF1", "AF2"
+                ]),
+                InstallerOf("B", fsHash: 2, files: [
+                    "BF"
+                ]),
+                InstallerOf("C", fsHash: 3, files: [
+                    "AF1", "BF", "CF"
+                ])
+            ]
+        );
+
+        recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                "AF1", "AF2"
+            ], ShadowedBy: []),
+            ["B"] = new(Time: fakeUtcInstallationDate, FsHash: 2, Partial: false, Dependencies: [], Files: [
+                "BF"
+            ], ShadowedBy: []),
+            ["C"] = new(Time: fakeUtcInstallationDate, FsHash: 3, Partial: false, Dependencies: [], Files: [
+                "CF"
+            ], ShadowedBy: ["A", "B"])
+        });
+    }
+
+    [Fact]
+    public void Apply_RestoresFilesPreviouslyShadowedByUninstalledPackage()
     {
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
                 ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
                     "AF1",
-                ]),
+                ], ShadowedBy: []),
                 ["B"] = new(Time: null, FsHash: 2, Partial: false, Dependencies: [], Files: [
                     "SF", // SF in A was shadowed by B
                     "BF1",
-                ])
+                ], ShadowedBy: [])
             },
             [
                 InstallerOf("A", fsHash: 1, [
@@ -181,7 +236,7 @@ public class PackagesUpdaterTest
             ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 1, Partial: false, Dependencies: [], Files: [
                 "SF",
                 "AF1"
-            ])
+            ], ShadowedBy: [])
         });
     }
 
@@ -204,7 +259,7 @@ public class PackagesUpdaterTest
             ["A"] = new(Time: fakeUtcInstallationDate, FsHash: 42, Partial: true, Dependencies: [], Files: [
                 "AF1",
                 "Fail" // We don't know where it failed, so we add it
-            ])
+            ], ShadowedBy: [])
         });
     }
 
@@ -216,12 +271,11 @@ public class PackagesUpdaterTest
         this.Invoking(m => m.Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(
-                    Time: null,
-                    FsHash: 42,
-                    Partial: false,
-                    Dependencies: [],
-                    Files: ["AF1", "Fail", "AF2"])
+                ["A"] = new(Time: null, FsHash: 42, Partial: false, Dependencies: [], Files: [
+                    "AF1",
+                    "Fail",
+                    "AF2"
+                ], ShadowedBy: [])
             },
             []
         )).Should().Throw<TestException>();
@@ -231,7 +285,7 @@ public class PackagesUpdaterTest
             ["A"] = new(Time: null, FsHash: 42, Partial: true, Dependencies: [], Files: [
                 "Fail", // We don't know where it failed, so we leave it
                 "AF2"
-            ])
+            ], ShadowedBy: [])
         });
     }
 
@@ -244,12 +298,9 @@ public class PackagesUpdaterTest
         this.Invoking(m => m.Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(
-                    Time: null,
-                    FsHash: null,
-                    Partial: false,
-                    Dependencies: [],
-                    Files: ["Fail"])
+                ["A"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [
+                    "Fail"
+                ], ShadowedBy: [])
             },
             []
         )).Should().Throw<TestException>();
@@ -258,7 +309,7 @@ public class PackagesUpdaterTest
         {
             ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
                 "Fail"
-            ])
+            ], ShadowedBy: [])
         });
     }
 
@@ -270,12 +321,9 @@ public class PackagesUpdaterTest
         this.Invoking(m => m.Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(
-                    Time: null,
-                    FsHash: null,
-                    Partial: true,
-                    Dependencies: [],
-                    Files: ["Fail"])
+                ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+                    "Fail"
+                ], ShadowedBy: [])
             },
             []
         )).Should().Throw<TestException>();
@@ -284,7 +332,7 @@ public class PackagesUpdaterTest
         {
             ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
                 "Fail"
-            ])
+            ], ShadowedBy: [])
         });
     }
 
@@ -298,12 +346,9 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(
-                    Time: null,
-                    FsHash: null,
-                    Partial: true,
-                    Dependencies: [],
-                    Files: [Path.Combine(subDir, "F1")])
+                ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+                    Path.Combine(subDir, "F1")
+                ], ShadowedBy: [])
             },
             []
         );
@@ -351,18 +396,21 @@ public class PackagesUpdaterTest
             installers.First(installer => installer.PackageName == package.Name);
     }
 
-    private static IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files)
-    {
-        return new StaticFilesInstaller(name, fsHash, files);
-    }
+    private static IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
+        InstallerOf(name, fsHash, files, Array.Empty<string>());
+
+    private static IInstaller InstallerOf(string name, int? fsHash,
+        IReadOnlyCollection<string> files, IReadOnlyCollection<string> dependencies) =>
+        new StaticFilesInstaller(name, fsHash, files, dependencies);
 
     private class StaticFilesInstaller : BaseInstaller<object>
     {
         private static readonly object NoContext = new();
         private readonly IReadOnlyCollection<string> files;
 
-        internal StaticFilesInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> files) :
-            base(packageName, packageFsHash)
+        internal StaticFilesInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> files,
+            IReadOnlyCollection<string> packageDependencies) :
+            base(packageName, packageFsHash, packageDependencies)
         {
             this.files = files;
         }

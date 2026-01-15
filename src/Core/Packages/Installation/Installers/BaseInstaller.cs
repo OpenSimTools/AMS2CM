@@ -1,4 +1,5 @@
-﻿using Core.Packages.Installation.Backup;
+﻿using System.Runtime.CompilerServices;
+using Core.Packages.Installation.Backup;
 using Core.Utils;
 
 namespace Core.Packages.Installation.Installers;
@@ -12,8 +13,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     public string PackageName { get; }
     public int? PackageFsHash { get; }
 
-    // A package cannot currently specify dependencies.
-    public IReadOnlyCollection<string> PackageDependencies => Array.Empty<string>();
+    public IReadOnlyCollection<string> PackageDependencies { get; }
 
     public IInstallation.State Installed { get; private set; }
     public IReadOnlyCollection<RootedPath> InstalledFiles => installedFiles;
@@ -21,9 +21,16 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     private readonly List<RootedPath> installedFiles = new();
 
     protected BaseInstaller(string packageName, int? packageFsHash)
+        : this(packageName, packageFsHash, Array.Empty<string>())
+    {
+    }
+
+    // A package cannot currently specify dependencies.
+    protected BaseInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> packageDependencies)
     {
         PackageName = packageName;
         PackageFsHash = packageFsHash;
+        PackageDependencies = packageDependencies;
     }
 
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)

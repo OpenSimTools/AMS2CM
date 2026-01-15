@@ -55,7 +55,7 @@ internal class JsonFileStatePersistence : IStatePersistence
                         kv => new PackageInstallationState(
                             Time: installTime, FsHash: null, Partial: false,
                             Dependencies: Array.Empty<string>(),
-                            Files: kv.Value)
+                            Files: kv.Value, ShadowedBy: Array.Empty<string>())
                     )
                 )
             );
