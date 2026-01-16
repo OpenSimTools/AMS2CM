@@ -158,7 +158,7 @@ internal class ModManager : IModManager
             nextState =>
                 statePersistence.WriteState(new SavedState(
                     Install: new InstallationState(
-                        Time: nextState.Values.Max(s => s.Time),
+                        Time: null,
                         Mods: nextState
                     )
                 )),

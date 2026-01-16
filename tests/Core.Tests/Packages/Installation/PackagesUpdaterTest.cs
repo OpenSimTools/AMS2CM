@@ -22,6 +22,9 @@ public class PackagesUpdaterTest
     private IReadOnlyDictionary<string, PackageInstallationState>? recordedState;
     private readonly string destinationDir = Path.GetRandomFileName();
 
+    // Randomness ensures that at least some test runs will fail if it's used
+    private static readonly DateTime ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
+
     #endregion
 
     [Fact]
@@ -51,8 +54,8 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["U1"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: []),
-                ["U2"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: [])
+                ["U1"] = new(Time: ValueNotUsed, FsHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: []),
+                ["U2"] = new(Time: ValueNotUsed, FsHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: [])
             },                                       // 25%
             [
                 InstallerOf("I1", fsHash: null, []), // 50%
@@ -103,7 +106,7 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>{
                 ["A"] = new(
-                        Time: null,
+                        Time: ValueNotUsed,
                         FsHash: 42,
                         Partial: false,
                         Dependencies: [],
@@ -132,7 +135,7 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                ["A"] = new(Time: ValueNotUsed, FsHash: 1, Partial: false, Dependencies: [], Files: [
                     "AF",
                     "AF1",
                 ], ShadowedBy: [])
@@ -215,10 +218,10 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: 1, Partial: false, Dependencies: [], Files: [
+                ["A"] = new(Time: ValueNotUsed, FsHash: 1, Partial: false, Dependencies: [], Files: [
                     "AF1",
                 ], ShadowedBy: []),
-                ["B"] = new(Time: null, FsHash: 2, Partial: false, Dependencies: [], Files: [
+                ["B"] = new(Time: ValueNotUsed, FsHash: 2, Partial: false, Dependencies: [], Files: [
                     "SF", // SF in A was shadowed by B
                     "BF1",
                 ], ShadowedBy: [])
@@ -271,7 +274,7 @@ public class PackagesUpdaterTest
         this.Invoking(m => m.Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: 42, Partial: false, Dependencies: [], Files: [
+                ["A"] = new(Time: ValueNotUsed, FsHash: 42, Partial: false, Dependencies: [], Files: [
                     "AF1",
                     "Fail",
                     "AF2"
@@ -282,7 +285,7 @@ public class PackagesUpdaterTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: null, FsHash: 42, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, FsHash: 42, Partial: true, Dependencies: [], Files: [
                 "Fail", // We don't know where it failed, so we leave it
                 "AF2"
             ], ShadowedBy: [])
@@ -298,7 +301,7 @@ public class PackagesUpdaterTest
         this.Invoking(m => m.Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: null, Partial: false, Dependencies: [], Files: [
+                ["A"] = new(Time: ValueNotUsed, FsHash: null, Partial: false, Dependencies: [], Files: [
                     "Fail"
                 ], ShadowedBy: [])
             },
@@ -307,7 +310,7 @@ public class PackagesUpdaterTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, FsHash: null, Partial: true, Dependencies: [], Files: [
                 "Fail"
             ], ShadowedBy: [])
         });
@@ -321,7 +324,7 @@ public class PackagesUpdaterTest
         this.Invoking(m => m.Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+                ["A"] = new(Time: ValueNotUsed, FsHash: null, Partial: true, Dependencies: [], Files: [
                     "Fail"
                 ], ShadowedBy: [])
             },
@@ -330,7 +333,7 @@ public class PackagesUpdaterTest
 
         recordedState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, FsHash: null, Partial: true, Dependencies: [], Files: [
                 "Fail"
             ], ShadowedBy: [])
         });
@@ -346,7 +349,7 @@ public class PackagesUpdaterTest
         Apply(
             new Dictionary<string, PackageInstallationState>
             {
-                ["A"] = new(Time: null, FsHash: null, Partial: true, Dependencies: [], Files: [
+                ["A"] = new(Time: ValueNotUsed, FsHash: null, Partial: true, Dependencies: [], Files: [
                     Path.Combine(subDir, "F1")
                 ], ShadowedBy: [])
             },
