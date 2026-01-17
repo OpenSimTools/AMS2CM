@@ -2,6 +2,13 @@
 
 public class SuffixBackupStrategy : MoveFileBackupStrategy
 {
+    internal class Provider<TState, TEventHandler> : IBackupStrategyProvider<TState, TEventHandler>
+        where TEventHandler : IBackupEventHandler
+    {
+        public IBackupStrategy BackupStrategy(TState? _, TEventHandler? eventHandler) =>
+            new SuffixBackupStrategy(eventHandler);
+    }
+
     private class BackupFileNaming : IBackupFileNaming
     {
         private const string BackupSuffix = ".orig";
@@ -10,7 +17,8 @@ public class SuffixBackupStrategy : MoveFileBackupStrategy
         public bool IsBackup(string fullPath) => fullPath.EndsWith(BackupSuffix);
     }
 
-    public SuffixBackupStrategy() : base(new BackupFileNaming())
+    public SuffixBackupStrategy(IBackupEventHandler? eventHandler) :
+        base(new BackupFileNaming(), eventHandler)
     {
     }
 }

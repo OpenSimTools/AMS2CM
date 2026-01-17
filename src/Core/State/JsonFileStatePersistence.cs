@@ -1,4 +1,6 @@
-﻿using Core.Packages.Installation;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.IO.Abstractions;
+using Core.Packages.Installation;
 using Core.Utils;
 using Newtonsoft.Json;
 
@@ -6,11 +8,12 @@ namespace Core.State;
 
 internal class JsonFileStatePersistence : IStatePersistence
 {
-    private const string StateFileName = "state.json";
-    private const string OldStateFileName = "installed.json";
+    private const string StateV2FileName = "state.json";
+    private const string StateV1FileName = "installed.json";
 
-    private readonly string stateFile;
-    private readonly string oldStateFile;
+    private readonly IFileSystem fs;
+    private readonly string stateV2FilePath;
+    private readonly string stateV1FilePath;
 
     private static readonly JsonSerializerSettings JsonSerializerSettings = new()
     {
@@ -18,44 +21,57 @@ internal class JsonFileStatePersistence : IStatePersistence
         DefaultValueHandling = DefaultValueHandling.Ignore,
     };
 
-    public JsonFileStatePersistence(string modsDir)
+    public JsonFileStatePersistence(string modsPath) :
+        this(new FileSystem(), Path.Combine(modsPath, StateV2FileName), Path.Combine(modsPath, StateV1FileName))
     {
-        stateFile = Path.Combine(modsDir, StateFileName);
-        oldStateFile = Path.Combine(modsDir, OldStateFileName);
     }
 
+    internal JsonFileStatePersistence(IFileSystem fs, string stateV2FilePath, string stateV1FilePath)
+    {
+        this.fs = fs;
+        this.stateV2FilePath = stateV2FilePath;
+        this.stateV1FilePath = stateV1FilePath;
+    }
+
+    // TODO: this can be made better with some work
+    // The beauty of JSON libraries setting non-null fields to null
+    [SuppressMessage("ReSharper", "NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract")]
     public SavedState ReadState()
     {
-        // Always favour new state if present
-        if (File.Exists(stateFile))
+        if (fs.File.Exists(stateV2FilePath))
         {
-            var contents = File.ReadAllText(stateFile);
+            var contents = fs.File.ReadAllText(stateV2FilePath);
             var state = JsonConvert.DeserializeObject<SavedState>(contents);
-            // Fill mod install time if not present (for migration)
+            var installTime = state.Install.Time ?? fs.File.GetLastWriteTimeUtc(stateV2FilePath);
             return state with
             {
                 Install = state.Install with
                 {
-                    Mods = state.Install.Mods.SelectValues(_ => _ with { Time = _.Time ?? state.Install.Time })
+                    Mods = state.Install.Mods.SelectValues(pis => pis with
+                    {
+                        Time = pis.Time == default ? installTime : pis.Time,
+                        Dependencies = pis.Dependencies ?? Array.Empty<string>(),
+                        Files = pis.Files ?? Array.Empty<string>(),
+                        ShadowedBy = pis.ShadowedBy ?? Array.Empty<string>()
+                    })
                 }
             };
         }
 
-        // Fallback to old state when new state is not present
-        if (File.Exists(oldStateFile))
+        if (fs.File.Exists(stateV1FilePath))
         {
-            var contents = File.ReadAllText(oldStateFile);
-            var oldState = JsonConvert.DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(contents);
-            var installTime = File.GetLastWriteTimeUtc(oldStateFile);
+            var contents = fs.File.ReadAllText(stateV1FilePath);
+            var state = JsonConvert.DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(contents);
+            var installTime = fs.File.GetLastWriteTimeUtc(stateV1FilePath);
             return new SavedState(
-                Install: new(
-                    Time: installTime,
-                    Mods: oldState.AsEnumerable().ToDictionary(
+                Install: new InstallationState(
+                    Time: null,
+                    Mods: state.AsEnumerable().ToDictionary(
                         kv => kv.Key,
                         kv => new PackageInstallationState(
                             Time: installTime, FsHash: null, Partial: false,
                             Dependencies: Array.Empty<string>(),
-                            Files: kv.Value)
+                            Files: kv.Value, ShadowedBy: Array.Empty<string>())
                     )
                 )
             );
@@ -66,10 +82,9 @@ internal class JsonFileStatePersistence : IStatePersistence
 
     public void WriteState(SavedState state)
     {
-        // Remove old state if upgrading from a previous version
-        File.Delete(oldStateFile);
+        // Remove state v1 on write if upgrading from a previous version
+        fs.File.Delete(stateV1FilePath);
 
-        File.WriteAllText(stateFile, JsonConvert.SerializeObject(state, JsonSerializerSettings));
+        fs.File.WriteAllText(stateV2FilePath, JsonConvert.SerializeObject(state, JsonSerializerSettings));
     }
 }
-
