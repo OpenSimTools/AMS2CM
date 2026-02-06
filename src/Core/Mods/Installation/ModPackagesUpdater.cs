@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using Core.Games;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
@@ -9,24 +8,18 @@ using Core.Utils;
 namespace Core.Mods.Installation;
 
 public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
-    where TEventHandler : ModPackagesUpdater.IEventHandler
+    where TEventHandler : PackagesUpdater.IEventHandler
 {
-    private readonly IGame game;
-    private readonly ITempDir tempDir;
-    private readonly ModInstaller.IConfig config;
+    private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
     public ModPackagesUpdater(
         IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider,
-        IGame game,
-        ITempDir tempDir,
-        ModInstaller.IConfig config) :
+        IModInstallerFactory<TEventHandler> modInstallerFactory) :
         base(installerFactory, backupStrategyProvider, timeProvider)
     {
-        this.game = game;
-        this.tempDir = tempDir;
-        this.config = config;
+        this.modInstallerFactory = modInstallerFactory;
     }
 
     protected override void Apply(
@@ -37,35 +30,19 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var (bootfiles, notBootfiles) = installers.Partition(p => ModPackagesUpdater.IsBootFiles(p.PackageName));
-
+        var (bootfiles, notBootfiles) = installers.Partition(p => modInstallerFactory.IsBootFiles(p.PackageName));
         var bootfilesInstaller = CreateBootfilesInstaller(bootfiles, eventHandler);
+
         var allInstallers = notBootfiles
-            .Select(i => new ModInstaller(i, bootfilesInstaller.PackageName, game, tempDir, config))
+            .Select(i => modInstallerFactory.ModInstaller(i, bootfilesInstaller))
             .Append(bootfilesInstaller).ToImmutableArray();
 
         base.Apply(currentState, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
-    private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, ModPackagesUpdater.IEventHandler eventHandler)
+    private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
     {
         var installer = bootfilesPackageInstallers.FirstOrDefault();
-        return new BootfilesInstaller(installer, game, tempDir, eventHandler, config);
-    }
-}
-
-public static class ModPackagesUpdater
-{
-    #region TODO Move to a better place when not called all over the place
-
-    internal const string BootfilesPrefix = "__bootfiles";
-
-    internal static bool IsBootFiles(string packageName) =>
-        packageName.StartsWith(BootfilesPrefix);
-
-    #endregion
-
-    public interface IEventHandler : PackagesUpdater.IEventHandler, BootfilesInstaller.IEventHandler
-    {
+        return modInstallerFactory.BootfilesInstaller(installer, eventHandler);
     }
 }

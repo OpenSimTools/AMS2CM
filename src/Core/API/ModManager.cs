@@ -1,6 +1,6 @@
 using Core.Games;
 using Core.IO;
-using Core.Mods.Installation;
+using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
 using Core.State;
@@ -12,16 +12,25 @@ internal class ModManager : IModManager
 {
     private readonly IGame game;
     private readonly IPackageRepository packageRepository;
+    private readonly IBootfilesNameChecker bootfilesNameChecker;
     private readonly IStatePersistence statePersistence;
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
     private readonly IPackagesUpdater<IEventHandler> packagesUpdater;
 
-    internal ModManager(IGame game, IPackageRepository packageRepository, IPackagesUpdater<IEventHandler> packagesUpdater, IStatePersistence statePersistence, ISafeFileDelete safeFileDelete, ITempDir tempDir)
+    internal ModManager(
+        IGame game,
+        IPackageRepository packageRepository,
+        IBootfilesNameChecker bootfilesNameChecker,
+        IPackagesUpdater<IEventHandler> packagesUpdater,
+        IStatePersistence statePersistence,
+        ISafeFileDelete safeFileDelete,
+        ITempDir tempDir)
     {
         this.game = game;
         this.packageRepository = packageRepository;
+        this.bootfilesNameChecker = bootfilesNameChecker;
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
@@ -56,7 +65,7 @@ internal class ModManager : IModManager
             return IsOutOfDate(modPackage, modInstallationState);
         });
 
-        var allPackageNames = installedMods.Keys.Where(packageName => !ModPackagesUpdater.IsBootFiles(packageName))
+        var allPackageNames = installedMods.Keys.Where(packageName => !bootfilesNameChecker.IsBootFiles(packageName))
             .Concat(enabledModPackages.Keys)
             .Concat(disabledModPackages.Keys)
             .Distinct();

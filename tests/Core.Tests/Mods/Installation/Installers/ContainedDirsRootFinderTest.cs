@@ -1,7 +1,7 @@
 ﻿using Core.Mods.Installation.Installers;
 using FluentAssertions;
 
-namespace Core.Tests.Mods;
+namespace Core.Tests.Mods.Installation.Installers;
 
 [UnitTest]
 public class ContainedDirsRootFinderTest

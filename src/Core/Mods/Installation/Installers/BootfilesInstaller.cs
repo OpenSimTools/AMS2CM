@@ -18,7 +18,7 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
-    private const string GeneratedBootfilesPackageName = $"{ModPackagesUpdater.BootfilesPrefix}_generated";
+    private const string GeneratedBootfilesPackageName = $"{ModInstallerFactory.BootfilesPrefix}_generated";
 
     internal const string VehicleListRelativeDir = "vehicles";
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
@@ -26,7 +26,7 @@ public class BootfilesInstaller : BaseModInstaller
 
     private readonly IEventHandler eventHandler;
 
-    public BootfilesInstaller(IInstaller? bootfilesPackageInstaller,  IGame game, ITempDir tempDir, IEventHandler eventHandler, IConfig config) :
+    public BootfilesInstaller(IInstaller? bootfilesPackageInstaller, IGame game, ITempDir tempDir, IEventHandler eventHandler, IConfig config) :
         base(PackageOrGenerated(bootfilesPackageInstaller, game, tempDir), game, tempDir, config)
     {
         this.eventHandler = eventHandler;
