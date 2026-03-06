@@ -1,5 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Core.Games;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -24,16 +24,27 @@ public class BootfilesInstaller : BaseModInstaller
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
     internal static readonly string DrivelineRelativeDir = Path.Combine(VehicleListRelativeDir, "physics", "driveline");
 
+    private readonly RootedPath gameInstallationPath;
     private readonly IEventHandler eventHandler;
 
-    public BootfilesInstaller(IInstaller? bootfilesPackageInstaller, IGame game, ITempDir tempDir, IEventHandler eventHandler, IConfig config) :
-        base(PackageOrGenerated(bootfilesPackageInstaller, game, tempDir), game, tempDir, config)
+    public BootfilesInstaller(IInstaller? bootfilesPackageInstaller, string tempDir, IConfig config,
+        string gameInstallationDir, IEventHandler eventHandler) :
+        this(new FileSystem(), bootfilesPackageInstaller, tempDir, config, gameInstallationDir, eventHandler)
     {
+    }
+
+    public BootfilesInstaller(IFileSystem fileSystem, IInstaller? bootfilesPackageInstaller,
+        string tempDir, IConfig config, string gameInstallationDir, IEventHandler eventHandler) :
+        base(fileSystem, PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir), tempDir, config)
+    {
+        gameInstallationPath = new RootedPath(gameInstallationDir);
         this.eventHandler = eventHandler;
     }
 
-    private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller, IGame game, ITempDir tempDir) =>
-        bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(GeneratedBootfilesPackageName, game, tempDir);
+    private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller,
+        string gameInstallationDirectory, string tempDir) =>
+        bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(GeneratedBootfilesPackageName,
+            gameInstallationDirectory, tempDir);
 
     // Bootfiles cannot have dependencies.
     public override IReadOnlyCollection<string> PackageDependencies => Array.Empty<string>();
@@ -48,14 +59,11 @@ public class BootfilesInstaller : BaseModInstaller
             eventHandler.ExtractingBootfiles(packageNameIfNotGenerated);
             innerInstall();
             eventHandler.PostProcessingVehicles();
-            PostProcessor.AppendCrdFileEntries(new RootedPath(Game.InstallationDirectory, VehicleListRelativeDir),
-                modConfigs.SelectMany(c => c.CrdFileEntries), WrapInComments);
+            AppendCrdFileEntries(modConfigs.SelectMany(c => c.CrdFileEntries));
             eventHandler.PostProcessingTracks();
-            PostProcessor.AppendTrdFileEntries(new RootedPath(Game.InstallationDirectory, TrackListRelativeDir),
-                modConfigs.SelectMany(c => c.TrdFileEntries), WrapInComments);
+            AppendTrdFileEntries(modConfigs.SelectMany(c => c.TrdFileEntries));
             eventHandler.PostProcessingDrivelines();
-            PostProcessor.AppendDrivelineRecords(new RootedPath(Game.InstallationDirectory, DrivelineRelativeDir),
-                modConfigs.SelectMany(c => c.DrivelineRecords), WrapInComments);
+            AppendDrivelineRecords(modConfigs.SelectMany(c => c.DrivelineRecords));
             eventHandler.PostProcessingEnd();
         }
         else
@@ -64,15 +72,19 @@ public class BootfilesInstaller : BaseModInstaller
         }
     }
 
-    private static string WrapInComments(string content)
-    {
-        return $"{Environment.NewLine}### BEGIN AMS2CM{Environment.NewLine}{content}{Environment.NewLine}### END AMS2CM{Environment.NewLine}";
-    }
+    protected override RootedPath VehicleListDir => gameInstallationPath.SubPath(VehicleListRelativeDir);
+
+    protected override RootedPath TrackListDir => gameInstallationPath.SubPath(TrackListRelativeDir);
+
+    protected override RootedPath DrivelineDir => gameInstallationPath.SubPath(DrivelineRelativeDir);
+
+    protected override string WrapConfigBlock(string configBlock) =>
+        $"{Environment.NewLine}### BEGIN AMS2CM{Environment.NewLine}{configBlock}{Environment.NewLine}### END AMS2CM{Environment.NewLine}";
 
     private IReadOnlyList<ConfigEntries> CollectModConfigs()
     {
-        var modsGamePath = Path.Combine(Game.InstallationDirectory, PostProcessor.GameSupportedModDirectory);
-        var directoryInfo = new DirectoryInfo(modsGamePath);
+        var modsGamePath = gameInstallationPath.SubPath(GameSupportedModDirectory);
+        var directoryInfo = new DirectoryInfo(modsGamePath.Full);
         if (!directoryInfo.Exists)
             return Array.Empty<ConfigEntries>();
         return directoryInfo.GetDirectories("*").Select(modDir =>
@@ -80,9 +92,9 @@ public class BootfilesInstaller : BaseModInstaller
                 ConfigEntries.Empty :
                 new ConfigEntries
                 (
-                    FileLinesOrEmpty(modDir, PostProcessor.VehicleListFileName),
-                    FileLinesOrEmpty(modDir, PostProcessor.TrackListFileName),
-                    FileLinesOrEmpty(modDir, PostProcessor.DrivelineFileName)
+                    FileLinesOrEmpty(modDir, VehicleListFileName),
+                    FileLinesOrEmpty(modDir, TrackListFileName),
+                    FileLinesOrEmpty(modDir, DrivelineFileName)
                 )
         ).ToImmutableList();
     }

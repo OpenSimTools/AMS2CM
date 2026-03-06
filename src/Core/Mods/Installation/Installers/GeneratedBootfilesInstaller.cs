@@ -17,11 +17,11 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
     private readonly string BmtFilesWildcard =
         Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
-    public GeneratedBootfilesInstaller(string packageName, IGame game, ITempDir tempDir) :
+    public GeneratedBootfilesInstaller(string packageName, string gameInstallationDirectory, string tempDir) :
         base(packageName, null)
     {
-        pakPath = Path.Combine(game.InstallationDirectory, PakfilesDirectory);
-        var extractionPath = Path.Combine(tempDir.BasePath, Guid.NewGuid().ToString());
+        pakPath = Path.Combine(gameInstallationDirectory, PakfilesDirectory);
+        var extractionPath = Path.Combine(tempDir, Guid.NewGuid().ToString());
         Source = Directory.CreateDirectory(extractionPath);
     }
 

@@ -1,20 +1,20 @@
+using System.Collections.ObjectModel;
 using Core.Mods.Installation;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation;
+using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
 
 namespace Core.Tests.Mods.Installation;
 
+[IntegrationTest]
 public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>
 {
     #region Initialisation
-
-    // Randomness ensures that at least some test runs will fail if it's used
-    private static readonly DateTime ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
 
     private static readonly string GeneratedBootfilesName = "__generated";
     private static readonly string BootfilesPackageName = "__package";
@@ -37,7 +37,7 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
             new WrappedInstaller(packageInstaller);
 
         public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller, PackagesUpdater.IEventHandler eventHandler) =>
-            bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName, fsHash: null, []);
+            bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
 
         public bool IsBootFiles(string packageName) =>
             packageName == BootfilesPackageName || packageName == GeneratedBootfilesName;
@@ -63,10 +63,10 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
         Apply([
-            // Uninstall                                            25%
-            InstallerOf("I1", fsHash: null, []),                 // 50%
-            InstallerOf("I2", fsHash: null, []),                 // 75%
-            InstallerOf(BootfilesPackageName, fsHash: null, []), // 100%
+            // Uninstall                          25%
+            InstallerOf("I1"),                 // 50%
+            InstallerOf("I2"),                 // 75%
+            InstallerOf(BootfilesPackageName), // 100%
         ]);
 
         InstallationState.Should().BeEmpty();
@@ -94,4 +94,7 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
         packages.Should().Equal(GeneratedBootfilesName);
         progress.Should().Equal(0.5, 1.0);
     }
+
+    internal static IInstaller InstallerOf(string name) =>
+        new StaticFilesInstaller(name, null, ReadOnlyDictionary<string, string>.Empty, []);
 }

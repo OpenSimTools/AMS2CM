@@ -2,7 +2,6 @@
 
 namespace Core.Tests.Base;
 
-[IntegrationTest]
 public abstract class AbstractFilesystemTest : IDisposable
 {
     protected readonly DirectoryInfo TestDir;

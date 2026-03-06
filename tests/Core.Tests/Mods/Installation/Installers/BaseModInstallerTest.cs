@@ -4,12 +4,12 @@ using FluentAssertions;
 namespace Core.Tests.Mods.Installation.Installers;
 
 [UnitTest]
-public class PostProcessorTest
+public class BaseModInstallerTest
 {
     [Fact]
     public void DedupeRecordBlocks_ConsidersOnlyFirstLine()
     {
-        PostProcessor.DedupeRecordBlocks([
+        BaseModInstaller.DedupeRecordBlocks([
             @"RECORDGROUP foo
                 first",
             @"RECORDGROUP foo
@@ -23,7 +23,7 @@ public class PostProcessorTest
     [Fact]
     public void DedupeRecordBlocks_IgnoresRedundantWhitespaces()
     {
-        PostProcessor.DedupeRecordBlocks([
+        BaseModInstaller.DedupeRecordBlocks([
             "  RECORD foo\vbar ",
             "RECORD foo\tbar"
         ]).Should().BeEquivalentTo([
@@ -34,7 +34,7 @@ public class PostProcessorTest
     [Fact]
     public void DedupeRecordBlocks_WorksForEmptyLines()
     {
-        PostProcessor.DedupeRecordBlocks([
+        BaseModInstaller.DedupeRecordBlocks([
             "",
             "",
         ]).Should().BeEquivalentTo([
@@ -45,7 +45,7 @@ public class PostProcessorTest
     [Fact]
     public void DedupeRecordBlocks_AssumesCommentsAlreadyRemoved()
     {
-        PostProcessor.DedupeRecordBlocks([
+        BaseModInstaller.DedupeRecordBlocks([
             @"RECORD foo bar # first",
             @"RECORD foo bar # last"
         ]).Should().BeEquivalentTo([

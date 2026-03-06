@@ -3,6 +3,7 @@ using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Packages.Repository;
+using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
 using FluentAssertions.Extensions;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Packages.Installation;
 
+[IntegrationTest]
 public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>
 {
     #region Initialisation
@@ -414,6 +416,13 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
             ], ShadowedBy: []),
         });
     }
+
+    private static IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
+        InstallerOf(name, fsHash, files, Array.Empty<string>());
+
+    private static IInstaller InstallerOf(string name, int? fsHash,
+        IReadOnlyCollection<string> files, IReadOnlyCollection<string> dependencies) =>
+        new StaticFilesInstaller(name, fsHash, files.ToDictionary(f => f, _ => ""), dependencies);
 }
 
 public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler : class
@@ -462,44 +471,5 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
 
         public IInstaller PackageInstaller(Package package) =>
             installers.First(installer => installer.PackageName == package.Name);
-    }
-
-    protected static IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
-        InstallerOf(name, fsHash, files, Array.Empty<string>());
-
-    protected static IInstaller InstallerOf(string name, int? fsHash,
-        IReadOnlyCollection<string> files, IReadOnlyCollection<string> dependencies) =>
-        new StaticFilesInstaller(name, fsHash, files, dependencies);
-
-    private class StaticFilesInstaller : BaseInstaller<object>
-    {
-        private static readonly object NoContext = new();
-        private readonly IReadOnlyCollection<string> files;
-
-        internal StaticFilesInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> files,
-            IReadOnlyCollection<string> packageDependencies) :
-            base(packageName, packageFsHash, packageDependencies)
-        {
-            this.files = files;
-        }
-
-        protected override void InstalAllFiles(InstallBody body)
-        {
-            foreach (var file in files)
-            {
-                body(file, NoContext);
-            }
-        }
-
-        protected override void InstallFile(RootedPath destinationPath, object context)
-        {
-            // Do not install any file for real
-        }
-
-        // Install everything from the root directory
-
-        private const string DirAtRoot = "X";
-
-        public override IEnumerable<string> RelativeDirectoryPaths => [DirAtRoot];
     }
 }

@@ -22,10 +22,11 @@ public class ModInstallerFactory : IModInstallerFactory<BootfilesInstaller.IEven
     }
 
     public IInstaller ModInstaller(IInstaller packageInstaller, IInstaller bootfilesInstaller) =>
-        new ModInstaller(packageInstaller, bootfilesInstaller.PackageName, game, tempDir, config);
+        new ModInstaller(packageInstaller, tempDir.BasePath, config, game.InstallationDirectory, bootfilesInstaller.PackageName);
 
-    public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller, BootfilesInstaller.IEventHandler eventHandler) =>
-        new BootfilesInstaller(bootfilesPackageInstaller, game, tempDir, eventHandler, config);
+    public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller,
+        BootfilesInstaller.IEventHandler eventHandler) =>
+        new BootfilesInstaller(bootfilesPackageInstaller, tempDir.BasePath, config, game.InstallationDirectory, eventHandler);
 
     public bool IsBootFiles(string packageName) =>
         packageName.StartsWith(BootfilesPrefix);

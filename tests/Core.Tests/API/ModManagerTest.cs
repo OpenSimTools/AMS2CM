@@ -13,21 +13,23 @@ using LibArchive.Net;
 
 namespace Core.Tests.API;
 
-public class ModManagerIntegrationTest : AbstractFilesystemTest
+[IntegrationTest]
+public class ModManagerTest : AbstractFilesystemTest
 {
     #region Initialisation
 
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
+    private static readonly string GameSupportedModDirectory = Path.Combine("Mod", "Directory");
 
     private static readonly string VehicleListRelativePath =
-        Path.Combine(BootfilesInstaller.VehicleListRelativeDir, PostProcessor.VehicleListFileName);
+        Path.Combine(BootfilesInstaller.VehicleListRelativeDir, BaseModInstaller.VehicleListFileName);
 
     private static readonly string TrackListRelativePath =
-        Path.Combine(BootfilesInstaller.TrackListRelativeDir, PostProcessor.TrackListFileName);
+        Path.Combine(BootfilesInstaller.TrackListRelativeDir, BaseModInstaller.TrackListFileName);
 
     private static readonly string DrivelineRelativePath =
-        Path.Combine(BootfilesInstaller.DrivelineRelativeDir, PostProcessor.DrivelineFileName);
+        Path.Combine(BootfilesInstaller.DrivelineRelativeDir, BaseModInstaller.DrivelineFileName);
 
     private static readonly DateTime PastDate = DateTime.Today.AddDays(-1);
 
@@ -45,7 +47,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
 
     private readonly IModManager modManager;
 
-    public ModManagerIntegrationTest()
+    public ModManagerTest()
     {
         gameDir = TestDir.CreateSubdirectory("Game");
         modsDir = TestDir.CreateSubdirectory("Packages");
@@ -55,7 +57,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState = new InMemoryStatePersistence();
         var modInstallConfig = new ModInstallConfig
         {
-            DirsAtRoot = [DirAtRoot], ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"]
+            DirsAtRoot = [DirAtRoot],
+            ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"],
+            GameSupportedModDirectory = GameSupportedModDirectory
         };
 
         modManager = Init.CreateModManager(
@@ -674,7 +678,7 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
             CreateModArchive(100, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
                 Path.Combine(DirAtRoot, "Track.trd"), // Tracks do not currently work in game
-                Path.Combine(PostProcessor.GameSupportedModDirectory, "Anything")
+                Path.Combine(GameSupportedModDirectory, "Anything")
             ]),
             CreateCustomBootfiles(900),
         ]);
@@ -704,11 +708,11 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.For("Package100").Dependencies.Should().BeEmpty();
 
         var generatedConfigDir = $"Package100_{100:x}";
-        File.ReadAllText(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir,
-            PostProcessor.VehicleListFileName).Full).Should().Contain("Vehicle.crd");
-        File.ReadAllText(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir,
-            PostProcessor.DrivelineFileName).Full).Should().Contain(drivelineRecord);
-        File.Exists(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
+        File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
+            BaseModInstaller.VehicleListFileName).Full).Should().Contain("Vehicle.crd");
+        File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
+            BaseModInstaller.DrivelineFileName).Full).Should().Contain(drivelineRecord);
+        File.Exists(GamePath(GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
             .Full).Should().BeTrue();
     }
 
@@ -730,9 +734,9 @@ public class ModManagerIntegrationTest : AbstractFilesystemTest
         persistedState.For("Package100").Dependencies.Should().Contain("__bootfiles900");
 
         var generatedConfigDir = $"Package100_{100:x}";
-        File.ReadAllText(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir,
-            PostProcessor.TrackListFileName).Full).Should().Contain("Track.trd");
-        File.Exists(GamePath(PostProcessor.GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
+        File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
+            BaseModInstaller.TrackListFileName).Full).Should().Contain("Track.trd");
+        File.Exists(GamePath(GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
             .Full).Should().BeFalse();
 
         File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Contain("Track.trd");

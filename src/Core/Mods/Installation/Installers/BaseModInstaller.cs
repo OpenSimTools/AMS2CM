@@ -1,5 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Core.Games;
+using System.IO.Abstractions;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -21,11 +21,18 @@ public abstract class BaseModInstaller : IInstaller
         {
             get;
         }
+
+        string GameSupportedModDirectory { get; }
     }
 
+    internal const string VehicleListFileName = "vehiclelist.lst";
+    internal const string TrackListFileName = "tracklist.lst";
+    internal const string DrivelineFileName = "driveline.rg";
+
+    protected readonly IFileSystem FileSystem;
     protected readonly IInstaller Inner;
-    protected readonly IGame Game;
-    protected readonly DirectoryInfo StagingDir;
+    protected readonly string StagingFullPath;
+    protected readonly string GameSupportedModDirectory;
 
     private readonly Lazy<IRootFinder.RootPaths> rootPaths;
     private readonly Matcher filesToInstallMatcher;
@@ -34,11 +41,12 @@ public abstract class BaseModInstaller : IInstaller
 
     private readonly List<RootedPath> localInstalledFiles = new();
 
-    protected BaseModInstaller(IInstaller inner, IGame game, ITempDir tempDir, IConfig config)
+    protected BaseModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config)
     {
+        FileSystem = fileSystem;
         Inner = inner;
-        Game = game;
-        StagingDir = new DirectoryInfo(Path.Combine(tempDir.BasePath, inner.PackageName));
+        StagingFullPath = Path.GetFullPath(Path.Combine(tempDir, inner.PackageName));
+        GameSupportedModDirectory = config.GameSupportedModDirectory;
         var rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
         rootPaths = new Lazy<IRootFinder.RootPaths>(
             () => rootFinder.FromDirectoryList(Inner.RelativeDirectoryPaths));
@@ -92,7 +100,7 @@ public abstract class BaseModInstaller : IInstaller
         {
             var relativePathFromRoot = rootPaths.Value.GetPathFromRoot(pathInPackage);
             return relativePathFromRoot is null
-                ? new RootedPath(StagingDir.FullName, pathInPackage)
+                ? new RootedPath(StagingFullPath, pathInPackage)
                 // If part of a game root, return the destination relative to that root
                 : destination(relativePathFromRoot);
         };
@@ -121,8 +129,102 @@ public abstract class BaseModInstaller : IInstaller
     };
 
     private bool RootIsNotStagingDir(RootedPath rp) =>
-        rp.Root != StagingDir.FullName;
+        rp.Root != StagingFullPath;
 
     private bool RootIsStagingDir(RootedPath rp) =>
-        rp.Root == StagingDir.FullName;
+        rp.Root == StagingFullPath;
+
+    protected RootedPath? AppendCrdFileEntries(IEnumerable<string> crdFileEntries) =>
+        AppendEntryList(VehicleListDir.SubPath(VehicleListFileName), crdFileEntries);
+
+    protected abstract RootedPath VehicleListDir { get; }
+
+    public RootedPath? AppendTrdFileEntries(IEnumerable<string> trdFileEntries) =>
+        AppendEntryList(TrackListDir.SubPath(TrackListFileName), trdFileEntries);
+
+    protected abstract RootedPath TrackListDir { get; }
+
+    public RootedPath? AppendDrivelineRecords(IEnumerable<string> recordBlocks)
+    {
+        var recordsTextBlock = DrivelineBlock(recordBlocks);
+        if (recordsTextBlock.Length == 0)
+        {
+            return null;
+        }
+
+        var driveLineFilePath = DrivelineDir.SubPath(DrivelineFileName);
+        CreateParentDirectory(driveLineFilePath);
+        var newContents = DrivelineFileContents(driveLineFilePath, WrapConfigBlock(recordsTextBlock));
+        FileSystem.File.WriteAllText(driveLineFilePath.Full, newContents); // TODO THIS DOES NOT EXIST!!!!!
+        return driveLineFilePath;
+    }
+
+    protected abstract RootedPath DrivelineDir { get; }
+
+    private static string DrivelineBlock(IEnumerable<string> recordBlocks)
+    {
+        var dedupedRecordBlocks = DedupeRecordBlocks(recordBlocks);
+        return string.Join($"{Environment.NewLine}{Environment.NewLine}", dedupedRecordBlocks);
+    }
+
+    internal static IEnumerable<string> DedupeRecordBlocks(IEnumerable<string> recordBlocks)
+    {
+        var seen = new HashSet<string>();
+        var deduped = new List<string>();
+        foreach (var rb in recordBlocks.Reverse())
+        {
+            var key = rb.Split(Environment.NewLine, 2).First().NormalizeWhitespaces();
+            if (seen.Contains(key))
+            {
+                continue;
+            }
+            seen.Add(key);
+            deduped.Add(rb);
+        }
+        return deduped.Reverse<string>();
+    }
+
+    private string DrivelineFileContents(RootedPath driveLineFilePath, string recordsTextBlock)
+    {
+        if (!FileSystem.File.Exists(driveLineFilePath.Full))
+        {
+            return recordsTextBlock;
+        }
+
+        var contents = FileSystem.File.ReadAllText(driveLineFilePath.Full);
+        var endIndex = contents.LastIndexOf("END", StringComparison.Ordinal);
+        if (endIndex < 0)
+        {
+            throw new Exception("Could not find insertion point in driveline file");
+        }
+        return contents.Insert(endIndex, recordsTextBlock);
+    }
+
+    private RootedPath? AppendEntryList(
+        RootedPath filePath,
+        IEnumerable<string> entries)
+    {
+        var entriesBlock = string.Join(Environment.NewLine, entries);
+        if (entriesBlock.Length == 0)
+        {
+            return null;
+        }
+
+        CreateParentDirectory(filePath);
+        var f = FileSystem.File.AppendText(filePath.Full);
+        f.Write(WrapConfigBlock(entriesBlock));
+        f.Close();
+        return filePath;
+    }
+
+    private void CreateParentDirectory(RootedPath filePath)
+    {
+        var dirPath = Path.GetDirectoryName(filePath.Full);
+        if (dirPath is not null)
+        {
+            FileSystem.Directory.CreateDirectory(dirPath);
+        }
+    }
+
+    protected virtual string WrapConfigBlock(string configBlock) => configBlock;
 }

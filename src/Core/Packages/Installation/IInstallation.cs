@@ -2,10 +2,8 @@
 
 namespace Core.Packages.Installation;
 
-public interface IInstallation
+public interface IInstallation : IPackageInfo
 {
-    string PackageName { get; }
-    int? PackageFsHash { get; }
     IReadOnlyCollection<string> PackageDependencies { get; }
 
     IReadOnlyCollection<RootedPath> InstalledFiles { get; }

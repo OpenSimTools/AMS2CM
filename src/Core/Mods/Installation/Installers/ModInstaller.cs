@@ -1,5 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Core.Games;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -30,12 +30,30 @@ public class ModInstaller : BaseModInstaller
     private IReadOnlyCollection<string> bootfilesDependency = Array.Empty<string>();
     private readonly string bootfilesPackageName;
 
-    internal ModInstaller(IInstaller inner, string bootfilesPackageName, IGame game, ITempDir tempDir, IConfig config) :
-        base(inner, game, tempDir, config)
+    private RootedPath modConfigPath;
+    private string modName;
+
+    internal ModInstaller(IInstaller inner, string tempDir, IConfig config,
+        string gameInstallationDir, string bootfilesPackageName) :
+        this(new FileSystem(), inner, tempDir, config, gameInstallationDir, bootfilesPackageName)
+    {
+    }
+
+    internal ModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config,
+        string gameInstallationDir, string bootfilesPackageName) :
+        base(fileSystem, inner, tempDir, config)
     {
         this.bootfilesPackageName = bootfilesPackageName;
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
         generateModDetails = config.GenerateModDetails;
+
+        var normalisedName = string.Concat(
+            Path.GetFileNameWithoutExtension(inner.PackageName)
+                .Where(char.IsAsciiLetterOrDigit));
+        var hexFsHash = (inner.PackageFsHash ?? 0).ToString("x");
+        modName = $"{normalisedName}_{hexFsHash}";
+
+        modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModDirectory, modName));
     }
 
     public override IReadOnlyCollection<string> PackageDependencies =>
@@ -48,10 +66,16 @@ public class ModInstaller : BaseModInstaller
         GenerateModConfig();
     }
 
+    protected override RootedPath VehicleListDir => modConfigPath;
+
+    protected override RootedPath TrackListDir => modConfigPath;
+
+    protected override RootedPath DrivelineDir => modConfigPath;
+
     private void GenerateModConfig()
     {
         var gameSupportedMod = FileEntriesToConfigure()
-            .Any(p => p.StartsWith(PostProcessor.GameSupportedModDirectory));
+            .Any(p => p.StartsWith(GameSupportedModDirectory));
         var modConfig = gameSupportedMod
             ? ConfigEntries.Empty
             : new ConfigEntries(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
@@ -63,22 +87,12 @@ public class ModInstaller : BaseModInstaller
         if (modConfig.None())
             return;
 
-        var normalisedName = string.Concat(
-            Path.GetFileNameWithoutExtension(Inner.PackageName)
-                .Where(char.IsAsciiLetterOrDigit));
-        var hexFsHash = (PackageFsHash ?? 0).ToString("x");
-        var modConfigDirPath = new RootedPath(
-            Game.InstallationDirectory,
-            Path.Combine(PostProcessor.GameSupportedModDirectory, $"{normalisedName}_{hexFsHash}"));
-
-        // TODO this can fail
-        Directory.CreateDirectory(modConfigDirPath.Full);
-        AddToInstalledFiles(PostProcessor.AppendCrdFileEntries(modConfigDirPath, modConfig.CrdFileEntries));
-        AddToInstalledFiles(PostProcessor.AppendTrdFileEntries(modConfigDirPath, modConfig.TrdFileEntries));
-        AddToInstalledFiles(PostProcessor.AppendDrivelineRecords(modConfigDirPath, modConfig.DrivelineRecords));
+        AddToInstalledFiles(AppendCrdFileEntries(modConfig.CrdFileEntries));
+        AddToInstalledFiles(AppendTrdFileEntries(modConfig.TrdFileEntries));
+        AddToInstalledFiles(AppendDrivelineRecords(modConfig.DrivelineRecords));
         if (generateModDetails && !modConfig.TrdFileEntries.Any())
         {
-            AddToInstalledFiles(PostProcessor.GenerateModDetails(modConfigDirPath, Inner));
+            AddToInstalledFiles(GenerateModDetails());
         } else
         {
             bootfilesDependency = new[] { bootfilesPackageName };
@@ -104,16 +118,16 @@ public class ModInstaller : BaseModInstaller
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();
-        if (!StagingDir.Exists)
+        if (!FileSystem.Directory.Exists(StagingFullPath))
         {
             return recordBlocks;
         }
 
-        foreach (var configFile in StagingDir.EnumerateFiles())
+        foreach (var configFile in FileSystem.Directory.EnumerateFiles(StagingFullPath))
         {
             var recordIndent = -1;
             var recordLines = new List<string>();
-            foreach (var line in File.ReadAllLines(configFile.FullName))
+            foreach (var line in FileSystem.File.ReadAllLines(configFile))
             {
                 // Read each line until we find one with RECORD
                 if (recordIndent < 0)
@@ -149,4 +163,24 @@ public class ModInstaller : BaseModInstaller
         return recordBlocks;
     }
 
+    public RootedPath GenerateModDetails()
+    {
+        var contents = @$"<?xml version=""1.0""?>
+<Reflection>
+    <class name=""BRTTIRefCount"" base=""root class"" />
+    <class name=""BPersistent"" base=""BRTTIRefCount"">
+        <prop name=""Name"" type=""String"" />
+    </class>
+    <class name=""ModDetails"" base=""BPersistent"">
+        <prop name=""DisplayName"" type=""String"" />
+    </class>
+    <data class=""ModDetails"" id=""0x{PackageFsHash:x08}"">
+        <prop name=""Name"" data=""{modName}"" />
+        <prop name=""DisplayName"" data=""{PackageName}"" />
+    </data>
+</Reflection>";
+        var filePath = modConfigPath.SubPath($"{modName}.xml");
+        FileSystem.File.WriteAllText(filePath.Full, contents);
+        return filePath;
+    }
 }

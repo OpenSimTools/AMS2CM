@@ -4,13 +4,14 @@ using FluentAssertions;
 
 namespace Core.Tests.Packages.Repository;
 
-public class FileSystemRepositoryIntegrationTest : AbstractFilesystemTest
+[IntegrationTest]
+public class FileSystemRepositoryTest : AbstractFilesystemTest
 {
     private const int NotChecked = 42;
 
     private readonly FileSystemRepository fileSystemRepository;
 
-    public FileSystemRepositoryIntegrationTest() : base()
+    public FileSystemRepositoryTest() : base()
     {
         fileSystemRepository = new(TestDir.FullName);
     }

@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Utils;
 
@@ -18,6 +18,8 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     public IInstallation.State Installed { get; private set; }
     public IReadOnlyCollection<RootedPath> InstalledFiles => installedFiles;
 
+    protected readonly IFileSystem FileSystem;
+
     private readonly List<RootedPath> installedFiles = new();
 
     protected BaseInstaller(string packageName, int? packageFsHash)
@@ -25,9 +27,15 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     {
     }
 
-    // A package cannot currently specify dependencies.
-    protected BaseInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> packageDependencies)
+    protected BaseInstaller(string packageName, int? packageFsHash, IReadOnlyCollection<string> packageDependencies) :
+        this(new FileSystem(), packageName, packageFsHash, packageDependencies)
     {
+    }
+
+    // A package cannot currently specify dependencies.
+    protected BaseInstaller(IFileSystem fs, string packageName, int? packageFsHash, IReadOnlyCollection<string> packageDependencies)
+    {
+        FileSystem = fs;
         PackageName = packageName;
         PackageFsHash = packageFsHash;
         PackageDependencies = packageDependencies;
@@ -53,7 +61,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
                     backupStrategy.PerformBackup(destPath);
                     if (!removeFile)
                     {
-                        Directory.GetParent(destPath.Full)?.Create();
+                        FileSystem.Directory.GetParent(destPath.Full)?.Create();
                         InstallFile(destPath, context);
                     }
                 }

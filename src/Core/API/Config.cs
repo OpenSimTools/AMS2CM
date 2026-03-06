@@ -39,6 +39,7 @@ public class ModInstallConfig : ModInstaller.IConfig
 {
     public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
     public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();
+    public string GameSupportedModDirectory { get; set; } = Path.Combine("UserData", "Mods");
     public IEnumerable<string> ExcludedFromConfig { get; set; } = Array.Empty<string>();
     public bool GenerateModDetails { get; set; } = true;
 }
