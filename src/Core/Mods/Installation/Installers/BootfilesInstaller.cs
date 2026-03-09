@@ -18,32 +18,34 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
-    private const string GeneratedBootfilesPackageName = $"{ModInstallerFactory.BootfilesPrefix}_generated";
-
     internal const string VehicleListRelativeDir = "vehicles";
     internal static readonly string TrackListRelativeDir = Path.Combine("tracks", "_data");
     internal static readonly string DrivelineRelativeDir = Path.Combine(VehicleListRelativeDir, "physics", "driveline");
 
     private readonly RootedPath gameInstallationPath;
+    private readonly IBootfilesNaming bootfilesNaming;
     private readonly IEventHandler eventHandler;
 
     public BootfilesInstaller(IInstaller? bootfilesPackageInstaller, string tempDir, IConfig config,
-        string gameInstallationDir, IEventHandler eventHandler) :
-        this(new FileSystem(), bootfilesPackageInstaller, tempDir, config, gameInstallationDir, eventHandler)
+        string gameInstallationDir, IBootfilesNaming bootfilesNaming, IEventHandler eventHandler) :
+        this(new FileSystem(), bootfilesPackageInstaller, tempDir, config,
+            gameInstallationDir, bootfilesNaming, eventHandler)
     {
     }
 
-    public BootfilesInstaller(IFileSystem fileSystem, IInstaller? bootfilesPackageInstaller,
-        string tempDir, IConfig config, string gameInstallationDir, IEventHandler eventHandler) :
-        base(fileSystem, PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir), tempDir, config)
+    public BootfilesInstaller(IFileSystem fileSystem, IInstaller? bootfilesPackageInstaller, string tempDir,
+        IConfig config, string gameInstallationDir, IBootfilesNaming bootfilesNaming, IEventHandler eventHandler) :
+        base(fileSystem, PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir, bootfilesNaming),
+            tempDir, config)
     {
         gameInstallationPath = new RootedPath(gameInstallationDir);
+        this.bootfilesNaming = bootfilesNaming;
         this.eventHandler = eventHandler;
     }
 
     private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller,
-        string gameInstallationDirectory, string tempDir) =>
-        bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(GeneratedBootfilesPackageName,
+        string gameInstallationDirectory, string tempDir, IBootfilesNaming bootfilesNaming) =>
+        bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
             gameInstallationDirectory, tempDir);
 
     // Bootfiles cannot have dependencies.
@@ -55,7 +57,7 @@ public class BootfilesInstaller : BaseModInstaller
         if (modConfigs.Any(c => c.Any()))
         {
             eventHandler.PostProcessingStart();
-            var packageNameIfNotGenerated = PackageName != GeneratedBootfilesPackageName ? PackageName : null;
+            var packageNameIfNotGenerated = bootfilesNaming.IsGeneratedBootfiles(PackageName) ? PackageName : null;
             eventHandler.ExtractingBootfiles(packageNameIfNotGenerated);
             innerInstall();
             eventHandler.PostProcessingVehicles();

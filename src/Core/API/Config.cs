@@ -1,4 +1,5 @@
 ﻿using Core.Games;
+using Core.Mods;
 using Core.Mods.Installation.Installers;
 using Core.SoftwareUpdates;
 using Microsoft.Extensions.Configuration;
@@ -35,8 +36,9 @@ public class GameConfig : Game.IConfig
     public string ProcessName { get; set; } = "Undefined";
 }
 
-public class ModInstallConfig : ModInstaller.IConfig
+public class ModInstallConfig : PrefixBootfilesNaming.IConfig, ModInstaller.IConfig
 {
+    public string BootfilesPrefix { get; set; } = "__bootfiles";
     public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
     public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();
     public string GameSupportedModDirectory { get; set; } = Path.Combine("UserData", "Mods");

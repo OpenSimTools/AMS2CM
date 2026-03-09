@@ -18,6 +18,7 @@ public class ModManagerTest : AbstractFilesystemTest
 {
     #region Initialisation
 
+    private const string BootfilesPrefix = "BP";
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
     private static readonly string GameSupportedModDirectory = Path.Combine("Mod", "Directory");
@@ -57,6 +58,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState = new InMemoryStatePersistence();
         var modInstallConfig = new ModInstallConfig
         {
+            BootfilesPrefix = BootfilesPrefix,
             DirsAtRoot = [DirAtRoot],
             ExcludedFromInstall = [$"**\\{FileExcludedFromInstall}"],
             GameSupportedModDirectory = GameSupportedModDirectory
@@ -208,17 +210,17 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
-            [$"{ModInstallerFactory.BootfilesPrefix}_IU"] = new(
+            [$"{BootfilesPrefix}_IU"] = new(
                 Time: PastDate, FsHash: null, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
-            [$"{ModInstallerFactory.BootfilesPrefix}_IE"] = new(
+            [$"{BootfilesPrefix}_IE"] = new(
                 Time: PastDate, FsHash: null, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
-            [$"{ModInstallerFactory.BootfilesPrefix}_ID"] = new(
+            [$"{BootfilesPrefix}_ID"] = new(
                 Time: PastDate, FsHash: null, Partial: false,
                 Dependencies: [],
                 Files: [],
@@ -226,21 +228,21 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: $"{ModInstallerFactory.BootfilesPrefix}_IE", FullPath: "ie/path", Enabled: true, FsHash: null),
-            new Package(Name: $"{ModInstallerFactory.BootfilesPrefix}_UE", FullPath: "ue/path", Enabled: true, FsHash: null)
+            new Package(Name: $"{BootfilesPrefix}_IE", FullPath: "ie/path", Enabled: true, FsHash: null),
+            new Package(Name: $"{BootfilesPrefix}_UE", FullPath: "ue/path", Enabled: true, FsHash: null)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: $"{ModInstallerFactory.BootfilesPrefix}_ID", FullPath: "id/path", Enabled: false, FsHash: null),
-            new Package(Name: $"{ModInstallerFactory.BootfilesPrefix}_UD", FullPath: "ud/path", Enabled: false, FsHash: null)
+            new Package(Name: $"{BootfilesPrefix}_ID", FullPath: "id/path", Enabled: false, FsHash: null),
+            new Package(Name: $"{BootfilesPrefix}_UD", FullPath: "ud/path", Enabled: false, FsHash: null)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
         [
-            new ModState($"{ModInstallerFactory.BootfilesPrefix}_IE", "ie/path", IsInstalled: true, IsEnabled: true, IsOutOfDate: true),
-            new ModState($"{ModInstallerFactory.BootfilesPrefix}_UE", "ue/path", IsInstalled: false, IsEnabled: true, IsOutOfDate: false),
-            new ModState($"{ModInstallerFactory.BootfilesPrefix}_ID", "id/path", IsInstalled: true, IsEnabled: false, IsOutOfDate: true),
-            new ModState($"{ModInstallerFactory.BootfilesPrefix}_UD", "ud/path", IsInstalled: false, IsEnabled: false, IsOutOfDate: false),
+            new ModState($"{BootfilesPrefix}_IE", "ie/path", IsInstalled: true, IsEnabled: true, IsOutOfDate: true),
+            new ModState($"{BootfilesPrefix}_UE", "ue/path", IsInstalled: false, IsEnabled: true, IsOutOfDate: false),
+            new ModState($"{BootfilesPrefix}_ID", "id/path", IsInstalled: true, IsEnabled: false, IsOutOfDate: true),
+            new ModState($"{BootfilesPrefix}_UD", "ud/path", IsInstalled: false, IsEnabled: false, IsOutOfDate: false),
         ]);
     }
 
@@ -730,8 +732,8 @@ public class ModManagerTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100", "__bootfiles900"]);
-        persistedState.For("Package100").Dependencies.Should().Contain("__bootfiles900");
+        persistedState.Should().HaveInstalled(["Package100", $"{BootfilesPrefix}900"]);
+        persistedState.For("Package100").Dependencies.Should().Contain($"{BootfilesPrefix}900");
 
         var generatedConfigDir = $"Package100_{100:x}";
         File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
@@ -757,7 +759,7 @@ public class ModManagerTest : AbstractFilesystemTest
         //
         //modManager.InstallEnabledMods()
         //
-        //persistedState.Should().HaveInstalled(["Package100", "__bootfiles"]);
+        //persistedState.Should().HaveInstalled(["Package100", $"{BootfilesPrefix}_generated"]);
     }
 
     [Fact]
@@ -771,7 +773,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100", "__bootfiles901"]);
+        persistedState.Should().HaveInstalled(["Package100", $"{BootfilesPrefix}901"]);
     }
 
     #region Utility methods
@@ -783,7 +785,7 @@ public class ModManagerTest : AbstractFilesystemTest
         CreateModPackage("Package", fsHash, relativePaths, callback);
 
     private Package CreateCustomBootfiles(int fsHash) =>
-        CreateModPackage(ModInstallerFactory.BootfilesPrefix, fsHash, [
+        CreateModPackage(BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
                 VehicleListRelativePath,
                 TrackListRelativePath,

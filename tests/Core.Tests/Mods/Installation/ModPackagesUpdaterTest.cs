@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Core.Mods;
 using Core.Mods.Installation;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
@@ -38,17 +39,17 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
 
         public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller, PackagesUpdater.IEventHandler eventHandler) =>
             bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
-
-        public bool IsBootFiles(string packageName) =>
-            packageName == BootfilesPackageName || packageName == GeneratedBootfilesName;
     }
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
         IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, PackagesUpdater.IEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider) {
+        TimeProvider timeProvider)
+    {
+        var bootfilesNamingMock = new Mock<IBootfilesNaming>();
+        bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
         return new ModPackagesUpdater<PackagesUpdater.IEventHandler>(
-            installerFactory, backupStrategyProvider, timeProvider, new TestModInstallerFactory());
+            installerFactory, backupStrategyProvider, timeProvider, bootfilesNamingMock.Object, new TestModInstallerFactory());
     }
 
     #endregion

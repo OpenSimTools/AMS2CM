@@ -6,18 +6,19 @@ namespace Core.Mods.Installation.Installers;
 
 public class ModInstallerFactory : IModInstallerFactory<BootfilesInstaller.IEventHandler>
 {
-    internal const string BootfilesPrefix = "__bootfiles";
-
     private readonly IGame game;
     private readonly ITempDir tempDir;
+    private readonly IBootfilesNaming bootfilesNaming;
     private readonly ModInstaller.IConfig config;
 
     public ModInstallerFactory(IGame game,
         ITempDir tempDir,
+        IBootfilesNaming bootfilesNaming,
         ModInstaller.IConfig config)
     {
         this.game = game;
         this.tempDir = tempDir;
+        this.bootfilesNaming = bootfilesNaming;
         this.config = config;
     }
 
@@ -26,8 +27,6 @@ public class ModInstallerFactory : IModInstallerFactory<BootfilesInstaller.IEven
 
     public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller,
         BootfilesInstaller.IEventHandler eventHandler) =>
-        new BootfilesInstaller(bootfilesPackageInstaller, tempDir.BasePath, config, game.InstallationDirectory, eventHandler);
-
-    public bool IsBootFiles(string packageName) =>
-        packageName.StartsWith(BootfilesPrefix);
+        new BootfilesInstaller(bootfilesPackageInstaller, tempDir.BasePath, config,
+            game.InstallationDirectory, bootfilesNaming, eventHandler);
 }

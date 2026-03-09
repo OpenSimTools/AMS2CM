@@ -10,15 +10,18 @@ namespace Core.Mods.Installation;
 public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
+    private readonly IBootfilesNaming bootfilesNaming;
     private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
     public ModPackagesUpdater(
         IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider,
+        IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :
         base(installerFactory, backupStrategyProvider, timeProvider)
     {
+        this.bootfilesNaming = bootfilesNaming;
         this.modInstallerFactory = modInstallerFactory;
     }
 
@@ -30,7 +33,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var (bootfiles, notBootfiles) = installers.Partition(p => modInstallerFactory.IsBootFiles(p.PackageName));
+        var (bootfiles, notBootfiles) = installers.Partition(p => bootfilesNaming.IsBootfiles(p.PackageName));
         var bootfilesInstaller = CreateBootfilesInstaller(bootfiles, eventHandler);
 
         var allInstallers = notBootfiles
