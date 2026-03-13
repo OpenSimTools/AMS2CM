@@ -14,6 +14,9 @@ public class ModInstallerTest
     private const string GameSupportedModDirectory = "ModDirectory";
     private const string GameDirAtRoot = "DirAtRoot";
     private const string BootfilesPackageName = "BootFilesPackage";
+    private const string VehicleListFile = "vehiclelist.lst";
+    private const string TrackListFile = "tracklist.lst";
+    private const string DrivelineFile = "driveline.rg";
 
     #region Setup
 
@@ -26,8 +29,11 @@ public class ModInstallerTest
     public ModInstallerTest()
     {
         configMock.Setup(c => c.DirsAtRoot).Returns([GameDirAtRoot, GameSupportedModDirectory]);
-        configMock.Setup(c => c.GameSupportedModDirectory).Returns(GameSupportedModDirectory);
+        configMock.Setup(c => c.GameSupportedModDir).Returns(GameSupportedModDirectory);
         configMock.Setup(c => c.GenerateModDetails).Returns(true);
+        configMock.Setup(c => c.VehicleListFileName).Returns(VehicleListFile);
+        configMock.Setup(c => c.TrackListFileName).Returns(TrackListFile);
+        configMock.Setup(c => c.DrivelineFileName).Returns(DrivelineFile);
 
         destDir = fs.Directory.CreateDirectory("Dest").FullName;
         tempDir = fs.Directory.CreateDirectory("Temp").FullName;
@@ -95,8 +101,8 @@ public class ModInstallerTest
 
         string[] expectedFiles = {
             crdFile,
-            Path.Combine(GameSupportedModDirectory, "A_badcafe", BaseModInstaller.VehicleListFileName),
-            Path.Combine(GameSupportedModDirectory, "A_badcafe", BaseModInstaller.DrivelineFileName),
+            Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile),
+            Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile),
             Path.Combine(GameSupportedModDirectory, "A_badcafe", "A_badcafe.xml")
         };
 
@@ -109,9 +115,9 @@ public class ModInstallerTest
         fs.AllFiles.Should().BeEquivalentTo(
             expectedFiles.Select(f => Path.Combine(destDir, f))
         );
-        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", BaseModInstaller.VehicleListFileName))
+        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
-        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", BaseModInstaller.DrivelineFileName))
+        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
             .TextContents.Should().Be(drivelineRecord.Trim());
     }
 
@@ -128,7 +134,7 @@ public class ModInstallerTest
         var modInstaller = InstallWithModInstaller(InstallerOf("A", null, packageFiles));
 
         var expectedFiles = packageFiles.Concat([
-            Path.Combine(GameSupportedModDirectory, "A_0", "vehiclelist.lst")
+            Path.Combine(GameSupportedModDirectory, "A_0", VehicleListFile)
             // No mod xml
         ]).ToHashSet();
 
@@ -154,7 +160,7 @@ public class ModInstallerTest
         var modInstaller = InstallWithModInstaller(InstallerOf("Bee Cee", null, packageFiles));
 
         var expectedFiles = packageFiles.Concat([
-            Path.Combine(GameSupportedModDirectory, "BeeCee_0", "tracklist.lst")
+            Path.Combine(GameSupportedModDirectory, "BeeCee_0", TrackListFile)
             // No mod xml
         ]).ToHashSet();
 

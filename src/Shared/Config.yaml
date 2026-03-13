@@ -3,22 +3,6 @@ Game:
   Path: steamapps\common\Automobilista 2
   ProcessName: AMS2AVX
 ModInstall:
-  DirsAtRoot:
-  - cameras
-  - characters
-  - effects
-  - gui
-  - pakfiles
-  - render
-  - text
-  - tracks
-  - userdata
-  - upgrade
-  - vehicles
-  ExcludedFromInstall:
-  - '**\*.orig'
-  - '**\*.dll'
-  - '**\*.exe'
   ExcludedFromConfig:
   # IndyCar 2023 1.0 Fix
   - '**\IR-18_2023_Dale_Coyne_hr.crd'

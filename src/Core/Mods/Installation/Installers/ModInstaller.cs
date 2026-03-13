@@ -13,15 +13,8 @@ public class ModInstaller : BaseModInstaller
 {
     public new interface IConfig : BaseModInstaller.IConfig
     {
-        IEnumerable<string> ExcludedFromConfig
-        {
-            get;
-        }
-
-        bool GenerateModDetails
-        {
-            get;
-        }
+        IEnumerable<string> ExcludedFromConfig { get; }
+        bool GenerateModDetails { get; }
     }
 
     private readonly Matcher filesToConfigureMatcher;
@@ -53,7 +46,7 @@ public class ModInstaller : BaseModInstaller
         var hexFsHash = (inner.PackageFsHash ?? 0).ToString("x");
         modName = $"{normalisedName}_{hexFsHash}";
 
-        modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModDirectory, modName));
+        modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModRelativeDir, modName));
     }
 
     public override IReadOnlyCollection<string> PackageDependencies =>
@@ -75,7 +68,7 @@ public class ModInstaller : BaseModInstaller
     private void GenerateModConfig()
     {
         var gameSupportedMod = FileEntriesToConfigure()
-            .Any(p => p.StartsWith(GameSupportedModDirectory));
+            .Any(p => p.StartsWith(GameSupportedModRelativeDir));
         var modConfig = gameSupportedMod
             ? ConfigEntries.Empty
             : new ConfigEntries(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());

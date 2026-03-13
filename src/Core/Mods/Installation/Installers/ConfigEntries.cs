@@ -1,4 +1,6 @@
-﻿namespace Core.Mods.Installation.Installers;
+﻿using System.Collections.Immutable;
+
+namespace Core.Mods.Installation.Installers;
 
 public record ConfigEntries(
     IReadOnlyCollection<string> CrdFileEntries,
@@ -12,4 +14,15 @@ public record ConfigEntries(
     public bool Any() => CrdFileEntries.Any() || TrdFileEntries.Any() || DrivelineRecords.Any();
 
     public bool None() => !Any();
+
+    public ConfigEntries Combine(ConfigEntries other) =>
+        Combine(this, other);
+
+    public static ConfigEntries Combine(ConfigEntries first, ConfigEntries second) =>
+        new (
+            first.CrdFileEntries.Concat(second.CrdFileEntries).ToImmutableList(),
+            first.TrdFileEntries.Concat(second.TrdFileEntries).ToImmutableList(),
+            first.DrivelineRecords.Concat(second.DrivelineRecords).ToImmutableList()
+        );
+
 };

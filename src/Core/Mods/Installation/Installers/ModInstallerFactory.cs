@@ -4,17 +4,18 @@ using Core.Utils;
 
 namespace Core.Mods.Installation.Installers;
 
-public class ModInstallerFactory : IModInstallerFactory<BootfilesInstaller.IEventHandler>
+public class ModInstallerFactory<TConfig> : IModInstallerFactory<BootfilesInstaller.IEventHandler>
+    where TConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
 {
     private readonly IGame game;
     private readonly ITempDir tempDir;
     private readonly IBootfilesNaming bootfilesNaming;
-    private readonly ModInstaller.IConfig config;
+    private readonly TConfig config;
 
     public ModInstallerFactory(IGame game,
         ITempDir tempDir,
         IBootfilesNaming bootfilesNaming,
-        ModInstaller.IConfig config)
+        TConfig config)
     {
         this.game = game;
         this.tempDir = tempDir;

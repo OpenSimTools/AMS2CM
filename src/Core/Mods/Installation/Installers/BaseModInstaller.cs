@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
@@ -12,27 +12,22 @@ public abstract class BaseModInstaller : IInstaller
 {
     public interface IConfig
     {
-        IEnumerable<string> DirsAtRoot
-        {
-            get;
-        }
-
-        IEnumerable<string> ExcludedFromInstall
-        {
-            get;
-        }
-
-        string GameSupportedModDirectory { get; }
+        IEnumerable<string> DirsAtRoot { get; }
+        IEnumerable<string> ExcludedFromInstall { get; }
+        string GameSupportedModDir { get; }
+        string VehicleListFileName { get; }
+        string TrackListFileName { get; }
+        string DrivelineFileName { get; }
     }
 
-    internal const string VehicleListFileName = "vehiclelist.lst";
-    internal const string TrackListFileName = "tracklist.lst";
-    internal const string DrivelineFileName = "driveline.rg";
+    protected readonly string VehicleListFileName;
+    protected readonly string TrackListFileName;
+    protected readonly string DrivelineFileName;
 
     protected readonly IFileSystem FileSystem;
     protected readonly IInstaller Inner;
     protected readonly string StagingFullPath;
-    protected readonly string GameSupportedModDirectory;
+    protected readonly string GameSupportedModRelativeDir;
 
     private readonly Lazy<IRootFinder.RootPaths> rootPaths;
     private readonly Matcher filesToInstallMatcher;
@@ -46,7 +41,10 @@ public abstract class BaseModInstaller : IInstaller
         FileSystem = fileSystem;
         Inner = inner;
         StagingFullPath = Path.GetFullPath(Path.Combine(tempDir, inner.PackageName));
-        GameSupportedModDirectory = config.GameSupportedModDirectory;
+        GameSupportedModRelativeDir = config.GameSupportedModDir;
+        VehicleListFileName = config.VehicleListFileName;
+        TrackListFileName = config.TrackListFileName;
+        DrivelineFileName = config.DrivelineFileName;
         var rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
         rootPaths = new Lazy<IRootFinder.RootPaths>(
             () => rootFinder.FromDirectoryList(Inner.RelativeDirectoryPaths));

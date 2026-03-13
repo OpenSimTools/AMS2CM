@@ -1,4 +1,4 @@
-﻿using Core.Games;
+using Core.Games;
 using Core.Mods;
 using Core.Mods.Installation.Installers;
 using Core.SoftwareUpdates;
@@ -36,12 +36,31 @@ public class GameConfig : Game.IConfig
     public string ProcessName { get; set; } = "Undefined";
 }
 
-public class ModInstallConfig : PrefixBootfilesNaming.IConfig, ModInstaller.IConfig
+public class ModInstallConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig, PrefixBootfilesNaming.IConfig
 {
-    public string BootfilesPrefix { get; set; } = "__bootfiles";
-    public IEnumerable<string> DirsAtRoot { get; set; } = Array.Empty<string>();
-    public IEnumerable<string> ExcludedFromInstall { get; set; } = Array.Empty<string>();
-    public string GameSupportedModDirectory { get; set; } = Path.Combine("UserData", "Mods");
+    public IEnumerable<string> DirsAtRoot { get; set; } = new[]
+    {
+        "cameras", "characters", "effects", "gui", "pakfiles", "render",
+        "text", "tracks", "userdata", "upgrade", "vehicles"
+    };
+    public IEnumerable<string> ExcludedFromInstall { get; set; } = new[]
+    {
+        @"**\*.orig",
+        @"**\*.dll",
+        @"**\*.exe"
+    };
+    public string GameSupportedModDir { get; set; } = Path.Combine("UserData", "Mods");
+
     public IEnumerable<string> ExcludedFromConfig { get; set; } = Array.Empty<string>();
     public bool GenerateModDetails { get; set; } = true;
+
+    public string BootfilesVehicleListDir { get; set; } = "vehicles";
+    public string BootfilesTrackListDir { get; set; } = Path.Combine("tracks", "_data");
+    public string BootfilesDrivelineDir { get; set; } = Path.Combine("vehicles", "physics", "driveline");
+
+    public string VehicleListFileName { get; set; } = "vehiclelist.lst";
+    public string TrackListFileName { get; set; } = "tracklist.lst";
+    public string DrivelineFileName { get; set; } = "driveline.rg";
+
+    public string BootfilesPrefix { get; set; } = "__bootfiles";
 }
