@@ -31,6 +31,8 @@ public class BootfilesInstallerTest
     private readonly Mock<IBootfilesNaming> bootfilesNamingMock = new();
     private readonly Mock<BootfilesInstaller.IEventHandler> eventHandlerMock = new();
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
+    private readonly Mock<Action<RootedPath>> callbackMock = new();
+
     private readonly string destDir;
     private readonly string tempDir;
 
@@ -58,6 +60,8 @@ public class BootfilesInstallerTest
 
         eventHandlerMock.Verify(m => m.PostProcessingNotRequired(), Times.Once);
 
+        callbackMock.VerifyNoOtherCalls();
+
         fs.AllFiles.Should().BeEmpty();
     }
 
@@ -75,6 +79,8 @@ public class BootfilesInstallerTest
 
         eventHandlerMock.Verify(m => m.PostProcessingNotRequired(), Times.Once);
 
+        callbackMock.VerifyNoOtherCalls();
+
         fs.File.Exists(Path.Combine(destDir, BootfilesVehicleListDir, VehicleListFileName)).Should().BeFalse();
         fs.File.Exists(Path.Combine(destDir, BootfilesTrackListDir, TrackListFileName)).Should().BeFalse();
         fs.File.Exists(Path.Combine(destDir, BootfilesDrivelineDir, DrivelineFileName)).Should().BeFalse();
@@ -89,19 +95,23 @@ public class BootfilesInstallerTest
         fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod1", VehicleListFileName), mod1Config);
         fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod2", VehicleListFileName), mod2Config);
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(new [] {
+        var expected = DestRootedPaths(
             FileInBootfilesPackage,
-            //Path.Combine(BootfilesVehicleListDir, VehicleListFileName)
-        }.Select(f => new RootedPath(destDir, f)));
+            Path.Combine(BootfilesVehicleListDir, VehicleListFileName)
+        );
 
-        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesVehicleListDir, VehicleListFileName)))
-            .Should().Be(mod1Config + Environment.NewLine + mod2Config);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingVehicles(), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingEnd(), Times.Once);
         eventHandlerMock.VerifyNoOtherCalls();
+
+        VerifyCallbackCalledWith(expected);
+
+        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesVehicleListDir, VehicleListFileName)))
+            .Should().Be(mod1Config + Environment.NewLine + mod2Config);
     }
 
     [Fact]
@@ -113,19 +123,23 @@ public class BootfilesInstallerTest
         fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod1", TrackListFileName), mod1Config);
         fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod2", TrackListFileName), mod2Config);
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(new [] {
+        var expected = DestRootedPaths(
             FileInBootfilesPackage,
-            // Path.Combine(BootfilesTrackListDir, TrackListFileName)
-        }.Select(f => new RootedPath(destDir, f)));
+            Path.Combine(BootfilesTrackListDir, TrackListFileName)
+        );
 
-        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesTrackListDir, TrackListFileName)))
-            .Should().Be(mod1Config + Environment.NewLine + mod2Config);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingTracks(), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingEnd(), Times.Once);
         eventHandlerMock.VerifyNoOtherCalls();
+
+        VerifyCallbackCalledWith(expected);
+
+        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesTrackListDir, TrackListFileName)))
+            .Should().Be(mod1Config + Environment.NewLine + mod2Config);
     }
 
     [Fact]
@@ -137,19 +151,23 @@ public class BootfilesInstallerTest
         fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod1", DrivelineFileName), mod1Config);
         fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod2", DrivelineFileName), mod2Config);
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(new [] {
+        var expected = DestRootedPaths(
             FileInBootfilesPackage,
-            // Path.Combine(BootfilesDrivelineDir, DrivelineFileName)
-        }.Select(f => new RootedPath(destDir, f)));
+            Path.Combine(BootfilesDrivelineDir, DrivelineFileName)
+        );
 
-        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesDrivelineDir, DrivelineFileName)))
-            .Should().Be(mod1Config + Environment.NewLine + mod2Config);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingDrivelines(), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingEnd(), Times.Once);
         eventHandlerMock.VerifyNoOtherCalls();
+
+        VerifyCallbackCalledWith(expected);
+
+        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesDrivelineDir, DrivelineFileName)))
+            .Should().Be(mod1Config + Environment.NewLine + mod2Config);
     }
 
 
@@ -165,7 +183,10 @@ public class BootfilesInstallerTest
         var bootfilesInstaller = new BootfilesInstaller(fs, emptyPackage, tempDir, configMock.Object,
             destDir, bootfilesNamingMock.Object, eventHandlerMock.Object);
         bootfilesInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
-            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>());
+            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>
+            {
+                Before = callbackMock.Object
+            });
         fs.Directory.Delete(tempDir, recursive: true);
         return bootfilesInstaller;
     }
@@ -186,6 +207,18 @@ public class BootfilesInstallerTest
             config.Split(Environment.NewLine)
                 .Select(line => line.Split('#')[0].Trim())
                 .Where(line => !string.IsNullOrEmpty(line)));
+
+    private IReadOnlySet<RootedPath> DestRootedPaths(params string[] relativePaths) =>
+        relativePaths.Select(f => new RootedPath(destDir, f)).ToHashSet();
+
+    private void VerifyCallbackCalledWith(IReadOnlySet<RootedPath> relativePaths)
+    {
+        foreach (var rp in relativePaths)
+        {
+            callbackMock.Verify(a => a(rp), Times.Once);
+        }
+        callbackMock.VerifyNoOtherCalls();
+    }
 
     #endregion
 }

@@ -34,7 +34,7 @@ public abstract class BaseModInstaller : IInstaller
 
     private bool postProcessingDone;
 
-    private readonly List<RootedPath> localInstalledFiles = new();
+    private readonly HashSet<RootedPath> localInstalledFiles = new();
 
     protected BaseModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config)
     {
@@ -56,13 +56,13 @@ public abstract class BaseModInstaller : IInstaller
 
     public int? PackageFsHash => Inner.PackageFsHash;
 
-    public abstract IReadOnlyCollection<string> PackageDependencies { get; }
+    public abstract IReadOnlySet<string> PackageDependencies { get; }
 
-    public IReadOnlyCollection<RootedPath> InstalledFiles =>
+    public IReadOnlySet<RootedPath> InstalledFiles =>
         Inner.InstalledFiles
             .Concat(localInstalledFiles)
             .Where(RootIsNotStagingDir)
-            .ToImmutableArray();
+            .ToImmutableHashSet();
 
     public IInstallation.State Installed =>
         Inner.Installed == IInstallation.State.Installed && !postProcessingDone
@@ -72,10 +72,12 @@ public abstract class BaseModInstaller : IInstaller
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks)
     {
-        Install(() => Inner.Install(
-            ConfigToStagingDir(destination),
-            backupStrategy,
-            IgnoreForStagedFiles(callbacks.AndAccept(Whitelisted))));
+        Install(
+            () => Inner.Install(
+                ConfigToStagingDir(destination),
+                backupStrategy,
+                IgnoreForStagedFiles(callbacks.AndAccept(Whitelisted))),
+            callbacks);
 
         postProcessingDone = true;
     }
@@ -83,15 +85,7 @@ public abstract class BaseModInstaller : IInstaller
     public IEnumerable<string> RelativeDirectoryPaths =>
         Inner.RelativeDirectoryPaths.SelectNotNull(rootPaths.Value.GetPathFromRoot);
 
-    protected abstract void Install(Action innerInstall);
-
-    protected void AddToInstalledFiles(RootedPath? installedFile)
-    {
-        if (installedFile is not null)
-        {
-            localInstalledFiles.Add(installedFile);
-        }
-    }
+    protected abstract void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks);
 
     private IInstaller.Destination ConfigToStagingDir(IInstaller.Destination destination) =>
         pathInPackage =>
@@ -132,29 +126,31 @@ public abstract class BaseModInstaller : IInstaller
     private bool RootIsStagingDir(RootedPath rp) =>
         rp.Root == StagingFullPath;
 
-    protected RootedPath? AppendCrdFileEntries(IEnumerable<string> crdFileEntries) =>
-        AppendEntryList(VehicleListDir.SubPath(VehicleListFileName), crdFileEntries);
+    protected void AppendCrdFileEntries(IEnumerable<string> crdFileEntries,
+        ProcessingCallbacks<RootedPath> callbacks) =>
+        AppendEntryList(VehicleListDir.SubPath(VehicleListFileName), crdFileEntries, callbacks);
 
     protected abstract RootedPath VehicleListDir { get; }
 
-    public RootedPath? AppendTrdFileEntries(IEnumerable<string> trdFileEntries) =>
-        AppendEntryList(TrackListDir.SubPath(TrackListFileName), trdFileEntries);
+    protected void AppendTrdFileEntries(IEnumerable<string> trdFileEntries,
+        ProcessingCallbacks<RootedPath> callbacks) =>
+        AppendEntryList(TrackListDir.SubPath(TrackListFileName), trdFileEntries, callbacks);
 
     protected abstract RootedPath TrackListDir { get; }
 
-    public RootedPath? AppendDrivelineRecords(IEnumerable<string> recordBlocks)
+    protected void InsertDrivelineRecords(IEnumerable<string> recordBlocks,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         var recordsTextBlock = DrivelineBlock(recordBlocks);
         if (recordsTextBlock.Length == 0)
         {
-            return null;
+            return;
         }
 
         var driveLineFilePath = DrivelineDir.SubPath(DrivelineFileName);
-        CreateParentDirectory(driveLineFilePath);
         var newContents = DrivelineFileContents(driveLineFilePath, WrapConfigBlock(recordsTextBlock));
-        FileSystem.File.WriteAllText(driveLineFilePath.Full, newContents); // TODO THIS DOES NOT EXIST!!!!!
-        return driveLineFilePath;
+
+        SafeWriteAllText(driveLineFilePath, newContents, callbacks);
     }
 
     protected abstract RootedPath DrivelineDir { get; }
@@ -198,31 +194,45 @@ public abstract class BaseModInstaller : IInstaller
         return contents.Insert(endIndex, recordsTextBlock);
     }
 
-    private RootedPath? AppendEntryList(
+    private void AppendEntryList(
         RootedPath filePath,
-        IEnumerable<string> entries)
+        IEnumerable<string> entries,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         var entriesBlock = string.Join(Environment.NewLine, entries);
         if (entriesBlock.Length == 0)
         {
-            return null;
+            return;
         }
+        var contents = WrapConfigBlock(entriesBlock);
 
-        CreateParentDirectory(filePath);
-        var f = FileSystem.File.AppendText(filePath.Full);
-        f.Write(WrapConfigBlock(entriesBlock));
-        f.Close();
-        return filePath;
-    }
-
-    private void CreateParentDirectory(RootedPath filePath)
-    {
-        var dirPath = Path.GetDirectoryName(filePath.Full);
-        if (dirPath is not null)
-        {
-            FileSystem.Directory.CreateDirectory(dirPath);
-        }
+        SafeAppendAllText(filePath, contents, callbacks);
     }
 
     protected virtual string WrapConfigBlock(string configBlock) => configBlock;
+
+    protected void SafeWriteAllText(RootedPath filePath, string contents,
+        ProcessingCallbacks<RootedPath> callbacks) =>
+        SafeFileOperation(FileSystem.File.WriteAllText, filePath, contents, callbacks);
+
+    protected void SafeAppendAllText(RootedPath filePath, string contents,
+        ProcessingCallbacks<RootedPath> callbacks) =>
+        SafeFileOperation(FileSystem.File.AppendAllText, filePath, contents, callbacks);
+
+    private void SafeFileOperation(Action<string, string> fileOperation, RootedPath filePath,
+        string contents, ProcessingCallbacks<RootedPath> callbacks)
+    {
+        var fullFilePath = filePath.Full;
+
+        (InstalledFiles.Contains(filePath) ? new ProcessingCallbacks<RootedPath>() : callbacks).Wrap(() =>
+        {
+            var dirPath = Path.GetDirectoryName(fullFilePath);
+            if (dirPath is not null)
+            {
+                FileSystem.Directory.CreateDirectory(dirPath);
+            }
+            fileOperation(fullFilePath, contents);
+            localInstalledFiles.Add(filePath);
+        }, filePath);
+    }
 }

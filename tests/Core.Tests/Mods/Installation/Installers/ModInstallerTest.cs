@@ -23,6 +23,8 @@ public class ModInstallerTest
     private readonly MockFileSystem fs = new();
     private readonly Mock<ModInstaller.IConfig> configMock = new();
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
+    private readonly Mock<Action<RootedPath>> callbackMock = new();
+
     private readonly string destDir;
     private readonly string tempDir;
 
@@ -51,15 +53,12 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", null, packageFiles));
 
-        fs.AllFiles.Should().BeEquivalentTo(
-            packageFiles.Select(f => Path.Combine(destDir, f))
-        );
-
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(
-            packageFiles.Select(f => new RootedPath(destDir, f))
-        );
-
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(packageFiles));
         modInstaller.PackageDependencies.Should().BeEmpty();
+
+        VerifyCallbackCalledWith(packageFiles);
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(packageFiles));
     }
 
     [Fact]
@@ -74,15 +73,12 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", null, packageFiles));
 
-        fs.AllFiles.Should().BeEquivalentTo(
-            packageFiles.Select(f => Path.Combine(destDir, f))
-        );
-
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(
-            packageFiles.Select(f => new RootedPath(destDir, f))
-        );
-
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(packageFiles));
         modInstaller.PackageDependencies.Should().BeEmpty();
+
+        VerifyCallbackCalledWith(packageFiles);
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(packageFiles));
     }
 
     [Fact]
@@ -106,15 +102,12 @@ public class ModInstallerTest
             Path.Combine(GameSupportedModDirectory, "A_badcafe", "A_badcafe.xml")
         };
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(
-            expectedFiles.Select(f => new RootedPath(destDir, f))
-        );
-
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
         modInstaller.PackageDependencies.Should().BeEmpty();
 
-        fs.AllFiles.Should().BeEquivalentTo(
-            expectedFiles.Select(f => Path.Combine(destDir, f))
-        );
+        VerifyCallbackCalledWith(expectedFiles);
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
@@ -136,17 +129,14 @@ public class ModInstallerTest
         var expectedFiles = packageFiles.Concat([
             Path.Combine(GameSupportedModDirectory, "A_0", VehicleListFile)
             // No mod xml
-        ]).ToHashSet();
+        ]).ToArray();
 
-        fs.AllFiles.Should().BeEquivalentTo(
-            expectedFiles.Select(f => Path.Combine(destDir, f))
-        );
-
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(
-            expectedFiles.Select(f => new RootedPath(destDir, f))
-        );
-
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
         modInstaller.PackageDependencies.Should().ContainSingle(BootfilesPackageName);
+
+        VerifyCallbackCalledWith(expectedFiles);
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
     }
 
     [Fact]
@@ -162,24 +152,27 @@ public class ModInstallerTest
         var expectedFiles = packageFiles.Concat([
             Path.Combine(GameSupportedModDirectory, "BeeCee_0", TrackListFile)
             // No mod xml
-        ]).ToHashSet();
+        ]).ToArray();
 
-        fs.AllFiles.Should().BeEquivalentTo(
-            expectedFiles.Select(f => Path.Combine(destDir, f))
-        );
-
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(
-            expectedFiles.Select(f => new RootedPath(destDir, f))
-        );
-
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
         modInstaller.PackageDependencies.Should().ContainSingle(BootfilesPackageName);
+
+        VerifyCallbackCalledWith(expectedFiles);
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
     }
+
+
+    #region Utility
 
     private ModInstaller InstallWithModInstaller(IInstaller inner)
     {
         var modInstaller = new ModInstaller(fs, inner, tempDir, configMock.Object, destDir, BootfilesPackageName);
         modInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
-            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>());
+            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>
+            {
+                Before = callbackMock.Object
+            });
         fs.Directory.Delete(tempDir, recursive: true);
         return modInstaller;
     }
@@ -189,4 +182,21 @@ public class ModInstallerTest
 
     private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyDictionary<string, string> fileContents) =>
         new StaticFilesInstaller(fs, name, fsHash, fileContents, Array.Empty<string>());
+
+    private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
+        relativePaths.Select(f => Path.Combine(destDir, f)).ToHashSet();
+
+    private IReadOnlySet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
+        relativePaths.Select(f => new RootedPath(destDir, f)).ToHashSet();
+
+    private void VerifyCallbackCalledWith(IReadOnlyCollection<string> relativePaths)
+    {
+        foreach (var rp in ToDestRootedPath(relativePaths))
+        {
+            callbackMock.Verify(a => a(rp), Times.Once);
+        }
+        callbackMock.VerifyNoOtherCalls();
+    }
+
+    #endregion
 }

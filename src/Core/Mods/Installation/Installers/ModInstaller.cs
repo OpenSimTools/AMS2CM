@@ -49,15 +49,8 @@ public class ModInstaller : BaseModInstaller
         modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModRelativeDir, modName));
     }
 
-    public override IReadOnlyCollection<string> PackageDependencies =>
-        Inner.PackageDependencies.Concat(bootfilesDependency).ToImmutableList();
-
-    protected override void Install(Action innerInstall)
-    {
-        innerInstall();
-
-        GenerateModConfig();
-    }
+    public override IReadOnlySet<string> PackageDependencies =>
+        Inner.PackageDependencies.Concat(bootfilesDependency).ToImmutableHashSet();
 
     protected override RootedPath VehicleListDir => modConfigPath;
 
@@ -65,39 +58,40 @@ public class ModInstaller : BaseModInstaller
 
     protected override RootedPath DrivelineDir => modConfigPath;
 
-    private void GenerateModConfig()
+    protected override void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks)
     {
+        innerInstall();
+
         var gameSupportedMod = FileEntriesToConfigure()
             .Any(p => p.StartsWith(GameSupportedModRelativeDir));
         var modConfig = gameSupportedMod
             ? ConfigEntries.Empty
-            : new ConfigEntries(CrdFileEntries(), TrdFileEntries(), FindDrivelineRecords());
-        WriteModConfigFiles(modConfig);
-    }
+            : new ConfigEntries(FindCrdFileEntries(), FindTrdFileEntries(), FindDrivelineRecords());
 
-    private void WriteModConfigFiles(ConfigEntries modConfig)
-    {
         if (modConfig.None())
+        {
             return;
+        }
 
-        AddToInstalledFiles(AppendCrdFileEntries(modConfig.CrdFileEntries));
-        AddToInstalledFiles(AppendTrdFileEntries(modConfig.TrdFileEntries));
-        AddToInstalledFiles(AppendDrivelineRecords(modConfig.DrivelineRecords));
+        AppendCrdFileEntries(modConfig.CrdFileEntries, callbacks);
+        AppendTrdFileEntries(modConfig.TrdFileEntries, callbacks);
+        InsertDrivelineRecords(modConfig.DrivelineRecords, callbacks);
         if (generateModDetails && !modConfig.TrdFileEntries.Any())
         {
-            AddToInstalledFiles(GenerateModDetails());
-        } else
+            SafeWriteAllText(modConfigPath.SubPath($"{modName}.xml"), ModManifest, callbacks);
+        }
+        else
         {
             bootfilesDependency = new[] { bootfilesPackageName };
         }
     }
 
-    private List<string> CrdFileEntries() =>
+    private List<string> FindCrdFileEntries() =>
         FileEntriesToConfigure()
             .Where(p => p.EndsWith(".crd"))
             .ToList();
 
-    private List<string> TrdFileEntries() =>
+    private List<string> FindTrdFileEntries() =>
         FileEntriesToConfigure()
             .Where(p => p.EndsWith(".trd"))
             .Select(fp => $"{Path.GetDirectoryName(fp)}{Path.DirectorySeparatorChar}@{Path.GetFileName(fp)}")
@@ -156,9 +150,8 @@ public class ModInstaller : BaseModInstaller
         return recordBlocks;
     }
 
-    public RootedPath GenerateModDetails()
-    {
-        var contents = @$"<?xml version=""1.0""?>
+    public string ModManifest =>
+        @$"<?xml version=""1.0""?>
 <Reflection>
     <class name=""BRTTIRefCount"" base=""root class"" />
     <class name=""BPersistent"" base=""BRTTIRefCount"">
@@ -172,8 +165,4 @@ public class ModInstaller : BaseModInstaller
         <prop name=""DisplayName"" data=""{PackageName}"" />
     </data>
 </Reflection>";
-        var filePath = modConfigPath.SubPath($"{modName}.xml");
-        FileSystem.File.WriteAllText(filePath.Full, contents);
-        return filePath;
-    }
 }

@@ -4,9 +4,9 @@ namespace Core.Packages.Installation;
 
 public interface IInstallation : IPackageInfo
 {
-    IReadOnlyCollection<string> PackageDependencies { get; }
+    IReadOnlySet<string> PackageDependencies { get; }
 
-    IReadOnlyCollection<RootedPath> InstalledFiles { get; }
+    IReadOnlySet<RootedPath> InstalledFiles { get; }
     State Installed { get; }
 
     enum State

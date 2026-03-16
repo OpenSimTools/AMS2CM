@@ -1,4 +1,5 @@
-﻿using System.IO.Abstractions;
+﻿using System.Collections.Immutable;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -54,9 +55,9 @@ public class BootfilesInstaller : BaseModInstaller
             gameInstallationDirectory, tempDir);
 
     // Bootfiles cannot have dependencies.
-    public override IReadOnlyCollection<string> PackageDependencies => Array.Empty<string>();
+    public override IReadOnlySet<string> PackageDependencies => ImmutableHashSet<string>.Empty;
 
-    protected override void Install(Action innerInstall)
+    protected override void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks)
     {
         var modConfigs = CollectModConfig();
         if (modConfigs.None())
@@ -68,21 +69,23 @@ public class BootfilesInstaller : BaseModInstaller
         eventHandler.PostProcessingStart();
         var packageNameIfNotGenerated = bootfilesNaming.IsGeneratedBootfiles(PackageName) ? PackageName : null;
         eventHandler.ExtractingBootfiles(packageNameIfNotGenerated);
+
         innerInstall();
+
         if (modConfigs.CrdFileEntries.Count > 0)
         {
             eventHandler.PostProcessingVehicles();
-            AppendCrdFileEntries(modConfigs.CrdFileEntries);
+            AppendCrdFileEntries(modConfigs.CrdFileEntries, callbacks);
         }
         if (modConfigs.TrdFileEntries.Count > 0)
         {
             eventHandler.PostProcessingTracks();
-            AppendTrdFileEntries(modConfigs.TrdFileEntries);
+            AppendTrdFileEntries(modConfigs.TrdFileEntries, callbacks);
         }
         if (modConfigs.DrivelineRecords.Count > 0)
         {
             eventHandler.PostProcessingDrivelines();
-            AppendDrivelineRecords(modConfigs.DrivelineRecords);
+            InsertDrivelineRecords(modConfigs.DrivelineRecords, callbacks);
         }
         eventHandler.PostProcessingEnd();
     }

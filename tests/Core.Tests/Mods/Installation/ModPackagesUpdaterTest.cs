@@ -24,8 +24,8 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
     {
         public string PackageName => $"({inner.PackageName})";
         public int? PackageFsHash => inner.PackageFsHash;
-        public IReadOnlyCollection<string> PackageDependencies => inner.PackageDependencies;
-        public IReadOnlyCollection<RootedPath> InstalledFiles => inner.InstalledFiles;
+        public IReadOnlySet<string> PackageDependencies => inner.PackageDependencies;
+        public IReadOnlySet<RootedPath> InstalledFiles => inner.InstalledFiles;
         public IInstallation.State Installed => inner.Installed;
         public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
             ProcessingCallbacks<RootedPath> callbacks) => inner.Install(destination, backupStrategy, callbacks);

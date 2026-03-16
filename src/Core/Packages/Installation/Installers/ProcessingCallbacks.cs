@@ -74,4 +74,18 @@ public readonly struct ProcessingCallbacks<T>
 
     private static Action<T> Combine(Action<T> a1, Action<T> a2) =>
         a1 == EmptyAction ? a2 : a2 == EmptyAction ? a1 : key => { a1(key); a2(key); };
+
+    public void Wrap(Action action, T t)
+    {
+        if (Accept(t))
+        {
+            Before(t);
+            action();
+            After(t);
+        }
+        else
+        {
+            NotAccepted(t);
+        }
+    }
 }
