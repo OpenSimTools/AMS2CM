@@ -8,7 +8,7 @@ namespace Core.Packages.Installation.Installers;
 /// <summary>
 ///
 /// </summary>
-/// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
+/// <typeparam name="TPassthrough">Type used by the implementation during the installation loop.</typeparam>
 internal abstract class BaseInstaller<TPassthrough> : IInstaller
 {
     public string PackageName { get; }
@@ -50,7 +50,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         }
         Installed = IInstallation.State.PartiallyInstalled;
 
-        InstalAllFiles((pathInPackage, context) =>
+        InstallAllFiles((pathInPackage, context) =>
         {
             var (destPath, removeFile) = NeedsRemoving(destination(pathInPackage));
 
@@ -85,7 +85,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     /// Installation loop.
     /// </summary>
     /// <param name="body">Function to call for each file.</param>
-    protected abstract void InstalAllFiles(InstallBody body);
+    protected abstract void InstallAllFiles(InstallBody body);
 
     protected delegate void InstallBody(string relativePathInMod, TPassthrough context);
 

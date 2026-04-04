@@ -26,7 +26,7 @@ internal class StaticFilesInstaller : BaseInstaller<string>
         this.files = files;
     }
 
-    protected override void InstalAllFiles(InstallBody body)
+    protected override void InstallAllFiles(InstallBody body)
     {
         foreach (var file in files)
         {

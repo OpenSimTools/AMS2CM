@@ -1,6 +1,4 @@
-﻿using Core.Utils;
-
-namespace Core.Packages.Installation.Installers;
+﻿namespace Core.Packages.Installation.Installers;
 
 internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
 {
@@ -23,7 +21,7 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
         Source.EnumerateDirectories("*", RecursiveEnumeration)
             .Select(_ => Path.GetRelativePath(Source.FullName, _.FullName));
 
-    protected override void InstalAllFiles(InstallBody body)
+    protected override void InstallAllFiles(InstallBody body)
     {
         foreach (var fileInfo in Source.EnumerateFiles("*", RecursiveEnumeration))
         {
