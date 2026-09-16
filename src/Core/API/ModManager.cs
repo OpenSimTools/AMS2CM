@@ -1,7 +1,7 @@
 using Core.Games;
 using Core.IO;
 using Core.Mods;
-using Core.Mods.Installation.Installers;
+using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
 using Core.State;
@@ -74,14 +74,14 @@ internal class ModManager : IModManager
         return allPackageNames
             .Select(packageName => new ModState(
                 PackageName: packageName,
-                PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
+                PackageLocation: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.Location : null,
                 IsInstalled: isModInstalled.GetValueOrDefault(packageName, false),
                 IsEnabled: enabledModPackages.ContainsKey(packageName),
                 IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
             )).ToList();
     }
 
-    private static bool IsOutOfDate(Package? modPackage, PackageInstallationState? modInstallationState)
+    private static bool IsOutOfDate(IPackage? modPackage, PackageInstallationState? modInstallationState)
     {
         if (modPackage is null || modInstallationState is null)
         {
@@ -93,26 +93,17 @@ internal class ModManager : IModManager
             // When partially installed or for state backwards compatibility
             return true;
         }
-        return installedFsHash != modPackage.FsHash;
+        return installedFsHash != modPackage.VersionHash;
     }
 
-    public ModState AddNewMod(string packageFullPath)
+    public void AddNewMod(string packageFullPath)
     {
         if (IsDirectory(packageFullPath))
         {
             throw new Exception($"{packageFullPath} is a directory");
         }
 
-        var modPackage = packageRepository.Upload(packageFullPath);
-        statePersistence.ReadState().Install.Mods.TryGetValue(modPackage.Name, out var modInstallationState);
-
-        return new ModState(
-                PackageName: modPackage.Name,
-                PackagePath: modPackage.FullPath,
-                IsEnabled: modPackage.Enabled,
-                IsInstalled: false,
-                IsOutOfDate: IsOutOfDate(modPackage, modInstallationState)
-            );
+        packageRepository.Upload(packageFullPath);
     }
 
     public void DeleteMod(string packagePath) =>
@@ -148,7 +139,7 @@ internal class ModManager : IModManager
     public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        UpdateMods(Array.Empty<Package>(), eventHandler, cancellationToken);
+        UpdateMods(Array.Empty<IPackage>(), eventHandler, cancellationToken);
     }
 
     private void CheckGameNotRunning()
@@ -159,7 +150,7 @@ internal class ModManager : IModManager
         }
     }
 
-    private void UpdateMods(IEnumerable<Package> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void UpdateMods(IEnumerable<IPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
         packagesUpdater.Apply(
             statePersistence.ReadState().Install.Mods,

@@ -14,12 +14,11 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
     private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
     public ModPackagesUpdater(
-        IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider,
         IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :
-        base(installerFactory, backupStrategyProvider, timeProvider)
+        base(backupStrategyProvider, timeProvider)
     {
         this.bootfilesNaming = bootfilesNaming;
         this.modInstallerFactory = modInstallerFactory;
@@ -27,7 +26,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
 
     protected override void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
-        IReadOnlyCollection<IInstaller> installers,
+        IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
@@ -43,7 +42,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
         base.Apply(currentState, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
-    private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
+    private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
     {
         var installer = bootfilesPackageInstallers.FirstOrDefault();
         return modInstallerFactory.BootfilesInstaller(installer, eventHandler);

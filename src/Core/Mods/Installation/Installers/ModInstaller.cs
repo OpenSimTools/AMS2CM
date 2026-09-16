@@ -26,13 +26,13 @@ public class ModInstaller : BaseModInstaller
     private RootedPath modConfigPath;
     private string modName;
 
-    internal ModInstaller(IInstaller inner, string tempDir, IConfig config,
+    internal ModInstaller(IPackageInstaller inner, string tempDir, IConfig config,
         string gameInstallationDir, string bootfilesPackageName) :
         this(new FileSystem(), inner, tempDir, config, gameInstallationDir, bootfilesPackageName)
     {
     }
 
-    internal ModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config,
+    internal ModInstaller(IFileSystem fileSystem, IPackageInstaller inner, string tempDir, IConfig config,
         string gameInstallationDir, string bootfilesPackageName) :
         base(fileSystem, inner, tempDir, config)
     {
@@ -43,7 +43,7 @@ public class ModInstaller : BaseModInstaller
         var normalisedName = string.Concat(
             Path.GetFileNameWithoutExtension(inner.PackageName)
                 .Where(char.IsAsciiLetterOrDigit));
-        var hexFsHash = (inner.PackageFsHash ?? 0).ToString("x");
+        var hexFsHash = (inner.PackageVersionHash ?? 0).ToString("x");
         modName = $"{normalisedName}_{hexFsHash}";
 
         modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModRelativeDir, modName));
@@ -160,7 +160,7 @@ public class ModInstaller : BaseModInstaller
     <class name=""ModDetails"" base=""BPersistent"">
         <prop name=""DisplayName"" type=""String"" />
     </class>
-    <data class=""ModDetails"" id=""0x{PackageFsHash:x08}"">
+    <data class=""ModDetails"" id=""0x{PackageVersionHash:x08}"">
         <prop name=""Name"" data=""{modName}"" />
         <prop name=""DisplayName"" data=""{PackageName}"" />
     </data>

@@ -10,8 +10,8 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
         RecurseSubdirectories = true,
     };
 
-    protected BaseDirectoryInstaller(string packageName, int? packageFsHash) :
-        base(packageName, packageFsHash)
+    protected BaseDirectoryInstaller(string packageName, int? packageVersionHash) :
+        base(packageName, packageVersionHash)
     {
     }
 

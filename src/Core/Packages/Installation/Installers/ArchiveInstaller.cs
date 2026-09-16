@@ -10,8 +10,8 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
 
     private readonly string archivePath;
 
-    public ArchiveInstaller(string packageName, int? packageFsHash,  string archivePath) :
-        base(packageName, packageFsHash)
+    public ArchiveInstaller(string packageName, int? packageVersionHash,  string archivePath) :
+        base(packageName, packageVersionHash)
     {
         this.archivePath = archivePath;
     }

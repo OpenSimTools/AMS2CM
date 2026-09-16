@@ -9,29 +9,26 @@ namespace Core.Packages.Installation;
 public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
-    private readonly IInstallerFactory installerFactory;
     private readonly IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider;
     private readonly TimeProvider timeProvider;
 
     public PackagesUpdater(
-        IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, TEventHandler>  backupStrategyProvider,
         TimeProvider timeProvider)
     {
-        this.installerFactory = installerFactory;
         this.backupStrategyProvider = backupStrategyProvider;
         this.timeProvider = timeProvider;
     }
 
     public void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IEnumerable<Package> packages,
+        IEnumerable<IPackage> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var installers = packages.Select(installerFactory.PackageInstaller).ToImmutableArray();
+        var installers = packages.Select(package => package.Installer).ToImmutableArray();
 
         var currentState = new Dictionary<string, PackageInstallationState>(previousState);
         try
@@ -62,7 +59,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
 
     protected virtual void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
-        IReadOnlyCollection<IInstaller> installers,
+        IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
@@ -158,7 +155,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
 
     private void InstallPackages(
         IReadOnlyDictionary<string, PackageInstallationState> currentState,
-        IReadOnlyCollection<IInstaller> installers,
+        IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
@@ -210,7 +207,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                             ? null
                             : new PackageInstallationState(
                                 Time: timeProvider.GetUtcNow().DateTime,
-                                FsHash: installer.PackageFsHash,
+                                FsHash: installer.PackageVersionHash,
                                 Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
                                 Dependencies: installer.PackageDependencies,
                                 ShadowedBy: shadowedBy,

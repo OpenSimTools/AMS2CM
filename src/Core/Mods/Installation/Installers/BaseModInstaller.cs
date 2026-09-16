@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.IO.Abstractions;
-using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
@@ -8,7 +7,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Mods.Installation.Installers;
 
-public abstract class BaseModInstaller : IInstaller
+public abstract class BaseModInstaller : IPackageInstaller
 {
     public interface IConfig
     {
@@ -25,7 +24,7 @@ public abstract class BaseModInstaller : IInstaller
     protected readonly string DrivelineFileName;
 
     protected readonly IFileSystem FileSystem;
-    protected readonly IInstaller Inner;
+    protected readonly IPackageInstaller Inner;
     protected readonly string StagingFullPath;
     protected readonly string GameSupportedModRelativeDir;
 
@@ -36,7 +35,7 @@ public abstract class BaseModInstaller : IInstaller
 
     private readonly HashSet<RootedPath> localInstalledFiles = new();
 
-    protected BaseModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config)
+    protected BaseModInstaller(IFileSystem fileSystem, IPackageInstaller inner, string tempDir, IConfig config)
     {
         FileSystem = fileSystem;
         Inner = inner;
@@ -53,8 +52,7 @@ public abstract class BaseModInstaller : IInstaller
     }
 
     public string PackageName => Inner.PackageName;
-
-    public int? PackageFsHash => Inner.PackageFsHash;
+    public int? PackageVersionHash => Inner.PackageVersionHash;
 
     public abstract IReadOnlySet<string> PackageDependencies { get; }
 

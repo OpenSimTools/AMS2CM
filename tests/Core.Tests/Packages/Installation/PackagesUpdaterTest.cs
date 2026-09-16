@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
+using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
-using Core.Packages.Repository;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
@@ -22,10 +22,9 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     private static readonly DateTime ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, PackagesUpdater.IEventHandler> backupStrategyProvider,
         TimeProvider timeProvider) =>
-        new PackagesUpdater<PackagesUpdater.IEventHandler>(installerFactory, backupStrategyProvider, timeProvider);
+        new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider, timeProvider);
 
     #endregion
 
@@ -417,10 +416,10 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
         });
     }
 
-    private static IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
+    private static IPackageInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
         InstallerOf(name, fsHash, files, Array.Empty<string>());
 
-    private static IInstaller InstallerOf(string name, int? fsHash,
+    private static IPackageInstaller InstallerOf(string name, int? fsHash,
         IReadOnlyCollection<string> files, IReadOnlyCollection<string> dependencies) =>
         new StaticFilesInstaller(name, fsHash, files.ToDictionary(f => f, _ => ""), dependencies);
 }
@@ -437,18 +436,21 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
     protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
 
     protected abstract IPackagesUpdater<TEventHandler> NewPackagesUpdater(
-        IInstallerFactory installerFactory,
         IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider);
 
-    protected void Apply(IInstaller[] installers)
+    protected void Apply(IPackageInstaller[] installers)
     {
-        var packages = installers.Select(i => new Package(i.PackageName, "", true, null));
+        var packages = installers.Select(installer =>
+        {
+            var package = new Mock<IPackage>();
+            package.SetupGet(p => p.Installer).Returns(installer);
+            return package.Object;
+        });
         var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState, TEventHandler>>();
         backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
         var packagesUpdater = NewPackagesUpdater(
-            new InstallerForPackage(installers),
             backupStrategyProviderMock.Object,
             new FakeTimeProvider(FakeUtcInstallationDate.WithOffset(fakeLocalTimeOffset)));
         packagesUpdater.Apply(
@@ -460,16 +462,4 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
             CancellationToken.None);
     }
 
-    private class InstallerForPackage : IInstallerFactory
-    {
-        private readonly IReadOnlyCollection<IInstaller> installers;
-
-        internal InstallerForPackage(IReadOnlyCollection<IInstaller> installers)
-        {
-            this.installers = installers;
-        }
-
-        public IInstaller PackageInstaller(Package package) =>
-            installers.First(installer => installer.PackageName == package.Name);
-    }
 }

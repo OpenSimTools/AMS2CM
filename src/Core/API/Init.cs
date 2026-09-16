@@ -37,10 +37,11 @@ public static class Init
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider<IEventHandler>(
             new SuffixBackupStrategy.Provider<PackageInstallationState, IEventHandler>());
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
-        var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming, modInstallConfig);
-        var modPackagesUpdater = new ModPackagesUpdater<IEventHandler>(
-            new FileSystemInstallerFactory(), backupStrategyProvider,
-            TimeProvider.System, bootfilesNaming, modInstallerFactory);
-        return new ModManager(game, modRepository, bootfilesNaming, modPackagesUpdater, statePersistence, safeFileDelete, tempDir);
+        var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
+            modInstallConfig);
+        var modPackagesUpdater = new ModPackagesUpdater<IEventHandler>(backupStrategyProvider, TimeProvider.System,
+            bootfilesNaming, modInstallerFactory);
+        return new ModManager(game, modRepository, bootfilesNaming, modPackagesUpdater, statePersistence,
+            safeFileDelete, tempDir);
     }
 }

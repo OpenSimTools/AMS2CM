@@ -9,10 +9,10 @@ namespace Core.Packages.Installation.Installers;
 ///
 /// </summary>
 /// <typeparam name="TPassthrough">Type used by the implementation during the installation loop.</typeparam>
-internal abstract class BaseInstaller<TPassthrough> : IInstaller
+internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 {
     public string PackageName { get; }
-    public int? PackageFsHash { get; }
+    public int? PackageVersionHash { get; }
 
     public IReadOnlySet<string> PackageDependencies { get; }
 
@@ -23,22 +23,22 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
 
     private readonly HashSet<RootedPath> installedFiles = new();
 
-    protected BaseInstaller(string packageName, int? packageFsHash)
-        : this(packageName, packageFsHash, ImmutableHashSet<string>.Empty)
+    protected BaseInstaller(string packageName, int? packageVersionHash)
+        : this(packageName, packageVersionHash, ImmutableHashSet<string>.Empty)
     {
     }
 
-    protected BaseInstaller(string packageName, int? packageFsHash, IReadOnlySet<string> packageDependencies) :
-        this(new FileSystem(), packageName, packageFsHash, packageDependencies)
+    protected BaseInstaller(string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies) :
+        this(new FileSystem(), packageName, packageVersionHash, packageDependencies)
     {
     }
 
     // A package cannot currently specify dependencies.
-    protected BaseInstaller(IFileSystem fs, string packageName, int? packageFsHash, IReadOnlySet<string> packageDependencies)
+    protected BaseInstaller(IFileSystem fs, string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies)
     {
         FileSystem = fs;
         PackageName = packageName;
-        PackageFsHash = packageFsHash;
+        PackageVersionHash = packageVersionHash;
         PackageDependencies = packageDependencies;
     }
 

@@ -165,7 +165,7 @@ public class ModInstallerTest
 
     #region Utility
 
-    private ModInstaller InstallWithModInstaller(IInstaller inner)
+    private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
     {
         var modInstaller = new ModInstaller(fs, inner, tempDir, configMock.Object, destDir, BootfilesPackageName);
         modInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
@@ -177,10 +177,10 @@ public class ModInstallerTest
         return modInstaller;
     }
 
-    private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
+    private IPackageInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
         InstallerOf(name, fsHash, files.ToDictionary(f => f, _ => Convert.ToString(fsHash) ?? string.Empty));
 
-    private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyDictionary<string, string> fileContents) =>
+    private IPackageInstaller InstallerOf(string name, int? fsHash, IReadOnlyDictionary<string, string> fileContents) =>
         new StaticFilesInstaller(fs, name, fsHash, fileContents, Array.Empty<string>());
 
     private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>

@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-
-namespace Core.Packages.Installation;
+﻿namespace Core.Packages.Installation;
 
 public record PackageInstallationState(
     DateTime Time,

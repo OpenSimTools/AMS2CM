@@ -29,14 +29,14 @@ public class BootfilesInstaller : BaseModInstaller
     private readonly IBootfilesNaming bootfilesNaming;
     private readonly IEventHandler eventHandler;
 
-    public BootfilesInstaller(IInstaller? bootfilesPackageInstaller, string tempDir, IConfig config,
+    public BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, string tempDir, IConfig config,
         string gameInstallationDir, IBootfilesNaming bootfilesNaming, IEventHandler eventHandler) :
         this(new FileSystem(), bootfilesPackageInstaller, tempDir, config,
             gameInstallationDir, bootfilesNaming, eventHandler)
     {
     }
 
-    public BootfilesInstaller(IFileSystem fileSystem, IInstaller? bootfilesPackageInstaller, string tempDir,
+    public BootfilesInstaller(IFileSystem fileSystem, IPackageInstaller? bootfilesPackageInstaller, string tempDir,
         IConfig config, string gameInstallationDir, IBootfilesNaming bootfilesNaming, IEventHandler eventHandler) :
         base(fileSystem, PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir, bootfilesNaming),
             tempDir, config)
@@ -49,7 +49,7 @@ public class BootfilesInstaller : BaseModInstaller
         this.eventHandler = eventHandler;
     }
 
-    private static IInstaller PackageOrGenerated(IInstaller? bootfilesPackageInstaller,
+    private static IPackageInstaller PackageOrGenerated(IPackageInstaller? bootfilesPackageInstaller,
         string gameInstallationDirectory, string tempDir, IBootfilesNaming bootfilesNaming) =>
         bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
             gameInstallationDirectory, tempDir);

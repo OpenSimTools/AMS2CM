@@ -1,7 +1,7 @@
 using Core.API;
 using Core.Games;
 using Core.IO;
-using Core.Mods.Installation.Installers;
+using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Installers;
 using Core.Packages.Repository;
@@ -9,7 +9,7 @@ using Core.State;
 using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
-using LibArchive.Net;
+using static Core.Packages.Repository.FileSystemRepository;
 
 namespace Core.Tests.API;
 
@@ -39,7 +39,6 @@ public class ModManagerTest : AbstractFilesystemTest
     private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
     private readonly DirectoryInfo gameDir;
-    private readonly DirectoryInfo modsDir;
 
     private readonly Mock<IGame> gameMock = new();
     private readonly Mock<IPackageRepository> modRepositoryMock = new();
@@ -53,7 +52,6 @@ public class ModManagerTest : AbstractFilesystemTest
     public ModManagerTest()
     {
         gameDir = TestDir.CreateSubdirectory("Game");
-        modsDir = TestDir.CreateSubdirectory("Packages");
 
         var tempDir = new SubdirectoryTempDir(TestDir.FullName);
 
@@ -89,11 +87,11 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: "E", FullPath: "e/path", Enabled: true, FsHash: 102)
+            new Package(Name: "E", Location: "e/path", VersionHash: 102)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: "D", FullPath: "d/path", Enabled: false, FsHash: 103)
+            new Package(Name: "D", Location: "d/path", VersionHash: 103)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
@@ -127,12 +125,12 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: "A", FullPath: "a/path", Enabled: true, FsHash: 101)
+            new Package(Name: "A", Location: "a/path", VersionHash: 101)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: "B", FullPath: "b/path", Enabled: true, FsHash: 102),
-            new Package(Name: "C", FullPath: "c/path", Enabled: false, FsHash: 103)
+            new Package(Name: "B", Location: "b/path", VersionHash: 102),
+            new Package(Name: "C", Location: "c/path", VersionHash: 103)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
@@ -230,13 +228,13 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: $"{BootfilesPrefix}_IE", FullPath: "ie/path", Enabled: true, FsHash: null),
-            new Package(Name: $"{BootfilesPrefix}_UE", FullPath: "ue/path", Enabled: true, FsHash: null)
+            new Package(Name: $"{BootfilesPrefix}_IE", Location: "ie/path", VersionHash: null),
+            new Package(Name: $"{BootfilesPrefix}_UE", Location: "ue/path", VersionHash: null)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: $"{BootfilesPrefix}_ID", FullPath: "id/path", Enabled: false, FsHash: null),
-            new Package(Name: $"{BootfilesPrefix}_UD", FullPath: "ud/path", Enabled: false, FsHash: null)
+            new Package(Name: $"{BootfilesPrefix}_ID", Location: "id/path", VersionHash: null),
+            new Package(Name: $"{BootfilesPrefix}_UD", Location: "ud/path", VersionHash: null)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
@@ -780,13 +778,13 @@ public class ModManagerTest : AbstractFilesystemTest
 
     #region Utility methods
 
-    private Package CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
+    private IPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
         CreateModArchive(fsHash, relativePaths, _ => { });
 
-    private Package CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
+    private IPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
         CreateModPackage("Package", fsHash, relativePaths, callback);
 
-    private Package CreateCustomBootfiles(int fsHash) =>
+    private IPackage CreateCustomBootfiles(int fsHash) =>
         CreateModPackage(BootfilesPrefix, fsHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
                 VehicleListRelativePath,
@@ -798,31 +796,35 @@ public class ModManagerTest : AbstractFilesystemTest
                     $"{Environment.NewLine}END")
         );
 
-    private Package CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths,
+    private IPackage CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths,
         Action<string> callback)
     {
         var modName = $"Mod{fsHash}";
         var modContentsDir = TestDir.CreateSubdirectory(modName).FullName;
-        foreach (var relativePath in relativePaths.DefaultIfEmpty("SevenZipRequiresAFile"))
+        foreach (var relativePath in relativePaths)
         {
             CreateFile(new RootedPath(modContentsDir, relativePath), $"{fsHash}");
         }
 
         callback(modContentsDir);
 
-        var archivePath = $@"{modsDir.FullName}\{modName}.zip";
-        using var writer = new LibArchiveWriter(archivePath, ArchiveFormat.Zip);
-        writer.AddDirectory(modContentsDir, recursive: true);
+        var packageName = $"{packagePrefix}{fsHash}";
 
-        return new Package($"{packagePrefix}{fsHash}", archivePath, true, fsHash);
+        var package = new Mock<IPackage>();
+        package.SetupGet(m => m.Name).Returns(packageName);
+        package.SetupGet(m => m.Location).Returns(modContentsDir);
+        package.SetupGet(m => m.VersionHash).Returns(fsHash);
+        package.SetupGet(m => m.Installer).Returns(() =>
+            new DirectoryInstaller(packageName, fsHash, modContentsDir));
+        return package.Object;
     }
 
     // This can be removed once we introduce backup strategies
-    private string BackupName(string relativePath) =>
+    private static string BackupName(string relativePath) =>
         $"{relativePath}.orig";
 
     // This can be removed once we hide it inside mod logic
-    private string DeletionName(string relativePath) =>
+    private static string DeletionName(string relativePath) =>
         $"{relativePath}{BaseInstaller.RemoveFileSuffix}";
 
     private RootedPath GamePath(params string[] segments) =>
