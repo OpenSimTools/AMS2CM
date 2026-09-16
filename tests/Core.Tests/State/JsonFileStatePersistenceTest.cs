@@ -45,7 +45,7 @@ public class JsonFileStatePersistenceTest
         state.Install.Mods.Keys.Should().Contain("M");
 
         var mod = state.Install.Mods["M"];
-        mod.Time.Should().Be(fileWriteTime);
+        mod.Time.Should().Be(fileWriteTime.ToUniversalTime());
         mod.FsHash.Should().BeNull();
         mod.Partial.Should().BeFalse();
         mod.Dependencies.Should().BeEmpty();
@@ -103,7 +103,7 @@ public class JsonFileStatePersistenceTest
         state.Install.Mods.Keys.Should().Contain("M");
 
         var mod = state.Install.Mods["M"];
-        mod.Time.Should().Be(fileWriteTime);
+        mod.Time.Should().Be(fileWriteTime.ToUniversalTime());
         mod.FsHash.Should().BeNull();
         mod.Partial.Should().BeFalse();
         mod.Dependencies.Should().BeEmpty();
