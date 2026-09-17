@@ -51,14 +51,18 @@ internal class ModManager : IModManager
 
     public List<ModState> FetchState()
     {
-        var installedMods = statePersistence.ReadState().Install.Mods;
+        var installedMods = statePersistence.ReadState().Installation;
         var enabledModPackages = packageRepository.ListEnabled().ToDictionary(p => p.Name);
         var disabledModPackages = packageRepository.ListDisabled().ToDictionary(p => p.Name);
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
         var isModInstalled = DependencyResolver
-            .CollectValues(installedMods, s => s.Dependencies.Concat(s.ShadowedBy).ToArray(), s => s?.Partial ?? true)
-            .SelectValues<string, IReadOnlySet<bool>, bool?>(partials => partials.Any(p => p) ? null : true);
+            .CollectValues(
+                installedMods,
+                s => s.Dependencies.Concat(s.ShadowedBy).ToArray(),
+                s => s?.Partial ?? true)
+            .SelectValues<string, IReadOnlySet<bool>, bool?>(
+                partials => partials.Any(p => p) ? null : true);
 
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
         {
@@ -87,13 +91,13 @@ internal class ModManager : IModManager
         {
             return false;
         }
-        var installedFsHash = modInstallationState.FsHash;
-        if (installedFsHash is null)
+        var installedVersionHash = modInstallationState.VersionHash;
+        if (installedVersionHash is null)
         {
             // When partially installed or for state backwards compatibility
             return true;
         }
-        return installedFsHash != modPackage.VersionHash;
+        return installedVersionHash != modPackage.VersionHash;
     }
 
     public void AddNewMod(string packageFullPath)
@@ -153,15 +157,12 @@ internal class ModManager : IModManager
     private void UpdateMods(IEnumerable<IPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
         packagesUpdater.Apply(
-            statePersistence.ReadState().Install.Mods,
+            statePersistence.ReadState().Installation,
             packages,
             game.InstallationDirectory,
             nextState =>
                 statePersistence.WriteState(new SavedState(
-                    Install: new InstallationState(
-                        Time: null,
-                        Mods: nextState
-                    )
+                    Installation: nextState
                 )),
             eventHandler,
             cancellationToken);

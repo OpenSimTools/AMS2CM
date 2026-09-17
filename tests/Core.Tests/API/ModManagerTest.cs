@@ -83,7 +83,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["I"] = new(
-                Time: PastDate, FsHash: null, Partial: false, Dependencies: [],Files: [], ShadowedBy: []),
+                Time: PastDate, VersionHash: 101, Dependencies: [], Files: [], ShadowedBy: []),
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
@@ -108,36 +108,38 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, FsHash: 999, Partial: false,
+                Time: PastDate, VersionHash: 999,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: null,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             ["C"] = new(
-                Time: PastDate, FsHash: 103, Partial: true,
+                Time: PastDate, VersionHash: null,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: [])
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: "A", Location: "a/path", VersionHash: 101)
+            new Package(Name: "A", Location: "a/path", VersionHash: 101),
+            new Package(Name: "B", Location: "b/path", VersionHash: 102)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: "B", Location: "b/path", VersionHash: 102),
-            new Package(Name: "C", Location: "c/path", VersionHash: 103)
+            new Package(Name: "C", Location: "c/path", VersionHash: 103),
+            new Package(Name: "D", Location: "d/path", VersionHash: 104)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
         [
             new ModState("A", "a/path", IsInstalled: true, IsEnabled: true, IsOutOfDate: true),
-            new ModState("B", "b/path", IsInstalled: true, IsEnabled: false, IsOutOfDate: true),
-            new ModState("C", "c/path", IsInstalled: null, IsEnabled: false, IsOutOfDate: false)
+            new ModState("B", "b/path", IsInstalled: null, IsEnabled: true, IsOutOfDate: true),
+            new ModState("C", "c/path", IsInstalled: null, IsEnabled: false, IsOutOfDate: true),
+            new ModState("D", "d/path", IsInstalled: false, IsEnabled: false, IsOutOfDate: false)
         ]);
     }
 
@@ -147,17 +149,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 101,
                 Dependencies: ["Partial"],
                 Files: [],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 102,
                 Dependencies: ["NotInstalled"],
                 Files: [],
                 ShadowedBy: []),
             ["Partial"] = new(
-                Time: PastDate, FsHash: null, Partial: true,
+                Time: PastDate, VersionHash: null,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
@@ -179,17 +181,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 101,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: ["Partial"]),
             ["B"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 102,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: ["NotInstalled"]),
             ["Partial"] = new(
-                Time: PastDate, FsHash: null, Partial: true,
+                Time: PastDate, VersionHash: null,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
@@ -211,17 +213,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [$"{BootfilesPrefix}_IU"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 101,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             [$"{BootfilesPrefix}_IE"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 102,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             [$"{BootfilesPrefix}_ID"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 103,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: [])
@@ -263,7 +265,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -272,7 +274,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: PastDate, FsHash: null, Partial: false,
+                Time: PastDate, VersionHash: 102,
                 Dependencies: [],
                 Files:
                 [
@@ -297,7 +299,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
-                Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -325,7 +327,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -333,7 +335,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 102,
                 Dependencies: [],
                 Files:
                 [
@@ -342,7 +344,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: []),
             ["C"] = new(
-                Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 103,
                 Dependencies: [],
                 Files:
                 [
@@ -360,12 +362,10 @@ public class ModManagerTest : AbstractFilesystemTest
             .Should().Throw<IOException>();
 
         persistedState.Should().Be(new SavedState(
-            Install: new InstallationState(
-                Time: null,
-                Mods: new Dictionary<string, PackageInstallationState>
+            Installation: new Dictionary<string, PackageInstallationState>
                 {
                     ["B"] = new(
-                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: true,
+                        Time: installationDateTime.ToUniversalTime(), VersionHash: null,
                         Dependencies: [],
                         Files:
                         [
@@ -373,7 +373,7 @@ public class ModManagerTest : AbstractFilesystemTest
                         ],
                         ShadowedBy: []),
                     ["C"] = new(
-                        Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false,
+                        Time: installationDateTime.ToUniversalTime(), VersionHash: 103,
                         Dependencies: [],
                         Files:
                         [
@@ -381,7 +381,7 @@ public class ModManagerTest : AbstractFilesystemTest
                         ],
                         ShadowedBy: [])
                 }
-            )));
+            ));
     }
 
 
@@ -393,7 +393,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
-                Time: installationDateTime, FsHash: null, Partial: false,
+                Time: installationDateTime, VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -419,7 +419,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
-                Time: installationDateTime.ToUniversalTime(), FsHash: null, Partial: false,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -453,7 +453,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_InstallsContentFromRootDirectories()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine("Foo", DirAtRoot, "A"),
                 Path.Combine("Bar", DirAtRoot, "B"),
                 Path.Combine("Bar", "C"),
@@ -472,8 +472,8 @@ public class ModManagerTest : AbstractFilesystemTest
         File.Exists(GamePath("Baz").Full).Should().BeFalse();
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package100"] = new(
-                Time: DateTime.UtcNow, FsHash: 100, Partial: false,
+            ["Package101"] = new(
+                Time: DateTime.UtcNow, VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -489,7 +489,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void InstallmSkipsBlacklistedFiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine("A", FileExcludedFromInstall),
                 Path.Combine(DirAtRoot, "B"),
             ])
@@ -501,8 +501,8 @@ public class ModManagerTest : AbstractFilesystemTest
         File.Exists(GamePath(DirAtRoot, "B").Full).Should().BeTrue();
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package100"] = new(
-                Time: DateTime.UtcNow, FsHash: 100, Partial: false,
+            ["Package101"] = new(
+                Time: DateTime.UtcNow, VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -518,7 +518,7 @@ public class ModManagerTest : AbstractFilesystemTest
         var modFile = Path.Combine(DirAtRoot, "A");
 
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [DeletionName(modFile)]),
+            CreateModArchive(101, [DeletionName(modFile)]),
         ]);
         CreateFile(GamePath(modFile), "Orig");
 
@@ -532,28 +532,28 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_GivesPriorityToFilesLaterInTheModList()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine(DirAtRoot, "A"),
                 Path.Combine(DirAtRoot, "B")
             ]),
-            CreateModArchive(200, [
+            CreateModArchive(102, [
                 Path.Combine("X", DirAtRoot, "a")
             ]),
         ]);
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        File.ReadAllText(GamePath(DirAtRoot, "A").Full).Should().Be("200");
+        File.ReadAllText(GamePath(DirAtRoot, "A").Full).Should().Be("102");
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false,
+            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
                     Path.Combine(DirAtRoot, "B")
                 ],
-                ShadowedBy: ["Package200"]),
-            ["Package200"] = new(Time: DateTime.UtcNow, FsHash: 200, Partial: false,
+                ShadowedBy: ["Package102"]),
+            ["Package102"] = new(Time: DateTime.UtcNow, VersionHash: 102,
                 Dependencies: [],
                 Files:
                 [
@@ -567,7 +567,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_DuplicatesAreCaseInsensitive()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine("X", DirAtRoot, "A"),
                 Path.Combine("Y", DirAtRoot, "a")
             ])
@@ -577,7 +577,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package100"] = new(Time: DateTime.UtcNow, FsHash: 100, Partial: false,
+            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101,
                 Dependencies: [],
                 Files:
                 [
@@ -591,15 +591,15 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_StopsAfterAnyError()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine(DirAtRoot, "A")
             ]),
-            CreateModArchive(200, [
+            CreateModArchive(102, [
                 Path.Combine(DirAtRoot, "B1"),
                 Path.Combine(DirAtRoot, "B2"),
                 Path.Combine(DirAtRoot, "B3")
             ]),
-            CreateModArchive(300, [
+            CreateModArchive(103, [
                 Path.Combine(DirAtRoot, "C"),
             ]),
         ]);
@@ -608,17 +608,15 @@ public class ModManagerTest : AbstractFilesystemTest
         modManager.Invoking(m => m.InstallEnabledMods(eventHandlerMock.Object))
             .Should().Throw<IOException>();
 
-        File.ReadAllText(GamePath(DirAtRoot, "C").Full).Should().Be("300");
-        File.ReadAllText(GamePath(DirAtRoot, "B1").Full).Should().Be("200");
+        File.ReadAllText(GamePath(DirAtRoot, "C").Full).Should().Be("103");
+        File.ReadAllText(GamePath(DirAtRoot, "B1").Full).Should().Be("102");
         File.Exists(GamePath(DirAtRoot, "B3").Full).Should().BeFalse();
         File.Exists(GamePath(DirAtRoot, "A").Full).Should().BeFalse();
         persistedState.Should().Be(new SavedState(
-            Install: new InstallationState(
-                Time: null,
-                Mods: new Dictionary<string, PackageInstallationState>
+            Installation: new Dictionary<string, PackageInstallationState>
                 {
-                    ["Package200"] = new(
-                        Time: DateTime.UtcNow, FsHash: 200, Partial: true,
+                    ["Package102"] = new(
+                        Time: DateTime.UtcNow, VersionHash: null,
                         Dependencies: [],
                         Files:
                         [
@@ -626,8 +624,8 @@ public class ModManagerTest : AbstractFilesystemTest
                             Path.Combine(DirAtRoot, "B2") // We don't know when it failed
                         ],
                         ShadowedBy: []),
-                    ["Package300"] = new(
-                        Time: DateTime.UtcNow, FsHash: 300, Partial: false,
+                    ["Package103"] = new(
+                        Time: DateTime.UtcNow, VersionHash: 103,
                         Dependencies: [],
                         Files:
                         [
@@ -635,7 +633,7 @@ public class ModManagerTest : AbstractFilesystemTest
                         ],
                         ShadowedBy: []),
                 }
-            )));
+            ));
     }
 
     [Fact]
@@ -643,7 +641,7 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         var future = DateTime.Now.AddMinutes(1);
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                     Path.Combine(DirAtRoot, "A")
                 ], extractedDir =>
                     File.SetCreationTime(Path.Combine(extractedDir, DirAtRoot, "A"), future)
@@ -662,7 +660,7 @@ public class ModManagerTest : AbstractFilesystemTest
         var toBeDeleted = "B";
 
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [modFile, DeletionName(toBeDeleted)]),
+            CreateModArchive(101, [modFile, DeletionName(toBeDeleted)]),
         ]);
         CreateFile(GamePath(modFile), "OrigA");
         CreateFile(GamePath(toBeDeleted), "OrigB");
@@ -677,7 +675,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_GameSupportedModsNeverRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
                 Path.Combine(DirAtRoot, "Track.trd"), // Tracks do not currently work in game
                 Path.Combine(GameSupportedModDirectory, "Anything")
@@ -687,8 +685,8 @@ public class ModManagerTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100"]);
-        persistedState.For("Package100").Dependencies.Should().BeEmpty();
+        persistedState.Should().HaveInstalled(["Package101"]);
+        persistedState.For("Package101").Dependencies.Should().BeEmpty();
     }
 
     [Fact]
@@ -696,7 +694,7 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         var drivelineRecord = $"RECORD foo";
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                     Path.Combine("Foo", DirAtRoot, "Vehicle.crd")
                 ], extractedDir =>
                     File.WriteAllText(Path.Combine(extractedDir, "README.txt"), drivelineRecord)
@@ -706,10 +704,10 @@ public class ModManagerTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100"]);
-        persistedState.For("Package100").Dependencies.Should().BeEmpty();
+        persistedState.Should().HaveInstalled(["Package101"]);
+        persistedState.For("Package101").Dependencies.Should().BeEmpty();
 
-        var generatedConfigDir = $"Package100_{100:x}";
+        var generatedConfigDir = $"Package101_{101:x}";
         File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
             DefaultModInstallConfig.VehicleListFileName).Full).Should().Contain("Vehicle.crd");
         File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
@@ -722,7 +720,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_OldTrackModsAlwaysRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [
+            CreateModArchive(101, [
                 Path.Combine(DirAtRoot, "Track.trd"),
                 // Vehicles are not upgraded to game-supported mods if tracks are present
                 Path.Combine(DirAtRoot, "Vehicle.crd")
@@ -732,10 +730,10 @@ public class ModManagerTest : AbstractFilesystemTest
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100", $"{BootfilesPrefix}900"]);
-        persistedState.For("Package100").Dependencies.Should().Contain($"{BootfilesPrefix}900");
+        persistedState.Should().HaveInstalled(["Package101", $"{BootfilesPrefix}900"]);
+        persistedState.For("Package101").Dependencies.Should().Contain($"{BootfilesPrefix}900");
 
-        var generatedConfigDir = $"Package100_{100:x}";
+        var generatedConfigDir = $"Package101_{101:x}";
         File.ReadAllText(GamePath(GameSupportedModDirectory, generatedConfigDir,
             DefaultModInstallConfig.TrackListFileName).Full).Should().Contain("Track.trd");
         File.Exists(GamePath(GameSupportedModDirectory, generatedConfigDir, $"{generatedConfigDir}.xml")
@@ -748,7 +746,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_ExtractsBootfilesFromGameByDefault()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.trd")])
+            CreateModArchive(101, [Path.Combine(DirAtRoot, "Foo.trd")])
         ]);
 
         // Unfortunately, there is no easy way to create pak files!
@@ -766,26 +764,26 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_ChoosesLastOfMultipleCustomBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(100, [Path.Combine(DirAtRoot, "Foo.trd")]),
+            CreateModArchive(101, [Path.Combine(DirAtRoot, "Foo.trd")]),
             CreateCustomBootfiles(900),
             CreateCustomBootfiles(901)
         ]);
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        persistedState.Should().HaveInstalled(["Package100", $"{BootfilesPrefix}901"]);
+        persistedState.Should().HaveInstalled(["Package101", $"{BootfilesPrefix}901"]);
     }
 
     #region Utility methods
 
-    private IPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths) =>
-        CreateModArchive(fsHash, relativePaths, _ => { });
+    private IPackage CreateModArchive(int versionHash, IEnumerable<string> relativePaths) =>
+        CreateModArchive(versionHash, relativePaths, _ => { });
 
-    private IPackage CreateModArchive(int fsHash, IEnumerable<string> relativePaths, Action<string> callback) =>
-        CreateModPackage("Package", fsHash, relativePaths, callback);
+    private IPackage CreateModArchive(int versionHash, IEnumerable<string> relativePaths, Action<string> callback) =>
+        CreateModPackage("Package", versionHash, relativePaths, callback);
 
-    private IPackage CreateCustomBootfiles(int fsHash) =>
-        CreateModPackage(BootfilesPrefix, fsHash, [
+    private IPackage CreateCustomBootfiles(int versionHash) =>
+        CreateModPackage(BootfilesPrefix, versionHash, [
                 Path.Combine(DirAtRoot, "OrTheyWontBeInstalled"),
                 VehicleListRelativePath,
                 TrackListRelativePath,
@@ -796,26 +794,26 @@ public class ModManagerTest : AbstractFilesystemTest
                     $"{Environment.NewLine}END")
         );
 
-    private IPackage CreateModPackage(string packagePrefix, int fsHash, IEnumerable<string> relativePaths,
+    private IPackage CreateModPackage(string packagePrefix, int versionHash, IEnumerable<string> relativePaths,
         Action<string> callback)
     {
-        var modName = $"Mod{fsHash}";
+        var modName = $"Mod{versionHash}";
         var modContentsDir = TestDir.CreateSubdirectory(modName).FullName;
         foreach (var relativePath in relativePaths)
         {
-            CreateFile(new RootedPath(modContentsDir, relativePath), $"{fsHash}");
+            CreateFile(new RootedPath(modContentsDir, relativePath), $"{versionHash}");
         }
 
         callback(modContentsDir);
 
-        var packageName = $"{packagePrefix}{fsHash}";
+        var packageName = $"{packagePrefix}{versionHash}";
 
         var package = new Mock<IPackage>();
         package.SetupGet(m => m.Name).Returns(packageName);
         package.SetupGet(m => m.Location).Returns(modContentsDir);
-        package.SetupGet(m => m.VersionHash).Returns(fsHash);
+        package.SetupGet(m => m.VersionHash).Returns(versionHash);
         package.SetupGet(m => m.Installer).Returns(() =>
-            new DirectoryInstaller(packageName, fsHash, modContentsDir));
+            new DirectoryInstaller(packageName, versionHash, modContentsDir));
         return package.Object;
     }
 
@@ -834,21 +832,18 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         // Avoids bootfiles checks on uninstall
         private static readonly SavedState SkipBootfilesCheck = new(
-            Install: new(
-                Time: PastDate,
-                Mods: new Dictionary<string, PackageInstallationState>
+            Installation: new Dictionary<string, PackageInstallationState>
                 {
-                    ["INIT"] = new(Time: PastDate, FsHash: null, Partial: false, Dependencies: [], Files: [],
+                    ["INIT"] = new(Time: PastDate, VersionHash: null, Dependencies: [], Files: [],
                         ShadowedBy: []),
                 }
-            ));
+            );
 
         private SavedState initState = SkipBootfilesCheck;
         private SavedState? savedState;
 
         public void InitModInstallationState(Dictionary<string, PackageInstallationState> modInstallationState) =>
-            initState = new SavedState(
-                Install: new InstallationState(Time: null, Mods: modInstallationState));
+            initState = new SavedState(Installation: modInstallationState);
 
         public SavedState ReadState() => savedState ?? initState;
 
@@ -858,7 +853,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         internal PackageInstallationState For(string packageName)
         {
-            var state = savedState?.Install.Mods[packageName];
+            var state = savedState?.Installation[packageName];
             state.Should().NotBeNull();
             return state;
         }
@@ -876,18 +871,17 @@ public class ModManagerTest : AbstractFilesystemTest
         internal void Be(SavedState expected)
         {
             var writtenState = WrittenState();
-            ValidateDateTime(expected.Install.Time, writtenState.Install.Time);
-            HaveInstalled(expected.Install.Mods);
+            HaveInstalled(expected.Installation);
         }
 
         internal void HaveInstalled(IReadOnlyDictionary<string, PackageInstallationState> expected)
         {
             var writtenState = WrittenState();
-            var actualMods = writtenState.Install.Mods;
+            var actualMods = writtenState.Installation;
             var expectedMods = expected.Select(mod =>
             {
                 var expectedTime = mod.Value.Time;
-                var actualTime = writtenState.Install.Mods.GetValueOrDefault(mod.Key)?.Time;
+                var actualTime = writtenState.Installation.GetValueOrDefault(mod.Key)?.Time;
                 if (actualTime is null)
                 {
                     return mod;
@@ -903,7 +897,7 @@ public class ModManagerTest : AbstractFilesystemTest
         internal void HaveInstalled(IEnumerable<string> expected)
         {
             var writtenState = WrittenState();
-            writtenState.Install.Mods.Keys.Should().BeEquivalentTo(expected);
+            writtenState.Installation.Keys.Should().BeEquivalentTo(expected);
         }
 
         private SavedState WrittenState()

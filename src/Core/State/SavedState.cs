@@ -4,22 +4,10 @@ using Core.Packages.Installation;
 namespace Core.State;
 
 public record SavedState(
-    InstallationState Install
+    IReadOnlyDictionary<string, PackageInstallationState> Installation
 )
 {
-    public static SavedState Empty() => new(
-        Install: InstallationState.Empty()
-    );
-};
-
-public record InstallationState(
-    // TODO: needed for backward compatibility
-    DateTime? Time,
-    IReadOnlyDictionary<string, PackageInstallationState> Mods
-)
-{
-    public static InstallationState Empty() => new(
-        Time: null,
-        Mods: ImmutableDictionary.Create<string, PackageInstallationState>()
+    public static SavedState Empty() => new SavedState(
+        Installation: ImmutableDictionary.Create<string, PackageInstallationState>()
     );
 }

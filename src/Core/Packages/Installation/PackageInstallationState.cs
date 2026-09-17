@@ -3,11 +3,10 @@
 public record PackageInstallationState(
     DateTime Time,
     // Unknown when partially installed or upgrading from a previous version
-    int? FsHash,
-    // TODO: needed for backward compatibility
-    // infer from null hash after the first install
-    bool Partial,
+    int? VersionHash,
     IReadOnlyCollection<string> Dependencies,
     IReadOnlyCollection<string> Files,
     IReadOnlyCollection<string> ShadowedBy
-);
+) {
+    public bool Partial => VersionHash is null; // && Files.Count != 0
+}
