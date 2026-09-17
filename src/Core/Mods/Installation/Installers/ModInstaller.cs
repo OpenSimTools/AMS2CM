@@ -43,8 +43,8 @@ public class ModInstaller : BaseModInstaller
         var normalisedName = string.Concat(
             Path.GetFileNameWithoutExtension(inner.PackageName)
                 .Where(char.IsAsciiLetterOrDigit));
-        var hexFsHash = (inner.PackageVersionHash ?? 0).ToString("x");
-        modName = $"{normalisedName}_{hexFsHash}";
+        var hexVersionHash = (inner.PackageVersionHash ?? 0).ToString("x");
+        modName = $"{normalisedName}_{hexVersionHash}";
 
         modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModRelativeDir, modName));
     }

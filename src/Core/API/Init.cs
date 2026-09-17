@@ -7,6 +7,7 @@ using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Repository;
 using Core.State;
+using Core.State.JsonFile;
 using Core.Utils;
 
 namespace Core.API;

@@ -177,11 +177,11 @@ public class ModInstallerTest
         return modInstaller;
     }
 
-    private IPackageInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
-        InstallerOf(name, fsHash, files.ToDictionary(f => f, _ => Convert.ToString(fsHash) ?? string.Empty));
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
+        InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
-    private IPackageInstaller InstallerOf(string name, int? fsHash, IReadOnlyDictionary<string, string> fileContents) =>
-        new StaticFilesInstaller(fs, name, fsHash, fileContents, Array.Empty<string>());
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
+        new StaticFilesInstaller(fs, name, versionHash, fileContents, Array.Empty<string>());
 
     private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
         relativePaths.Select(f => Path.Combine(destDir, f)).ToHashSet();
