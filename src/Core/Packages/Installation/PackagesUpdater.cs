@@ -89,7 +89,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                 eventHandler.UninstallCurrent(packageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState, eventHandler);
                 var filesLeft = packageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var versionHash = packageInstallationState.VersionHash;
+                var error = false;
                 try
                 {
                     foreach (var relativePath in packageInstallationState.Files)
@@ -102,7 +102,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                 }
                 catch
                 {
-                    versionHash = null;
+                    error = true;
                     throw;
                 }
                 finally
@@ -112,7 +112,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                             null :
                             packageInstallationState with
                             {
-                                VersionHash = versionHash,
+                                Partial = error,
                                 Files = filesLeft
                             }
                         );
@@ -207,8 +207,8 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                             ? null
                             : new PackageInstallationState(
                                 Time: timeProvider.GetUtcNow().DateTime,
-                                VersionHash: installer.Installed == IInstallation.State.PartiallyInstalled ?
-                                    null : installer.PackageVersionHash,
+                                VersionHash: installer.PackageVersionHash,
+                                Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
                                 Dependencies: installer.PackageDependencies,
                                 ShadowedBy: shadowedBy,
                                 Files: packageInstalledFiles

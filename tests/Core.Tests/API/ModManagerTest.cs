@@ -83,7 +83,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["I"] = new(
-                Time: PastDate, VersionHash: 101, Dependencies: [], Files: [], ShadowedBy: []),
+                Time: PastDate, VersionHash: 101, Partial: false, Dependencies: [], Files: [], ShadowedBy: []),
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
@@ -108,17 +108,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, VersionHash: 999,
+                Time: PastDate, VersionHash: 999, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: PastDate, VersionHash: null,
+                Time: PastDate, VersionHash: null, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             ["C"] = new(
-                Time: PastDate, VersionHash: null,
+                Time: PastDate, VersionHash: 103, Partial: true,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: [])
@@ -137,8 +137,8 @@ public class ModManagerTest : AbstractFilesystemTest
         modManager.FetchState().Should().BeEquivalentTo(
         [
             new ModState("A", "a/path", IsInstalled: true, IsEnabled: true, IsOutOfDate: true),
-            new ModState("B", "b/path", IsInstalled: null, IsEnabled: true, IsOutOfDate: true),
-            new ModState("C", "c/path", IsInstalled: null, IsEnabled: false, IsOutOfDate: true),
+            new ModState("B", "b/path", IsInstalled: true, IsEnabled: true, IsOutOfDate: true),
+            new ModState("C", "c/path", IsInstalled: null, IsEnabled: false, IsOutOfDate: false),
             new ModState("D", "d/path", IsInstalled: false, IsEnabled: false, IsOutOfDate: false)
         ]);
     }
@@ -149,17 +149,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, VersionHash: 101,
+                Time: PastDate, VersionHash: 101, Partial: false,
                 Dependencies: ["Partial"],
                 Files: [],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: PastDate, VersionHash: 102,
+                Time: PastDate, VersionHash: 102, Partial: false,
                 Dependencies: ["NotInstalled"],
                 Files: [],
                 ShadowedBy: []),
             ["Partial"] = new(
-                Time: PastDate, VersionHash: null,
+                Time: PastDate, VersionHash: null, Partial: true,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
@@ -181,17 +181,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, VersionHash: 101,
+                Time: PastDate, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: ["Partial"]),
             ["B"] = new(
-                Time: PastDate, VersionHash: 102,
+                Time: PastDate, VersionHash: 102, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: ["NotInstalled"]),
             ["Partial"] = new(
-                Time: PastDate, VersionHash: null,
+                Time: PastDate, VersionHash: null, Partial: true,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
@@ -213,17 +213,17 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [$"{BootfilesPrefix}_IU"] = new(
-                Time: PastDate, VersionHash: 101,
+                Time: PastDate, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             [$"{BootfilesPrefix}_IE"] = new(
-                Time: PastDate, VersionHash: 102,
+                Time: PastDate, VersionHash: 102, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: []),
             [$"{BootfilesPrefix}_ID"] = new(
-                Time: PastDate, VersionHash: 103,
+                Time: PastDate, VersionHash: 103, Partial: false,
                 Dependencies: [],
                 Files: [],
                 ShadowedBy: [])
@@ -265,7 +265,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: PastDate, VersionHash: 101,
+                Time: PastDate, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -274,7 +274,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: PastDate, VersionHash: 102,
+                Time: PastDate, VersionHash: 102, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -299,7 +299,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
-                Time: installationDateTime.ToUniversalTime(), VersionHash: 101,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -327,7 +327,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
-                Time: installationDateTime.ToUniversalTime(), VersionHash: 101,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -335,7 +335,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: []),
             ["B"] = new(
-                Time: installationDateTime.ToUniversalTime(), VersionHash: 102,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 102, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -344,7 +344,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: []),
             ["C"] = new(
-                Time: installationDateTime.ToUniversalTime(), VersionHash: 103,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 103, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -365,7 +365,7 @@ public class ModManagerTest : AbstractFilesystemTest
             Installation: new Dictionary<string, PackageInstallationState>
                 {
                     ["B"] = new(
-                        Time: installationDateTime.ToUniversalTime(), VersionHash: null,
+                        Time: installationDateTime.ToUniversalTime(), VersionHash: 102, Partial: true,
                         Dependencies: [],
                         Files:
                         [
@@ -373,7 +373,7 @@ public class ModManagerTest : AbstractFilesystemTest
                         ],
                         ShadowedBy: []),
                     ["C"] = new(
-                        Time: installationDateTime.ToUniversalTime(), VersionHash: 103,
+                        Time: installationDateTime.ToUniversalTime(), VersionHash: 103, Partial: false,
                         Dependencies: [],
                         Files:
                         [
@@ -393,7 +393,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
-                Time: installationDateTime, VersionHash: 101,
+                Time: installationDateTime, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -419,7 +419,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
-                Time: installationDateTime.ToUniversalTime(), VersionHash: 101,
+                Time: installationDateTime.ToUniversalTime(), VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -473,7 +473,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package101"] = new(
-                Time: DateTime.UtcNow, VersionHash: 101,
+                Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -502,7 +502,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package101"] = new(
-                Time: DateTime.UtcNow, VersionHash: 101,
+                Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -546,14 +546,14 @@ public class ModManagerTest : AbstractFilesystemTest
         File.ReadAllText(GamePath(DirAtRoot, "A").Full).Should().Be("102");
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101,
+            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
                     Path.Combine(DirAtRoot, "B")
                 ],
                 ShadowedBy: ["Package102"]),
-            ["Package102"] = new(Time: DateTime.UtcNow, VersionHash: 102,
+            ["Package102"] = new(Time: DateTime.UtcNow, VersionHash: 102, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -577,7 +577,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101,
+            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -616,7 +616,7 @@ public class ModManagerTest : AbstractFilesystemTest
             Installation: new Dictionary<string, PackageInstallationState>
                 {
                     ["Package102"] = new(
-                        Time: DateTime.UtcNow, VersionHash: null,
+                        Time: DateTime.UtcNow, VersionHash: 102, Partial: true,
                         Dependencies: [],
                         Files:
                         [
@@ -625,7 +625,7 @@ public class ModManagerTest : AbstractFilesystemTest
                         ],
                         ShadowedBy: []),
                     ["Package103"] = new(
-                        Time: DateTime.UtcNow, VersionHash: 103,
+                        Time: DateTime.UtcNow, VersionHash: 103, Partial: false,
                         Dependencies: [],
                         Files:
                         [
@@ -834,7 +834,7 @@ public class ModManagerTest : AbstractFilesystemTest
         private static readonly SavedState SkipBootfilesCheck = new(
             Installation: new Dictionary<string, PackageInstallationState>
                 {
-                    ["INIT"] = new(Time: PastDate, VersionHash: null, Dependencies: [], Files: [],
+                    ["INIT"] = new(Time: PastDate, VersionHash: null, Partial: false, Dependencies: [], Files: [],
                         ShadowedBy: []),
                 }
             );
