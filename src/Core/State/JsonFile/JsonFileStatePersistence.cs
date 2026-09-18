@@ -54,6 +54,7 @@ internal class JsonFileStatePersistence : IStatePersistence
                 Installation: jsonState.Install.Mods.SelectValues(pis => new PackageInstallationState(
                     Time: pis.Time == default ? installTime : pis.Time,
                     VersionHash: pis.VersionHash,
+                    Partial: pis.Partial,
                     Dependencies: pis.Dependencies ?? Array.Empty<string>(),
                     Files: pis.Files ?? Array.Empty<string>(),
                     ShadowedBy: pis.ShadowedBy ?? Array.Empty<string>())
@@ -76,6 +77,7 @@ internal class JsonFileStatePersistence : IStatePersistence
                     kv => new PackageInstallationState(
                         Time: installTime,
                         VersionHash: UnkownVersionHash, // Fake hash to force reinstall on older versions
+                        Partial: false,
                         Dependencies: Array.Empty<string>(),
                         Files: kv.Value, ShadowedBy: Array.Empty<string>())
                 )

@@ -16,8 +16,6 @@ record JsonPackageInstallationStateV2(
     DateTime Time,
     [JsonProperty("FsHash")]
     int? VersionHash,
-    // needed for backward compatibility
-    // infer from null hash after the first install
     bool Partial,
     IReadOnlyCollection<string> Dependencies,
     IReadOnlyCollection<string> Files,
