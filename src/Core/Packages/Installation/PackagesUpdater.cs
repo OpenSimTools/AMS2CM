@@ -1,7 +1,6 @@
 ﻿using System.Collections.Immutable;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
-using Core.Packages.Repository;
 using Core.Utils;
 
 namespace Core.Packages.Installation;
@@ -88,17 +87,11 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                 }
                 eventHandler.UninstallCurrent(packageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState, eventHandler);
-                var filesLeft = packageInstallationState.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var uninstaller = new Uninstaller(packageName, packageInstallationState, installDir);
                 var error = false;
                 try
                 {
-                    foreach (var relativePath in packageInstallationState.Files)
-                    {
-                        var gamePath = new RootedPath(installDir, relativePath);
-                        backupStrategy.RestoreBackup(gamePath);
-                        filesLeft.Remove(gamePath.Relative);
-                    }
-                    DeleteEmptyDirectories(installDir, packageInstallationState.Files);
+                    uninstaller.Install(InstallTo(installDir), backupStrategy, new ProcessingCallbacks<RootedPath>());
                 }
                 catch
                 {
@@ -108,12 +101,12 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                 finally
                 {
                     updatePackageState(packageName,
-                        filesLeft.Count == 0 ?
+                        uninstaller.InstalledFiles.Count == 0 ?
                             null :
                             packageInstallationState with
                             {
                                 Partial = error,
-                                Files = filesLeft
+                                Files = uninstaller.InstalledFiles.Select(rf => rf.Relative).ToImmutableHashSet(StringComparer.OrdinalIgnoreCase)
                             }
                         );
                 }
@@ -124,33 +117,6 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
         {
             eventHandler.UninstallNoPackages();
         }
-    }
-
-    private static void DeleteEmptyDirectories(string dstRootPath, IReadOnlyCollection<string> filePaths)
-    {
-        var dirs = filePaths
-            .Select(file => Path.Combine(dstRootPath, file))
-            .SelectMany(dstFilePath => AncestorsUpTo(dstRootPath, dstFilePath))
-            .Distinct()
-            .OrderByDescending(name => name.Length);
-        foreach (var dir in dirs)
-        {
-            // Some packages have duplicate entries, so files might have been removed already
-            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
-            {
-                Directory.Delete(dir);
-            }
-        }
-    }
-
-    private static List<string> AncestorsUpTo(string root, string path)
-    {
-        var ancestors = new List<string>();
-        for (var dir = Directory.GetParent(path); dir is not null && dir.FullName != root; dir = dir.Parent)
-        {
-            ancestors.Add(dir.FullName);
-        }
-        return ancestors;
     }
 
     private void InstallPackages(
