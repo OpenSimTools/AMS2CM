@@ -173,7 +173,7 @@ public class BootfilesInstallerTest
     }
 
 
-    #region Utility
+    #region Utility Methods
 
     private BootfilesInstaller InstallBootfiles()
     {

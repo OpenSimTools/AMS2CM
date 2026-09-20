@@ -8,11 +8,11 @@ namespace Core.Packages.Installation;
 public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
-    private readonly IBackupStrategyProvider<IHasTime, TEventHandler> backupStrategyProvider;
+    private readonly IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider;
     private readonly TimeProvider timeProvider;
 
     public PackagesUpdater(
-        IBackupStrategyProvider<IHasTime, TEventHandler>  backupStrategyProvider,
+        IBackupStrategyProvider<DateTime, TEventHandler>  backupStrategyProvider,
         TimeProvider timeProvider)
     {
         this.backupStrategyProvider = backupStrategyProvider;
@@ -31,7 +31,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
             .Select(entry =>
             {
                 var (packageName, state) = entry;
-                var backupStrategy = backupStrategyProvider.BackupStrategy(state, eventHandler);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(state.Time, eventHandler);
                 return new Uninstaller(packageName, state, installDir, backupStrategy);
             }).ToImmutableArray();
         var installers = packages.Select(package => package.Installer).ToImmutableArray();
@@ -92,7 +92,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                     break;
                 }
                 eventHandler.UninstallCurrent(uninstaller.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(null, eventHandler);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(timeProvider.GetUtcNow().DateTime, eventHandler);
                 try
                 {
                     uninstaller.Install(InstallTo(installDir), backupStrategy, new ProcessingCallbacks<RootedPath>());
@@ -143,7 +143,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
             {
                 eventHandler.ProgressUpdate(progress.IncrementDone());
                 eventHandler.InstallCurrent(installer.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(state: null, eventHandler);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(timeProvider.GetUtcNow().DateTime, eventHandler);
                 var shadowedBy = new HashSet<string>();
                 var installCallbacks = new ProcessingCallbacks<RootedPath>
                 {
@@ -176,7 +176,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                         packageInstalledFiles.IsEmpty
                             ? null
                             : new PackageInstallationState(
-                                Time: timeProvider.GetUtcNow().DateTime,
+                                Time: installer.InstallTime,
                                 VersionHash: installer.PackageVersionHash,
                                 Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
                                 Dependencies: installer.PackageDependencies,

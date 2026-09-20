@@ -165,7 +165,7 @@ public class ModInstallerTest
     }
 
 
-    #region Utility
+    #region Utility Methods
 
     private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
     {

@@ -10,14 +10,6 @@ internal class StaticFilesInstaller : BaseInstaller<string>
     private readonly IReadOnlyDictionary<string, string> files;
     private readonly bool createFiles;
 
-    internal StaticFilesInstaller(string packageName, int? packageVersionHash, IReadOnlyDictionary<string, string> files,
-        IReadOnlyCollection<string> packageDependencies) :
-        base(packageName, packageVersionHash, packageDependencies.ToImmutableHashSet())
-    {
-        createFiles = false;
-        this.files = files;
-    }
-
     internal StaticFilesInstaller(IFileSystem fs, TimeProvider timeProvider, string packageName, int? packageVersionHash, IReadOnlyDictionary<string, string> files,
         IReadOnlyCollection<string> packageDependencies) :
         base(fs, timeProvider, packageName, packageVersionHash, packageDependencies.ToImmutableHashSet())

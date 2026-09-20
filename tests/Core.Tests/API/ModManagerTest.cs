@@ -16,7 +16,7 @@ namespace Core.Tests.API;
 [IntegrationTest]
 public class ModManagerTest : AbstractFilesystemTest
 {
-    #region Initialisation
+    #region Setup
 
     private const string BootfilesPrefix = "BP";
     private const string DirAtRoot = "DirAtRoot";
