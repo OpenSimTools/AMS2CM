@@ -5,6 +5,7 @@ using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Mods.Installation.Installers;
 
@@ -21,6 +22,7 @@ public class ModInstallerTest
     #region Setup
 
     private readonly MockFileSystem fs = new();
+    private readonly FakeTimeProvider fakeTimeProvider = new();
     private readonly Mock<ModInstaller.IConfig> configMock = new();
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
     private readonly Mock<Action<RootedPath>> callbackMock = new();
@@ -181,7 +183,7 @@ public class ModInstallerTest
         InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
     private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
-        new StaticFilesInstaller(fs, name, versionHash, fileContents, Array.Empty<string>());
+        new StaticFilesInstaller(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
     private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
         relativePaths.Select(f => Path.Combine(destDir, f)).ToHashSet();

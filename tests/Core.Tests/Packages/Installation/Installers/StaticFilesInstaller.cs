@@ -18,9 +18,9 @@ internal class StaticFilesInstaller : BaseInstaller<string>
         this.files = files;
     }
 
-    internal StaticFilesInstaller(IFileSystem fs, string packageName, int? packageVersionHash, IReadOnlyDictionary<string, string> files,
+    internal StaticFilesInstaller(IFileSystem fs, TimeProvider timeProvider, string packageName, int? packageVersionHash, IReadOnlyDictionary<string, string> files,
         IReadOnlyCollection<string> packageDependencies) :
-        base(fs, packageName, packageVersionHash, packageDependencies.ToImmutableHashSet())
+        base(fs, timeProvider, packageName, packageVersionHash, packageDependencies.ToImmutableHashSet())
     {
         createFiles = true;
         this.files = files;

@@ -1,4 +1,6 @@
-﻿namespace Core.Packages.Installation;
+﻿using Core.Packages.Installation.Backup;
+
+namespace Core.Packages.Installation;
 
 public record PackageInstallationState(
     DateTime Time,
@@ -8,4 +10,4 @@ public record PackageInstallationState(
     IReadOnlyCollection<string> Dependencies,
     IReadOnlyCollection<string> Files,
     IReadOnlyCollection<string> ShadowedBy
-);
+) : IHasTime;

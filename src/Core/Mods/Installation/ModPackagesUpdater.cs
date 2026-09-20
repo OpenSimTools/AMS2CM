@@ -14,7 +14,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
     private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
     public ModPackagesUpdater(
-        IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
+        IBackupStrategyProvider<IHasTime, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider,
         IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :
@@ -25,7 +25,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
     }
 
     protected override void Apply(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState,
+        IReadOnlyCollection<IPackageInstaller> uninstallers,
         IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
@@ -39,7 +39,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
             .Select(i => modInstallerFactory.ModInstaller(i, bootfilesInstaller))
             .Append(bootfilesInstaller).ToImmutableArray();
 
-        base.Apply(currentState, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
+        base.Apply(uninstallers, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
     private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)

@@ -6,6 +6,7 @@ public interface IInstallation
 {
     IReadOnlySet<RootedPath> InstalledFiles { get; }
     State Installed { get; }
+    DateTime InstallTime { get; }
 
     enum State
     {

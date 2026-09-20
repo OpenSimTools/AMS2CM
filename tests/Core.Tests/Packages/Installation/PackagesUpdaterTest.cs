@@ -22,7 +22,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     private static readonly DateTime ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<PackageInstallationState, PackagesUpdater.IEventHandler> backupStrategyProvider,
+        IBackupStrategyProvider<IHasTime, PackagesUpdater.IEventHandler> backupStrategyProvider,
         TimeProvider timeProvider) =>
         new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider, timeProvider);
 
@@ -436,7 +436,7 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
     protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
 
     protected abstract IPackagesUpdater<TEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
+        IBackupStrategyProvider<IHasTime, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider);
 
     protected void Apply(IPackageInstaller[] installers)
@@ -447,7 +447,7 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
             package.SetupGet(p => p.Installer).Returns(installer);
             return package.Object;
         });
-        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<PackageInstallationState, TEventHandler>>();
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<IHasTime, TEventHandler>>();
         backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
         var packagesUpdater = NewPackagesUpdater(
