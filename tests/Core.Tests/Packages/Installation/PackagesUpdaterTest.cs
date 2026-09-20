@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO.Abstractions.TestingHelpers;
 using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
@@ -14,7 +15,7 @@ namespace Core.Tests.Packages.Installation;
 [IntegrationTest]
 public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>
 {
-    #region Initialisation
+    #region Setup
 
     private class TestException : Exception;
 
@@ -22,9 +23,8 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     private static readonly DateTime ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<IHasTime, PackagesUpdater.IEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider) =>
-        new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider, timeProvider);
+        IBackupStrategyProvider<DateTime, PackagesUpdater.IEventHandler> backupStrategyProvider) =>
+        new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider, TestTimeProvider);
 
     #endregion
 
@@ -80,7 +80,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 42, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: [], Files: [
                 "AF"
             ], ShadowedBy: [])
         });
@@ -147,7 +147,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 2, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [], Files: [
                 "AF",
                 "AF2"
             ], ShadowedBy: [])
@@ -168,7 +168,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 42, Partial: false, Dependencies: ["X"], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: ["X"], Files: [
                 "AF"
             ], ShadowedBy: [])
         });
@@ -191,13 +191,13 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
                 "AF1", "AF2"
             ], ShadowedBy: []),
-            ["B"] = new(Time: FakeUtcInstallationDate, VersionHash: 2, Partial: false, Dependencies: [], Files: [
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [], Files: [
                 "BF"
             ], ShadowedBy: []),
-            ["C"] = new(Time: FakeUtcInstallationDate, VersionHash: 3, Partial: false, Dependencies: [], Files: [
+            ["C"] = new(Time: TestInstallationTimeUtc, VersionHash: 3, Partial: false, Dependencies: [], Files: [
                 "CF"
             ], ShadowedBy: ["A", "B"])
         });
@@ -228,7 +228,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
                 "SF",
                 "AF1"
             ], ShadowedBy: [])
@@ -248,7 +248,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 42, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: true, Dependencies: [], Files: [
                 "AF1",
                 "Fail" // We don't know where it failed, so we add it
             ], ShadowedBy: [])
@@ -379,11 +379,11 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 0, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
                 "AF",
 
             ], ShadowedBy: ["B"]),
-            ["B"] = new(Time: FakeUtcInstallationDate, VersionHash: 0, Partial: false, Dependencies: [], Files: [
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
                 "BF",
                 "Shared"
             ], ShadowedBy: [])
@@ -410,34 +410,44 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: FakeUtcInstallationDate, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
                 "A1",
             ], ShadowedBy: []),
         });
     }
 
-    private static IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
         InstallerOf(name, versionHash, files, Array.Empty<string>());
 
-    private static IPackageInstaller InstallerOf(string name, int? versionHash,
+    private IPackageInstaller InstallerOf(string name, int? versionHash,
         IReadOnlyCollection<string> files, IReadOnlyCollection<string> dependencies) =>
-        new StaticFilesInstaller(name, versionHash, files.ToDictionary(f => f, _ => ""), dependencies);
+        new StaticFilesInstaller(TestFileSystem, TestTimeProvider,
+            name, versionHash, files.ToDictionary(f => f, _ => ""), dependencies);
 }
 
 public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler : class
 {
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
     protected readonly Mock<TEventHandler> EventHandlerMock = new();
-    protected readonly DateTime FakeUtcInstallationDate = DateTime.Today.AddDays(10).ToUniversalTime();
-    private readonly TimeSpan fakeLocalTimeOffset = TimeSpan.FromHours(3);
+
+    protected readonly DateTime TestInstallationTimeUtc;
+    protected readonly FakeTimeProvider TestTimeProvider;
+    protected readonly MockFileSystem TestFileSystem = new();
+
     protected IReadOnlyDictionary<string, PackageInstallationState>? InstallationState;
     private readonly string destinationDir = Path.GetRandomFileName();
+
+    protected PackagesUpdaterTestBase()
+    {
+        TestInstallationTimeUtc = DateTime.Today.AddDays(10).ToUniversalTime();
+        var fakeLocalTimeOffset = TimeSpan.FromHours(3);
+        TestTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.WithOffset(fakeLocalTimeOffset));
+    }
 
     protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
 
     protected abstract IPackagesUpdater<TEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<IHasTime, TEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider);
+        IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider);
 
     protected void Apply(IPackageInstaller[] installers)
     {
@@ -447,12 +457,11 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
             package.SetupGet(p => p.Installer).Returns(installer);
             return package.Object;
         });
-        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<IHasTime, TEventHandler>>();
-        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<PackageInstallationState>(), It.IsAny<TEventHandler>()))
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<DateTime, TEventHandler>>();
+        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<DateTime>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
         var packagesUpdater = NewPackagesUpdater(
-            backupStrategyProviderMock.Object,
-            new FakeTimeProvider(FakeUtcInstallationDate.WithOffset(fakeLocalTimeOffset)));
+            backupStrategyProviderMock.Object);
         packagesUpdater.Apply(
             InstallationState ?? ReadOnlyDictionary<string, PackageInstallationState>.Empty,
             packages,

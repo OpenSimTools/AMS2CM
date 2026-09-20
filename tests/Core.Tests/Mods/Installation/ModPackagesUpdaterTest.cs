@@ -13,9 +13,11 @@ using FluentAssertions;
 namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
-public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>
+public class ModPackagesUpdaterTest :
+    PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>,
+    IModInstallerFactory<PackagesUpdater.IEventHandler>
 {
-    #region Initialisation
+    #region Setup
 
     private static readonly string GeneratedBootfilesName = "__generated";
     private static readonly string BootfilesPackageName = "__package";
@@ -34,24 +36,20 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
         public IEnumerable<string> RelativeDirectoryPaths => inner.RelativeDirectoryPaths;
     }
 
-    private class TestModInstallerFactory : IModInstallerFactory<PackagesUpdater.IEventHandler>
-    {
-        public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
-            new WrappedInstaller(packageInstaller);
-
-        public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, PackagesUpdater.IEventHandler eventHandler) =>
-            bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
-    }
-
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<IHasTime, PackagesUpdater.IEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider)
+        IBackupStrategyProvider<DateTime, PackagesUpdater.IEventHandler> backupStrategyProvider)
     {
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();
         bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
         return new ModPackagesUpdater<PackagesUpdater.IEventHandler>(
-            backupStrategyProvider, timeProvider, bootfilesNamingMock.Object, new TestModInstallerFactory());
+            backupStrategyProvider, TestTimeProvider, bootfilesNamingMock.Object, this);
     }
+
+    public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
+        new WrappedInstaller(packageInstaller);
+
+    public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, PackagesUpdater.IEventHandler eventHandler) =>
+        bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
 
     #endregion
 
@@ -97,6 +95,10 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
         progress.Should().Equal(0.5, 1.0);
     }
 
-    internal static IPackageInstaller InstallerOf(string name) =>
-        new StaticFilesInstaller(name, null, ReadOnlyDictionary<string, string>.Empty, []);
+    #region Utility Methods
+
+    private IPackageInstaller InstallerOf(string name) =>
+        new StaticFilesInstaller(TestFileSystem, TestTimeProvider, name, null, ReadOnlyDictionary<string, string>.Empty, []);
+
+    #endregion
 }

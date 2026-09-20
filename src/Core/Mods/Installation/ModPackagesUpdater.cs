@@ -14,7 +14,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
     private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
     public ModPackagesUpdater(
-        IBackupStrategyProvider<IHasTime, TEventHandler> backupStrategyProvider,
+        IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider,
         TimeProvider timeProvider,
         IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :

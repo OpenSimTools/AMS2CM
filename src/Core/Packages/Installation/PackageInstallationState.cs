@@ -10,4 +10,4 @@ public record PackageInstallationState(
     IReadOnlyCollection<string> Dependencies,
     IReadOnlyCollection<string> Files,
     IReadOnlyCollection<string> ShadowedBy
-) : IHasTime;
+);

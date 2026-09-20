@@ -36,7 +36,7 @@ public static class Init
         ModInstallConfig modInstallConfig)
     {
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider<IEventHandler>(
-            new SuffixBackupStrategy.Provider<IHasTime, IEventHandler>());
+            new SuffixBackupStrategy.Provider<DateTime, IEventHandler>());
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
         var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
             modInstallConfig);
