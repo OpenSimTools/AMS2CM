@@ -58,20 +58,20 @@ public class ModPackagesUpdaterTest :
     {
         var packages = new List<string>();
         var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.InstallCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
+        EventHandlerMock.Setup(m => m.UpdateCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
         Apply([
-            // Uninstall                          25%
-            InstallerOf("I1"),                 // 50%
-            InstallerOf("I2"),                 // 75%
+            InstallerOf("I1"),            // 25%
+            InstallerOf("I2"),            // 50%
+            InstallerOf("I3"),            // 75%
             InstallerOf(BootfilesPackageName), // 100%
         ]);
 
         InstallationState.Should().BeEmpty();
 
-        packages.Should().Equal("(I1)", "(I2)", BootfilesPackageName);
+        packages.Should().Equal("(I1)", "(I2)", "(I3)", BootfilesPackageName);
         progress.Should().Equal(0.25, 0.5, 0.75, 1.0);
     }
 
@@ -80,19 +80,18 @@ public class ModPackagesUpdaterTest :
     {
         var packages = new List<string>();
         var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.InstallCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
+        EventHandlerMock.Setup(m => m.UpdateCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
         Apply([
-            // Uninstall           50%
             // Generated bootfiles 100%
         ]);
 
         InstallationState.Should().BeEmpty();
 
         packages.Should().Equal(GeneratedBootfilesName);
-        progress.Should().Equal(0.5, 1.0);
+        progress.Should().Equal(1.0);
     }
 
     #region Utility Methods

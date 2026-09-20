@@ -31,15 +31,11 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     [Fact]
     public void Apply_NoPackages()
     {
-        var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
-            .Callback<IPercent>(p => progress.Add(p.Percent));
-
         Apply([]);
 
         InstallationState.Should().BeEmpty();
 
-        progress.Should().Equal(1.0);
+        EventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()), Times.Never);
     }
 
     [Fact]
@@ -53,20 +49,24 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
         {
             ["U1"] =
                 new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: []),
+            // 20%
             ["U2"] = new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: [],
                 ShadowedBy: [])
+            // 40%
         };
 
         Apply([
-            // Uninstall                            25%
-            InstallerOf("I1", versionHash: null, []), // 50%
-            InstallerOf("I2", versionHash: null, []), // 75%
-            InstallerOf("I3", versionHash: null, []), // 100%
+            InstallerOf("I1", versionHash: null, []),
+            // 60%
+            InstallerOf("I2", versionHash: null, []),
+            // 80%
+            InstallerOf("I3", versionHash: null, []),
+            // 100%
         ]);
 
         InstallationState.Should().BeEmpty();
 
-        progress.Should().Equal(0.25, 0.5, 0.75, 1.0);
+        progress.Should().Equal(0.2, 0.4, 0.6, 0.8, 1.0);
     }
 
     [Fact]
@@ -89,10 +89,9 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
         BackupStrategyMock.Verify(m => m.AfterInstall(DestinationPath("AF")));
         BackupStrategyMock.VerifyNoOtherCalls();
 
-        EventHandlerMock.Verify(m => m.UninstallNoPackages());
-        EventHandlerMock.Verify(m => m.InstallStart());
-        EventHandlerMock.Verify(m => m.InstallCurrent("A"));
-        EventHandlerMock.Verify(m => m.InstallEnd());
+        EventHandlerMock.Verify(m => m.UpdateStart());
+        EventHandlerMock.Verify(m => m.UpdateCurrent("A"));
+        EventHandlerMock.Verify(m => m.UpdateEnd());
         EventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
         EventHandlerMock.VerifyNoOtherCalls();
     }
@@ -118,10 +117,9 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
         BackupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF")));
         BackupStrategyMock.VerifyNoOtherCalls();
 
-        EventHandlerMock.Verify(m => m.UninstallStart());
-        EventHandlerMock.Verify(m => m.UninstallCurrent("A"));
-        EventHandlerMock.Verify(m => m.UninstallEnd());
-        EventHandlerMock.Verify(m => m.InstallNoPackages());
+        EventHandlerMock.Verify(m => m.UpdateStart());
+        EventHandlerMock.Verify(m => m.UpdateCurrent("A"));
+        EventHandlerMock.Verify(m => m.UpdateEnd());
         EventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
         EventHandlerMock.VerifyNoOtherCalls();
     }

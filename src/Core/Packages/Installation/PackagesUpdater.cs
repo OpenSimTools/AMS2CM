@@ -33,15 +33,14 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                 var (packageName, state) = entry;
                 var backupStrategy = backupStrategyProvider.BackupStrategy(state.Time, eventHandler);
                 return new Uninstaller(packageName, state, installDir, backupStrategy);
-            }).ToImmutableArray();
-        var installers = packages.Select(package => package.Installer).ToImmutableArray();
+            });
+        var installers = packages.Select(package => package.Installer);
 
         var currentState = new Dictionary<string, PackageInstallationState>(previousState);
         try
         {
             Apply(
-                uninstallers,
-                installers,
+                uninstallers.Concat(installers).ToImmutableArray(),
                 installDir,
                 (packageName, state) =>
                 {
@@ -64,85 +63,22 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     }
 
     protected virtual void Apply(
-        IReadOnlyCollection<IPackageInstaller> uninstallers,
         IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        UninstallPackages(uninstallers, installDir, updatePackageState, eventHandler, cancellationToken);
-        InstallPackages(installers, installDir, updatePackageState, eventHandler, cancellationToken);
-    }
-
-    private void UninstallPackages(
-        IReadOnlyCollection<IPackageInstaller> uninstallers,
-        string installDir,
-        Action<string, PackageInstallationState?> updatePackageState,
-        TEventHandler eventHandler,
-        CancellationToken cancellationToken)
-    {
-        if (uninstallers.Count > 0)
-        {
-            eventHandler.UninstallStart();
-            foreach (var uninstaller in uninstallers)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-                eventHandler.UninstallCurrent(uninstaller.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(timeProvider.GetUtcNow().DateTime, eventHandler);
-                try
-                {
-                    uninstaller.Install(InstallTo(installDir), backupStrategy, new ProcessingCallbacks<RootedPath>());
-                }
-                finally
-                {
-                    var packageInstalledFiles = uninstaller.InstalledFiles
-                        .Where(rp => rp.Root == installDir)
-                        .Select(rp => rp.Relative)
-                        .ToImmutableList();
-                    updatePackageState(uninstaller.PackageName,
-                        packageInstalledFiles.IsEmpty
-                            ? null
-                            : new PackageInstallationState(
-                                Time: uninstaller.InstallTime,
-                                VersionHash: uninstaller.PackageVersionHash,
-                                Partial: uninstaller.Installed == IInstallation.State.PartiallyInstalled,
-                                Dependencies: uninstaller.PackageDependencies,
-                                ShadowedBy: Array.Empty<string>(), // It doesn't matter when partially installed
-                                Files: packageInstalledFiles
-                            ));
-                }
-            }
-            eventHandler.UninstallEnd();
-        }
-        else
-        {
-            eventHandler.UninstallNoPackages();
-        }
-    }
-
-    private void InstallPackages(
-        IReadOnlyCollection<IPackageInstaller> installers,
-        string installDir,
-        Action<string, PackageInstallationState?> updatePackageState,
-        TEventHandler eventHandler,
-        CancellationToken cancellationToken)
-    {
-        // Increase by one for uninstall step
-        var progress = new PercentOfTotal(installers.Count + 1);
+        var progress = new PercentOfTotal(installers.Count);
 
         var allInstalledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (installers.Count > 0)
         {
-            eventHandler.InstallStart();
+            eventHandler.UpdateStart();
 
             foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
-                eventHandler.ProgressUpdate(progress.IncrementDone());
-                eventHandler.InstallCurrent(installer.PackageName);
+                eventHandler.UpdateCurrent(installer.PackageName);
                 var backupStrategy = backupStrategyProvider.BackupStrategy(timeProvider.GetUtcNow().DateTime, eventHandler);
                 var shadowedBy = new HashSet<string>();
                 var installCallbacks = new ProcessingCallbacks<RootedPath>
@@ -184,15 +120,15 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                                 Files: packageInstalledFiles
                         ));
                 }
+                eventHandler.ProgressUpdate(progress.IncrementDone());
             }
 
-            eventHandler.InstallEnd();
+            eventHandler.UpdateEnd();
         }
         else
         {
-            eventHandler.InstallNoPackages();
+            eventHandler.UpdateNoPackages();
         }
-        eventHandler.ProgressUpdate(progress.DoneAll());
     }
 
     private static IInstaller.Destination InstallTo(string destDir) =>
@@ -203,15 +139,10 @@ public static class PackagesUpdater
 {
     public interface IEventHandler : IProgress, IBackupEventHandler
     {
-        void InstallNoPackages();
-        void InstallStart();
-        void InstallCurrent(string packageName);
-        void InstallEnd();
-
-        void UninstallNoPackages();
-        void UninstallStart();
-        void UninstallCurrent(string packageName);
-        void UninstallEnd();
+        void UpdateNoPackages();
+        void UpdateStart();
+        void UpdateCurrent(string packageName);
+        void UpdateEnd();
     }
 
     public interface IProgress
