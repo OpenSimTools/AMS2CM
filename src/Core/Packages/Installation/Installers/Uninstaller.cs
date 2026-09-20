@@ -6,19 +6,23 @@ namespace Core.Packages.Installation.Installers;
 
 public class Uninstaller : IPackageInstaller
 {
+    private readonly IBackupStrategy backupStrategy;
     public IReadOnlySet<RootedPath> InstalledFiles => filesStillInstalled.ToImmutableHashSet();
-    private ISet<RootedPath> filesStillInstalled;
+    private readonly HashSet<RootedPath> filesStillInstalled;
     public IInstallation.State Installed { get; private set; }
+    public DateTime InstallTime { get; }
     public IEnumerable<string> RelativeDirectoryPaths => Array.Empty<string>();
     public string PackageName { get; }
     public int? PackageVersionHash { get; }
     public IReadOnlySet<string> PackageDependencies { get; }
 
-    public Uninstaller(string packageName, PackageInstallationState packageInstallationState, string installDir)
+    public Uninstaller(string packageName, PackageInstallationState packageInstallationState, string installDir, IBackupStrategy backupStrategy)
     {
+        this.backupStrategy = backupStrategy;
         Installed = packageInstallationState.Partial ?
             IInstallation.State.PartiallyInstalled :
             IInstallation.State.Installed;
+        InstallTime = packageInstallationState.Time;
         filesStillInstalled = packageInstallationState.Files
             .Select(relativePath => new RootedPath(installDir, relativePath))
             .ToHashSet();
@@ -28,7 +32,7 @@ public class Uninstaller : IPackageInstaller
     }
 
     public void Install(IInstaller.Destination destination,
-        IBackupStrategy backupStrategy,
+        IBackupStrategy _,
         ProcessingCallbacks<RootedPath> callbacks)
     {
         Installed = IInstallation.State.PartiallyInstalled;

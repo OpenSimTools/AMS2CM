@@ -18,8 +18,11 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 
     public IInstallation.State Installed { get; private set; }
     public IReadOnlySet<RootedPath> InstalledFiles => installedFiles;
+    public DateTime InstallTime { get; private set; }
 
     protected readonly IFileSystem FileSystem;
+
+    private readonly TimeProvider timeProvider;
 
     private readonly HashSet<RootedPath> installedFiles = new();
 
@@ -29,17 +32,18 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
     }
 
     protected BaseInstaller(string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies) :
-        this(new FileSystem(), packageName, packageVersionHash, packageDependencies)
+        this(new FileSystem(), TimeProvider.System, packageName, packageVersionHash, packageDependencies)
     {
     }
 
     // A package cannot currently specify dependencies.
-    protected BaseInstaller(IFileSystem fs, string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies)
+    protected BaseInstaller(IFileSystem fs, TimeProvider timeProvider, string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies)
     {
         FileSystem = fs;
         PackageName = packageName;
         PackageVersionHash = packageVersionHash;
         PackageDependencies = packageDependencies;
+        InstallTime = timeProvider.GetUtcNow().DateTime;
     }
 
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)

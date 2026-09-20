@@ -27,6 +27,8 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
         public IReadOnlySet<string> PackageDependencies => inner.PackageDependencies;
         public IReadOnlySet<RootedPath> InstalledFiles => inner.InstalledFiles;
         public IInstallation.State Installed => inner.Installed;
+        public DateTime InstallTime => inner.InstallTime;
+
         public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
             ProcessingCallbacks<RootedPath> callbacks) => inner.Install(destination, backupStrategy, callbacks);
         public IEnumerable<string> RelativeDirectoryPaths => inner.RelativeDirectoryPaths;
@@ -42,7 +44,7 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
     }
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<PackageInstallationState, PackagesUpdater.IEventHandler> backupStrategyProvider,
+        IBackupStrategyProvider<IHasTime, PackagesUpdater.IEventHandler> backupStrategyProvider,
         TimeProvider timeProvider)
     {
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();

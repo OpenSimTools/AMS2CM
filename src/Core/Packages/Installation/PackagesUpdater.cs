@@ -8,11 +8,11 @@ namespace Core.Packages.Installation;
 public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
-    private readonly IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider;
+    private readonly IBackupStrategyProvider<IHasTime, TEventHandler> backupStrategyProvider;
     private readonly TimeProvider timeProvider;
 
     public PackagesUpdater(
-        IBackupStrategyProvider<PackageInstallationState, TEventHandler>  backupStrategyProvider,
+        IBackupStrategyProvider<IHasTime, TEventHandler>  backupStrategyProvider,
         TimeProvider timeProvider)
     {
         this.backupStrategyProvider = backupStrategyProvider;
@@ -27,13 +27,20 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
+        var uninstallers = previousState
+            .Select(entry =>
+            {
+                var (packageName, state) = entry;
+                var backupStrategy = backupStrategyProvider.BackupStrategy(state, eventHandler);
+                return new Uninstaller(packageName, state, installDir, backupStrategy);
+            }).ToImmutableArray();
         var installers = packages.Select(package => package.Installer).ToImmutableArray();
 
         var currentState = new Dictionary<string, PackageInstallationState>(previousState);
         try
         {
             Apply(
-                previousState,
+                uninstallers,
                 installers,
                 installDir,
                 (packageName, state) =>
@@ -57,58 +64,56 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     }
 
     protected virtual void Apply(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState,
+        IReadOnlyCollection<IPackageInstaller> uninstallers,
         IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        UninstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
-        InstallPackages(currentState, installers, installDir, updatePackageState, eventHandler, cancellationToken);
+        UninstallPackages(uninstallers, installDir, updatePackageState, eventHandler, cancellationToken);
+        InstallPackages(installers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
     private void UninstallPackages(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState,
-        IReadOnlyCollection<IInstaller> installers,
+        IReadOnlyCollection<IPackageInstaller> uninstallers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        if (currentState.Any())
+        if (uninstallers.Count > 0)
         {
             eventHandler.UninstallStart();
-            foreach (var (packageName, packageInstallationState) in currentState)
+            foreach (var uninstaller in uninstallers)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
-                eventHandler.UninstallCurrent(packageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(packageInstallationState, eventHandler);
-                var uninstaller = new Uninstaller(packageName, packageInstallationState, installDir);
-                var error = false;
+                eventHandler.UninstallCurrent(uninstaller.PackageName);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(null, eventHandler);
                 try
                 {
                     uninstaller.Install(InstallTo(installDir), backupStrategy, new ProcessingCallbacks<RootedPath>());
                 }
-                catch
-                {
-                    error = true;
-                    throw;
-                }
                 finally
                 {
-                    updatePackageState(packageName,
-                        uninstaller.InstalledFiles.Count == 0 ?
-                            null :
-                            packageInstallationState with
-                            {
-                                Partial = error,
-                                Files = uninstaller.InstalledFiles.Select(rf => rf.Relative).ToImmutableHashSet(StringComparer.OrdinalIgnoreCase)
-                            }
-                        );
+                    var packageInstalledFiles = uninstaller.InstalledFiles
+                        .Where(rp => rp.Root == installDir)
+                        .Select(rp => rp.Relative)
+                        .ToImmutableList();
+                    updatePackageState(uninstaller.PackageName,
+                        packageInstalledFiles.IsEmpty
+                            ? null
+                            : new PackageInstallationState(
+                                Time: uninstaller.InstallTime,
+                                VersionHash: uninstaller.PackageVersionHash,
+                                Partial: uninstaller.Installed == IInstallation.State.PartiallyInstalled,
+                                Dependencies: uninstaller.PackageDependencies,
+                                ShadowedBy: Array.Empty<string>(), // It doesn't matter when partially installed
+                                Files: packageInstalledFiles
+                            ));
                 }
             }
             eventHandler.UninstallEnd();
@@ -120,7 +125,6 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
     }
 
     private void InstallPackages(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState,
         IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
