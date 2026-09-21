@@ -21,20 +21,60 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
 
     public void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IEnumerable<IPackage> packages,
+        IReadOnlyCollection<IPackage> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var uninstallers = previousState
-            .Select(entry =>
+        var joinedState = new OrderedDictionary<string, (PackageInstallationState?, IPackage?)>();
+        var available = packages.Select(p => p.Name).ToImmutableHashSet();
+        foreach (var (packageName, state) in previousState)
+        {
+            if (!available.Contains(packageName))
             {
-                var (packageName, state) = entry;
+                joinedState.Add(packageName, (state, null));
+            }
+        }
+        foreach (var p in packages)
+        {
+            joinedState.Add(p.Name, (previousState.GetValueOrDefault(p.Name), p));
+        }
+
+        var uninstallers = new List<IPackageInstaller>();
+        var installers = new List<IPackageInstaller>();
+        var toUninstall = new HashSet<string>();
+        var processed = new HashSet<string>();
+        foreach (var (packageName, (state, package)) in joinedState)
+        {
+            processed.Add(packageName);
+
+            if (state is not null && (
+                    state.Partial ||
+                    package is null ||
+                    state.VersionHash != package.VersionHash ||
+                    state.ShadowedBy.Intersect(toUninstall).Any() ||
+                    !state.ShadowedBy.Intersect(processed).Any()))
+            {
                 var backupStrategy = backupStrategyProvider.BackupStrategy(state.Time, eventHandler);
-                return new Uninstaller(packageName, state, installDir, backupStrategy);
-            });
-        var installers = packages.Select(package => package.Installer);
+                uninstallers.Add(ReplacementInstaller.Uninstall(packageName, state, installDir, backupStrategy));
+                toUninstall.Add(packageName);
+            }
+
+            if (package is null)
+            {
+                continue;
+            }
+            if (state is null || toUninstall.Contains(packageName))
+            {
+                installers.Add(package.Installer);
+            }
+            else
+            {
+                var backupStrategy = backupStrategyProvider.BackupStrategy(state.Time, eventHandler);
+                installers.Add(ReplacementInstaller.Keep(packageName, state, installDir, backupStrategy));
+            }
+        }
 
         var currentState = new Dictionary<string, PackageInstallationState>(previousState);
         try
@@ -148,5 +188,104 @@ public static class PackagesUpdater
     public interface IProgress
     {
         public void ProgressUpdate(IPercent? progress);
+    }
+}
+
+internal class ReplacementInstaller : IPackageInstaller
+{
+    private readonly IBackupStrategy backupStrategy;
+    public IReadOnlySet<RootedPath> InstalledFiles => filesStillInstalled.ToImmutableHashSet();
+    private readonly HashSet<RootedPath> filesStillInstalled;
+    public IInstallation.State Installed { get; private set; }
+    public DateTime InstallTime { get; }
+    public IEnumerable<string> RelativeDirectoryPaths => Array.Empty<string>();
+    public string PackageName { get; }
+    public int? PackageVersionHash { get; }
+    public IReadOnlySet<string> PackageDependencies { get; }
+
+    private enum Behaviour
+    {
+        Uninstall,
+        Keep
+    }
+
+    private readonly Behaviour behaviour;
+
+    public static IPackageInstaller Uninstall(string packageName, PackageInstallationState packageInstallationState,
+        string installDir, IBackupStrategy backupStrategy) =>
+        new ReplacementInstaller(Behaviour.Uninstall, packageName, packageInstallationState, installDir, backupStrategy);
+
+    public static IPackageInstaller Keep(string packageName, PackageInstallationState packageInstallationState,
+        string installDir, IBackupStrategy backupStrategy) =>
+        new ReplacementInstaller(Behaviour.Keep, packageName, packageInstallationState, installDir, backupStrategy);
+
+    private ReplacementInstaller(Behaviour behaviour, string packageName, PackageInstallationState packageInstallationState, string installDir, IBackupStrategy backupStrategy)
+    {
+        this.behaviour = behaviour;
+        this.backupStrategy = backupStrategy;
+        Installed = packageInstallationState.Partial ?
+            IInstallation.State.PartiallyInstalled :
+            IInstallation.State.Installed;
+        InstallTime = packageInstallationState.Time;
+        filesStillInstalled = packageInstallationState.Files
+            .Select(relativePath => new RootedPath(installDir, relativePath))
+            .ToHashSet();
+        PackageName = packageName;
+        PackageVersionHash = packageInstallationState.VersionHash;
+        PackageDependencies = packageInstallationState.Dependencies.ToHashSet();
+    }
+
+    public void Install(IInstaller.Destination destination,
+        IBackupStrategy _,
+        ProcessingCallbacks<RootedPath> callbacks)
+    {
+        switch (behaviour)
+        {
+            case Behaviour.Keep:
+                foreach (var gamePath in filesStillInstalled)
+                {
+                    callbacks.Wrap(() => {}, gamePath);
+                }
+                break;
+            case Behaviour.Uninstall:
+                Installed = IInstallation.State.PartiallyInstalled;
+                var filesToUninstall = filesStillInstalled.ToImmutableList();
+                foreach (var gamePath in filesToUninstall)
+                {
+                    backupStrategy.RestoreBackup(gamePath);
+                    filesStillInstalled.Remove(gamePath);
+                }
+                Installed = IInstallation.State.NotInstalled;
+                DeleteEmptyDirectories(filesToUninstall);
+                break;
+        }
+    }
+
+    private static void DeleteEmptyDirectories(IReadOnlyCollection<RootedPath> filePaths)
+    {
+        var dirs = filePaths
+            .SelectMany(file => AncestorsUpTo(file.Root, file.Full))
+            .Distinct()
+            .OrderByDescending(name => name.Length);
+        foreach (var dir in dirs)
+        {
+            // Some packages have duplicate entries, so files might have been removed already
+            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+            {
+                Directory.Delete(dir);
+            }
+        }
+    }
+
+    private static List<string> AncestorsUpTo(string root, string path)
+    {
+        var ancestors = new List<string>();
+        for (var dir = Directory.GetParent(path);
+             dir is not null && dir.FullName != root;
+             dir = dir.Parent)
+        {
+            ancestors.Add(dir.FullName);
+        }
+        return ancestors;
     }
 }

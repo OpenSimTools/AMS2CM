@@ -6,7 +6,7 @@ public interface IPackagesUpdater<in TEventHandler>
 {
     void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IEnumerable<IPackage> packages,
+        IReadOnlyCollection<IPackage> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,

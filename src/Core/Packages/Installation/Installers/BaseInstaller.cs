@@ -22,17 +22,10 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 
     protected readonly IFileSystem FileSystem;
 
-    private readonly TimeProvider timeProvider;
-
     private readonly HashSet<RootedPath> installedFiles = new();
 
-    protected BaseInstaller(string packageName, int? packageVersionHash)
-        : this(packageName, packageVersionHash, ImmutableHashSet<string>.Empty)
-    {
-    }
-
-    protected BaseInstaller(string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies) :
-        this(new FileSystem(), TimeProvider.System, packageName, packageVersionHash, packageDependencies)
+    protected BaseInstaller(string packageName, int? packageVersionHash) :
+        this(new FileSystem(), TimeProvider.System, packageName, packageVersionHash, ImmutableHashSet<string>.Empty)
     {
     }
 
