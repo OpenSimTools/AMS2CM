@@ -156,6 +156,37 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     }
 
     [Fact]
+    public void Apply_ReinstallsPartialPackages()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: true, Dependencies: [], Files:
+            [
+                "AF1"
+            ], ShadowedBy: [])
+        };
+
+        Apply([
+            InstallerOf("A", versionHash: 1, [
+                "AF1",
+                "AF2"
+            ])
+        ]);
+
+        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+                "AF1",
+                "AF2"
+            ], ShadowedBy: [])
+        });
+
+        BackupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
+        BackupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF1")));
+        BackupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF2")));
+    }
+
+    [Fact]
     public void Apply_PreservesPackageDependencies()
     {
         Apply([
@@ -378,8 +409,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
-                "AF",
-
+                "AF"
             ], ShadowedBy: ["B"]),
             ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
                 "BF",
@@ -452,9 +482,10 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
         var packages = installers.Select(installer =>
         {
             var package = new Mock<IPackage>();
+            package.SetupGet(p => p.Name).Returns(installer.PackageName);
             package.SetupGet(p => p.Installer).Returns(installer);
             return package.Object;
-        });
+        }).ToArray();
         var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<DateTime, TEventHandler>>();
         backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<DateTime>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
@@ -468,5 +499,4 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
             EventHandlerMock.Object,
             CancellationToken.None);
     }
-
 }
