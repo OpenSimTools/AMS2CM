@@ -19,7 +19,7 @@ public static class Steam
             return RegistryPaths
                 .SelectNotNull(registryPath =>
                     Registry.GetValue(registryPath, "InstallPath", null) as string
-                ).Single(path => Directory.Exists(path));
+                ).Distinct().Single(path => Directory.Exists(path));
         }
         catch (Exception e)
         {
@@ -32,8 +32,8 @@ public static class Steam
         var steamDir = MainInstallationPath();
         var libraryFoldersPath = Path.Combine(steamDir, "steamapps", "libraryfolders.vdf");
         var gameLibraryFolders = ReadLibraryFolders(libraryFoldersPath)
-            .Where(lf => lf.Apps.ContainsKey(appId));
-        return gameLibraryFolders.Count() switch
+            .Where(lf => lf.Apps.ContainsKey(appId)).ToArray();
+        return gameLibraryFolders.Length switch
         {
             0 => throw new Exception($"Cannot find app ID {appId} in any Steam library"),
             1 => gameLibraryFolders.Single().Path,
