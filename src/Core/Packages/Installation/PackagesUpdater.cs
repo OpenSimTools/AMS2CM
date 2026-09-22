@@ -5,20 +5,12 @@ using Core.Utils;
 
 namespace Core.Packages.Installation;
 
-public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
+public class PackagesUpdater<TEventHandler>(
+    IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider,
+    TimeProvider timeProvider)
+    : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
-    private readonly IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider;
-    private readonly TimeProvider timeProvider;
-
-    public PackagesUpdater(
-        IBackupStrategyProvider<DateTime, TEventHandler>  backupStrategyProvider,
-        TimeProvider timeProvider)
-    {
-        this.backupStrategyProvider = backupStrategyProvider;
-        this.timeProvider = timeProvider;
-    }
-
     public void Apply(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
         IReadOnlyCollection<IPackage> packages,
@@ -45,6 +37,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
         var installers = new List<IPackageInstaller>();
         var toUninstall = new HashSet<string>();
         var processed = new HashSet<string>();
+        var rif = new ReplacementInstaller.Factory<TEventHandler>(installDir, backupStrategyProvider, eventHandler);
         foreach (var (packageName, (state, package)) in joinedState)
         {
             processed.Add(packageName);
@@ -56,8 +49,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
                     state.ShadowedBy.Intersect(toUninstall).Any() ||
                     !state.ShadowedBy.Intersect(processed).Any()))
             {
-                var backupStrategy = backupStrategyProvider.BackupStrategy(state.Time, eventHandler);
-                uninstallers.Add(ReplacementInstaller.Uninstall(packageName, state, installDir, backupStrategy));
+                uninstallers.Add(rif.Uninstall(packageName, state));
                 toUninstall.Add(packageName);
             }
 
@@ -71,8 +63,7 @@ public class PackagesUpdater<TEventHandler> : IPackagesUpdater<TEventHandler>
             }
             else
             {
-                var backupStrategy = backupStrategyProvider.BackupStrategy(state.Time, eventHandler);
-                installers.Add(ReplacementInstaller.Keep(packageName, state, installDir, backupStrategy));
+                installers.Add(rif.Keep(packageName, state));
             }
         }
 
@@ -188,104 +179,5 @@ public static class PackagesUpdater
     public interface IProgress
     {
         public void ProgressUpdate(IPercent? progress);
-    }
-}
-
-internal class ReplacementInstaller : IPackageInstaller
-{
-    private readonly IBackupStrategy backupStrategy;
-    public IReadOnlySet<RootedPath> InstalledFiles => filesStillInstalled.ToImmutableHashSet();
-    private readonly HashSet<RootedPath> filesStillInstalled;
-    public IInstallation.State Installed { get; private set; }
-    public DateTime InstallTime { get; }
-    public IEnumerable<string> RelativeDirectoryPaths => Array.Empty<string>();
-    public string PackageName { get; }
-    public int? PackageVersionHash { get; }
-    public IReadOnlySet<string> PackageDependencies { get; }
-
-    private enum Behaviour
-    {
-        Uninstall,
-        Keep
-    }
-
-    private readonly Behaviour behaviour;
-
-    public static IPackageInstaller Uninstall(string packageName, PackageInstallationState packageInstallationState,
-        string installDir, IBackupStrategy backupStrategy) =>
-        new ReplacementInstaller(Behaviour.Uninstall, packageName, packageInstallationState, installDir, backupStrategy);
-
-    public static IPackageInstaller Keep(string packageName, PackageInstallationState packageInstallationState,
-        string installDir, IBackupStrategy backupStrategy) =>
-        new ReplacementInstaller(Behaviour.Keep, packageName, packageInstallationState, installDir, backupStrategy);
-
-    private ReplacementInstaller(Behaviour behaviour, string packageName, PackageInstallationState packageInstallationState, string installDir, IBackupStrategy backupStrategy)
-    {
-        this.behaviour = behaviour;
-        this.backupStrategy = backupStrategy;
-        Installed = packageInstallationState.Partial ?
-            IInstallation.State.PartiallyInstalled :
-            IInstallation.State.Installed;
-        InstallTime = packageInstallationState.Time;
-        filesStillInstalled = packageInstallationState.Files
-            .Select(relativePath => new RootedPath(installDir, relativePath))
-            .ToHashSet();
-        PackageName = packageName;
-        PackageVersionHash = packageInstallationState.VersionHash;
-        PackageDependencies = packageInstallationState.Dependencies.ToHashSet();
-    }
-
-    public void Install(IInstaller.Destination destination,
-        IBackupStrategy _,
-        ProcessingCallbacks<RootedPath> callbacks)
-    {
-        switch (behaviour)
-        {
-            case Behaviour.Keep:
-                foreach (var gamePath in filesStillInstalled)
-                {
-                    callbacks.Wrap(() => {}, gamePath);
-                }
-                break;
-            case Behaviour.Uninstall:
-                Installed = IInstallation.State.PartiallyInstalled;
-                var filesToUninstall = filesStillInstalled.ToImmutableList();
-                foreach (var gamePath in filesToUninstall)
-                {
-                    backupStrategy.RestoreBackup(gamePath);
-                    filesStillInstalled.Remove(gamePath);
-                }
-                Installed = IInstallation.State.NotInstalled;
-                DeleteEmptyDirectories(filesToUninstall);
-                break;
-        }
-    }
-
-    private static void DeleteEmptyDirectories(IReadOnlyCollection<RootedPath> filePaths)
-    {
-        var dirs = filePaths
-            .SelectMany(file => AncestorsUpTo(file.Root, file.Full))
-            .Distinct()
-            .OrderByDescending(name => name.Length);
-        foreach (var dir in dirs)
-        {
-            // Some packages have duplicate entries, so files might have been removed already
-            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
-            {
-                Directory.Delete(dir);
-            }
-        }
-    }
-
-    private static List<string> AncestorsUpTo(string root, string path)
-    {
-        var ancestors = new List<string>();
-        for (var dir = Directory.GetParent(path);
-             dir is not null && dir.FullName != root;
-             dir = dir.Parent)
-        {
-            ancestors.Add(dir.FullName);
-        }
-        return ancestors;
     }
 }
