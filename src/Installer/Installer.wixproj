@@ -1,13 +1,13 @@
-﻿<Project Sdk="WixToolset.Sdk/4.0.1">
+<Project Sdk="WixToolset.Sdk/7.0.0">
   <PropertyGroup>
+    <AcceptEula>wix7</AcceptEula>
     <OutputName>AMS2CM</OutputName>
     <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
     <GenerateGitVersionInformation>false</GenerateGitVersionInformation>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="WixToolset.Heat" Version="4.0.6" />
-    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.6" />
-    <PackageReference Include="GitVersion.MsBuild" Version="5.12.0">
+    <PackageReference Include="WixToolset.UI.wixext" Version="7.0.0" />
+    <PackageReference Include="GitVersion.MsBuild" Version="6.8.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -15,14 +15,6 @@
   <ItemGroup>
     <ProjectReference Include="..\CLI\CLI.csproj" />
     <ProjectReference Include="..\GUI\GUI.csproj" />
-    <HarvestDirectory Include="..\GUI\bin\x64\$(Configuration)\net10.0-windows10.0.19041.0\">
-      <PreprocessorVariable>var.GUI.TargetDir</PreprocessorVariable>
-      <ComponentGroupName>GUI</ComponentGroupName>
-      <DirectoryRefId>APPLICATIONFOLDER</DirectoryRefId>
-      <SuppressRootDirectory>true</SuppressRootDirectory>
-      <SuppressRegistry>true</SuppressRegistry>
-      <SuppressCom>true</SuppressCom>
-    </HarvestDirectory>
   </ItemGroup>
   <ItemGroup>
     <None Include="Sandbox.wsb" />

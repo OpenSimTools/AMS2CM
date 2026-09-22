@@ -19,27 +19,25 @@ jobs:
       packages: read
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
     - name: Install .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.0.x
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
     - name: Configure NuGet repository
       run: dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/OpenSimTools/index.json"
 
     - name: Build
-      run: |
-        msbuild /t:Restore /p:Configuration=${{ matrix.configuration }}
-        msbuild /t:Build /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }}
-        dotnet test --configuration ${{ matrix.configuration }} --arch ${{ matrix.platform }}
+      run: dotnet build AMS2CM.sln --configuration ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }}
+
+    - name: Test
+      run: dotnet test tests/Core.Tests/Core.Tests.csproj --configuration ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }} --no-build --no-restore
 
     - name: Upload CLI
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: AMS2CM CLI
         path: |
@@ -48,7 +46,7 @@ jobs:
         if-no-files-found: error
     # Separate package until stable, to be able to release CLI independently
     - name: Upload Installer
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: AMS2CM
         path: src/Installer/bin/${{ matrix.platform }}/${{ matrix.configuration }}/AMS2CM.msi

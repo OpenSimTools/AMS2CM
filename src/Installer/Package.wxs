@@ -9,7 +9,7 @@
     <MediaTemplate EmbedCab="yes" />
 
     <Feature Id="ApplicationFeature" Title="Content Manager" ConfigurableDirectory="APPLICATIONFOLDER" AllowAdvertise="no">
-      <ComponentGroupRef Id="GUI" />
+      <Files Include="$(var.GUI.TargetDir)**" Directory="APPLICATIONFOLDER" />
       <Feature Id="CLI" Title="Command Line Interface" Level="1000" AllowAdvertise="no">
         <ComponentRef Id="CLI" />
       </Feature>
