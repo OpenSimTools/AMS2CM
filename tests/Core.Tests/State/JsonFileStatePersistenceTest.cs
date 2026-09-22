@@ -22,7 +22,7 @@ public class JsonFileStatePersistenceTest
     [Fact]
     public void ReadState_V2DefaultValues()
     {
-        var fileWriteTime = DateTime.Today.AddDays(-1);
+        var fileWriteTime = DateTime.UnixEpoch.AddDays(1);
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { StateV2File, new MockFileData(
@@ -35,7 +35,7 @@ public class JsonFileStatePersistenceTest
                         }
                     }
                 }
-                """) { LastWriteTime = fileWriteTime }
+                """) { LastWriteTime = new DateTimeOffset(fileWriteTime) }
             }
         });
         var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
@@ -85,7 +85,7 @@ public class JsonFileStatePersistenceTest
     [Fact]
     public void ReadState_V1DefaultValues()
     {
-        var fileWriteTime = DateTime.Today.AddDays(-1);
+        var fileWriteTime = DateTime.UnixEpoch.AddDays(1);
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { StateV1File, new MockFileData(
@@ -93,7 +93,7 @@ public class JsonFileStatePersistenceTest
                 {
                     "M": []
                 }
-                """) { LastWriteTime = fileWriteTime }
+                """) { LastWriteTime = new DateTimeOffset(fileWriteTime) }
             }
         });
         var sp = new JsonFileStatePersistence(fs, "NotUsed", fs.Path.GetFullPath(StateV1File));
