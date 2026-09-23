@@ -18,7 +18,7 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
         TimeProvider timeProvider,
         IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :
-        base(backupStrategyProvider, timeProvider)
+        base(backupStrategyProvider)
     {
         this.bootfilesNaming = bootfilesNaming;
         this.modInstallerFactory = modInstallerFactory;

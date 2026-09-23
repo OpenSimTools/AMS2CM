@@ -23,7 +23,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
         IBackupStrategyProvider<DateTimeOffset, PackagesUpdater.IEventHandler> backupStrategyProvider) =>
-        new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider, TestTimeProvider);
+        new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider);
 
     #endregion
 
