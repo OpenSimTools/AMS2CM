@@ -18,7 +18,7 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 
     public IInstallation.State Installed { get; private set; }
     public IReadOnlySet<RootedPath> InstalledFiles => installedFiles;
-    public DateTime InstallTime { get; private set; }
+    public DateTimeOffset InstallTime { get; }
 
     protected readonly IFileSystem FileSystem;
 
@@ -36,7 +36,7 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
         PackageName = packageName;
         PackageVersionHash = packageVersionHash;
         PackageDependencies = packageDependencies;
-        InstallTime = timeProvider.GetUtcNow().DateTime;
+        InstallTime = timeProvider.GetUtcNow();
     }
 
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)

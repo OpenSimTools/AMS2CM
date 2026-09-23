@@ -67,7 +67,7 @@ public abstract class BaseModInstaller : IPackageInstaller
             ? IInstallation.State.PartiallyInstalled
             : Inner.Installed;
 
-    public DateTime InstallTime => Inner.InstallTime;
+    public DateTimeOffset InstallTime => Inner.InstallTime;
 
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks)

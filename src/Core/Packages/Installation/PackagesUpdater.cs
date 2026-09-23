@@ -6,7 +6,7 @@ using Core.Utils;
 namespace Core.Packages.Installation;
 
 public class PackagesUpdater<TEventHandler>(
-    IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider,
+    IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
     TimeProvider timeProvider)
     : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
@@ -110,7 +110,7 @@ public class PackagesUpdater<TEventHandler>(
             foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
                 eventHandler.UpdateCurrent(installer.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(timeProvider.GetUtcNow().DateTime, eventHandler);
+                var backupStrategy = backupStrategyProvider.BackupStrategy(installer.InstallTime, eventHandler);
                 var shadowedBy = new HashSet<string>();
                 var installCallbacks = new ProcessingCallbacks<RootedPath>
                 {

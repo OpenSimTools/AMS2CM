@@ -9,7 +9,7 @@ internal class ReplacementInstaller : IPackageInstaller
 {
     internal class Factory<TEventHandler>(
         string installDir,
-        IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider,
+        IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
         TEventHandler eventHandler)
     {
         public IPackageInstaller Uninstall(string packageName, PackageInstallationState state) =>
@@ -30,7 +30,7 @@ internal class ReplacementInstaller : IPackageInstaller
     public IReadOnlySet<RootedPath> InstalledFiles => filesStillInstalled.ToImmutableHashSet();
     private readonly HashSet<RootedPath> filesStillInstalled;
     public IInstallation.State Installed { get; private set; }
-    public DateTime InstallTime { get; }
+    public DateTimeOffset InstallTime { get; }
     public IEnumerable<string> RelativeDirectoryPaths => Array.Empty<string>();
     public string PackageName { get; }
     public int? PackageVersionHash { get; }

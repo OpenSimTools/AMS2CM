@@ -34,7 +34,7 @@ public class ModManagerTest : AbstractFilesystemTest
     private static readonly string DrivelineRelativePath =
         Path.Combine(DefaultModInstallConfig.BootfilesDrivelineDir, DefaultModInstallConfig.DrivelineFileName);
 
-    private static readonly DateTime PastDate = DateTime.Today.AddDays(-1);
+    private static readonly DateTimeOffset PastDate = DateTimeOffset.Now.AddDays(-1);
 
     private static readonly TimeSpan TimeTolerance = TimeSpan.FromMilliseconds(100);
 
@@ -295,7 +295,7 @@ public class ModManagerTest : AbstractFilesystemTest
     [Fact]
     public void Uninstall_SkipsFilesCreatedAfterInstallation()
     {
-        var installationDateTime = DateTime.Now.Subtract(TimeSpan.FromDays(1));
+        var installationDateTime = DateTimeOffset.Now.Subtract(TimeSpan.FromDays(1));
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
@@ -309,7 +309,7 @@ public class ModManagerTest : AbstractFilesystemTest
                 ],
                 ShadowedBy: [])
         });
-        CreateFile(GamePath("ModFile")).CreationTime = installationDateTime;
+        CreateFile(GamePath("ModFile")).CreationTimeUtc = installationDateTime.UtcDateTime;
         CreateFile(GamePath("RecreatedFile"));
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
@@ -323,7 +323,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Uninstall_StopsAfterAnyError()
     {
         // It must be after files are created
-        var installationDateTime = DateTime.Now.AddMinutes(1);
+        var installationDateTime = DateTimeOffset.Now.AddMinutes(1);
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             ["A"] = new(
@@ -389,7 +389,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Uninstall_RestoresBackups()
     {
         // It must be after files are created
-        var installationDateTime = DateTime.Now.AddMinutes(1);
+        var installationDateTime = DateTimeOffset.Now.AddMinutes(1);
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
@@ -415,7 +415,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Uninstall_SkipsRestoreIfModFileOverwritten()
     {
         // It must be after files are created
-        var installationDateTime = DateTime.Now.AddMinutes(1);
+        var installationDateTime = DateTimeOffset.Now.AddMinutes(1);
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
             [""] = new(
@@ -429,7 +429,7 @@ public class ModManagerTest : AbstractFilesystemTest
         });
 
         CreateFile(GamePath("ModFile"), "Overwritten");
-        File.SetCreationTime(GamePath("ModFile").Full, installationDateTime.AddHours(1));
+        File.SetCreationTimeUtc(GamePath("ModFile").Full, installationDateTime.AddHours(1).UtcDateTime);
         CreateFile(GamePath(BackupName("ModFile")), "Orig");
 
         modManager.UninstallAllMods(eventHandlerMock.Object);
@@ -473,7 +473,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package101"] = new(
-                Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
+                Time: DateTimeOffset.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -502,7 +502,7 @@ public class ModManagerTest : AbstractFilesystemTest
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
             ["Package101"] = new(
-                Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
+                Time: DateTimeOffset.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -546,14 +546,14 @@ public class ModManagerTest : AbstractFilesystemTest
         File.ReadAllText(GamePath(DirAtRoot, "A").Full).Should().Be("102");
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
+            ["Package101"] = new(Time: DateTimeOffset.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
                     Path.Combine(DirAtRoot, "B")
                 ],
                 ShadowedBy: ["Package102"]),
-            ["Package102"] = new(Time: DateTime.UtcNow, VersionHash: 102, Partial: false,
+            ["Package102"] = new(Time: DateTimeOffset.UtcNow, VersionHash: 102, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -577,7 +577,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         persistedState.Should().HaveInstalled(new Dictionary<string, PackageInstallationState>
         {
-            ["Package101"] = new(Time: DateTime.UtcNow, VersionHash: 101, Partial: false,
+            ["Package101"] = new(Time: DateTimeOffset.UtcNow, VersionHash: 101, Partial: false,
                 Dependencies: [],
                 Files:
                 [
@@ -616,7 +616,7 @@ public class ModManagerTest : AbstractFilesystemTest
             Installation: new Dictionary<string, PackageInstallationState>
                 {
                     ["Package102"] = new(
-                        Time: DateTime.UtcNow, VersionHash: 102, Partial: true,
+                        Time: DateTimeOffset.UtcNow, VersionHash: 102, Partial: true,
                         Dependencies: [],
                         Files:
                         [
@@ -625,7 +625,7 @@ public class ModManagerTest : AbstractFilesystemTest
                         ],
                         ShadowedBy: []),
                     ["Package103"] = new(
-                        Time: DateTime.UtcNow, VersionHash: 103, Partial: false,
+                        Time: DateTimeOffset.UtcNow, VersionHash: 103, Partial: false,
                         Dependencies: [],
                         Files:
                         [
@@ -637,20 +637,34 @@ public class ModManagerTest : AbstractFilesystemTest
     }
 
     [Fact]
+    public void Install_TwiceRestoresGeneratedModFiles()
+    {
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModArchive(101, [Path.Combine(DirAtRoot, "A")])
+        ]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        eventHandlerMock.Verify(h => h.RestoreSkipped(It.IsAny<RootedPath>()), Times.Never);
+    }
+
+    [Fact]
     public void Install_PreventsFileCreationTimeInTheFuture()
     {
-        var future = DateTime.Now.AddMinutes(1);
+        var now = DateTimeOffset.Now;
+        var future = now.AddMinutes(1);
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
             CreateModArchive(101, [
                     Path.Combine(DirAtRoot, "A")
                 ], extractedDir =>
-                    File.SetCreationTime(Path.Combine(extractedDir, DirAtRoot, "A"), future)
+                    File.SetCreationTime(Path.Combine(extractedDir, DirAtRoot, "A"), future.LocalDateTime)
             )
         ]);
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
-        File.GetCreationTime(GamePath(DirAtRoot, "A").Full).Should().BeCloseTo(DateTime.Now, TimeTolerance);
+        File.GetCreationTime(GamePath(DirAtRoot, "A").Full).Should().BeCloseTo(now.LocalDateTime, TimeTolerance);
     }
 
     [Fact]
@@ -870,7 +884,6 @@ public class ModManagerTest : AbstractFilesystemTest
 
         internal void Be(SavedState expected)
         {
-            var writtenState = WrittenState();
             HaveInstalled(expected.Installation);
         }
 
@@ -889,7 +902,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
                 ValidateDateTime(expectedTime, actualTime);
                 return new KeyValuePair<string, PackageInstallationState>(mod.Key,
-                    mod.Value with { Time = (DateTime)actualTime });
+                    mod.Value with { Time = (DateTimeOffset)actualTime });
             });
             actualMods.Should().BeEquivalentTo(expectedMods);
         }
@@ -909,8 +922,8 @@ public class ModManagerTest : AbstractFilesystemTest
         /// <summary>
         /// Not a great solution, but .NET doesn't natively provide support for mocking the clock!
         /// </summary>
-        private void ValidateDateTime(DateTime? expected, DateTime? actual) =>
-            (actual ?? DateTime.MinValue).Should().BeCloseTo((expected ?? DateTime.MinValue), TimeTolerance);
+        private void ValidateDateTime(DateTimeOffset? expected, DateTimeOffset? actual) =>
+            (actual ?? DateTimeOffset.MinValue).Should().BeCloseTo((expected ?? DateTimeOffset.MinValue), TimeTolerance);
 
         internal void BeEmpty()
         {

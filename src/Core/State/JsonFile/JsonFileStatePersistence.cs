@@ -93,7 +93,7 @@ internal class JsonFileStatePersistence : IStatePersistence
             Install: new JsonInstallationStateV2(
                 Time: null,
                 Mods: state.Installation.SelectValues(pis => new JsonPackageInstallationStateV2(
-                    Time: pis.Time.ToUniversalTime(),
+                    Time: pis.Time.UtcDateTime,
                     VersionHash: pis.VersionHash,
                     Partial: pis.Partial,
                     Dependencies: pis.Dependencies,
