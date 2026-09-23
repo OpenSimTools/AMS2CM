@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.IO.Abstractions;
+using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -58,7 +59,8 @@ public class ModInstaller : BaseModInstaller
 
     protected override RootedPath DrivelineDir => modConfigPath;
 
-    protected override void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks)
+    protected override void Install(Action innerInstall, IBackupStrategy backupStrategy,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         innerInstall();
 
@@ -73,12 +75,12 @@ public class ModInstaller : BaseModInstaller
             return;
         }
 
-        AppendCrdFileEntries(modConfig.CrdFileEntries, callbacks);
-        AppendTrdFileEntries(modConfig.TrdFileEntries, callbacks);
-        InsertDrivelineRecords(modConfig.DrivelineRecords, callbacks);
+        AppendCrdFileEntries(modConfig.CrdFileEntries, backupStrategy, callbacks);
+        AppendTrdFileEntries(modConfig.TrdFileEntries, backupStrategy, callbacks);
+        InsertDrivelineRecords(modConfig.DrivelineRecords, backupStrategy, callbacks);
         if (generateModDetails && !modConfig.TrdFileEntries.Any())
         {
-            SafeWriteAllText(modConfigPath.SubPath($"{modName}.xml"), ModManifest, callbacks);
+            SafeWriteAllText(modConfigPath.SubPath($"{modName}.xml"), ModManifest, backupStrategy, callbacks);
         }
         else
         {

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.IO.Abstractions;
+using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -57,7 +58,8 @@ public class BootfilesInstaller : BaseModInstaller
     // Bootfiles cannot have dependencies.
     public override IReadOnlySet<string> PackageDependencies => ImmutableHashSet<string>.Empty;
 
-    protected override void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks)
+    protected override void Install(Action innerInstall, IBackupStrategy backupStrategy,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         var modConfigs = CollectModConfig();
         if (modConfigs.None())
@@ -75,17 +77,17 @@ public class BootfilesInstaller : BaseModInstaller
         if (modConfigs.CrdFileEntries.Count > 0)
         {
             eventHandler.PostProcessingVehicles();
-            AppendCrdFileEntries(modConfigs.CrdFileEntries, callbacks);
+            AppendCrdFileEntries(modConfigs.CrdFileEntries, backupStrategy, callbacks);
         }
         if (modConfigs.TrdFileEntries.Count > 0)
         {
             eventHandler.PostProcessingTracks();
-            AppendTrdFileEntries(modConfigs.TrdFileEntries, callbacks);
+            AppendTrdFileEntries(modConfigs.TrdFileEntries, backupStrategy, callbacks);
         }
         if (modConfigs.DrivelineRecords.Count > 0)
         {
             eventHandler.PostProcessingDrivelines();
-            InsertDrivelineRecords(modConfigs.DrivelineRecords, callbacks);
+            InsertDrivelineRecords(modConfigs.DrivelineRecords, backupStrategy, callbacks);
         }
         eventHandler.PostProcessingEnd();
     }

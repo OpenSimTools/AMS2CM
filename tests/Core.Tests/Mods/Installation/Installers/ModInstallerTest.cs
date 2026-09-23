@@ -112,8 +112,12 @@ public class ModInstallerTest
         fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
+        backupStrategyMock.Verify(m => m.AfterInstall(
+            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile))));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
             .TextContents.Should().Be(drivelineRecord.Trim());
+        backupStrategyMock.Verify(m => m.AfterInstall(
+            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile))));
     }
 
     [Fact]
