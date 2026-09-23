@@ -52,7 +52,7 @@ public class JsonFileStatePersistenceTest
         state.Installation.Keys.Should().Contain("M");
 
         var mod = state.Installation["M"];
-        mod.Time.Should().Be(DateTime.Parse("2007-06-05T11:22:33+04").ToUniversalTime());
+        mod.Time.Should().Be(DateTimeOffset.Parse("2007-06-05T11:22:33+04").ToUniversalTime());
         mod.VersionHash.Should().Be(101);
         mod.Dependencies.Should().Contain("D");
         mod.Files.Should().Contain("F");
@@ -62,7 +62,7 @@ public class JsonFileStatePersistenceTest
     [Fact]
     public void ReadState_V2DefaultValues()
     {
-        var fileWriteTime = DateTime.Today.AddDays(-1);
+        var fileWriteTime = DateTimeOffset.Now.AddDays(-1);
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { StateV2File, new MockFileData(
@@ -116,13 +116,13 @@ public class JsonFileStatePersistenceTest
         state.Installation.Keys.Should().Contain("M");
 
         var mod = state.Installation["M"];
-        mod.Time.Should().Be(DateTime.UnixEpoch);
+        mod.Time.Should().Be(DateTimeOffset.UnixEpoch);
     }
 
     [Fact]
     public void ReadState_V1()
     {
-        var fileWriteTime = DateTime.Today.AddDays(-1);
+        var fileWriteTime = DateTimeOffset.Now.AddDays(-1);
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { StateV1File, new MockFileData(
@@ -184,7 +184,7 @@ public class JsonFileStatePersistenceTest
         var fs = new MockFileSystem();
         var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
 
-        var localTime = DateTime.UnixEpoch.ToLocalTime();
+        var localTime = DateTimeOffset.UnixEpoch.ToOffset(TimeSpan.FromHours(4));
 
         sp.WriteState(new SavedState(
             Installation: new Dictionary<string, PackageInstallationState>
@@ -226,7 +226,7 @@ public class JsonFileStatePersistenceTest
             Installation: new Dictionary<string, PackageInstallationState>
             {
                 ["P"] = new(
-                    Time: DateTime.UtcNow, VersionHash: 42, Partial: true,
+                    Time: DateTimeOffset.UtcNow, VersionHash: 42, Partial: true,
                     Dependencies: ["D"],
                     Files: ["F"],
                     ShadowedBy: ["S"]),

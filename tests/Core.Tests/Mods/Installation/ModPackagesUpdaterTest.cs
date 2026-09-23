@@ -29,7 +29,7 @@ public class ModPackagesUpdaterTest :
         public IReadOnlySet<string> PackageDependencies => inner.PackageDependencies;
         public IReadOnlySet<RootedPath> InstalledFiles => inner.InstalledFiles;
         public IInstallation.State Installed => inner.Installed;
-        public DateTime InstallTime => inner.InstallTime;
+        public DateTimeOffset InstallTime => inner.InstallTime;
 
         public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
             ProcessingCallbacks<RootedPath> callbacks) => inner.Install(destination, backupStrategy, callbacks);
@@ -37,7 +37,7 @@ public class ModPackagesUpdaterTest :
     }
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<DateTime, PackagesUpdater.IEventHandler> backupStrategyProvider)
+        IBackupStrategyProvider<DateTimeOffset, PackagesUpdater.IEventHandler> backupStrategyProvider)
     {
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();
         bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);

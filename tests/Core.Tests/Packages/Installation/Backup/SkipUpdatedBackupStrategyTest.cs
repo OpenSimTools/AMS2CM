@@ -9,7 +9,7 @@ namespace Core.Tests.Packages.Installation.Backup;
 public class SkipUpdatedBackupStrategyTest
 {
     private readonly RootedPath originalFile = new("root", "original");
-    private readonly DateTime Unused = DateTime.MinValue;
+    private readonly DateTimeOffset Unused = DateTimeOffset.MinValue;
 
     private readonly Mock<IBackupStrategy> innerStrategyMock = new();
     private readonly Mock<IBackupEventHandler> eventHandlerMock = new();
@@ -69,7 +69,7 @@ public class SkipUpdatedBackupStrategyTest
     [Fact]
     public void RestoreBackup_DeletesBackupIfOverwritten()
     {
-        var fileCreationTime = DateTime.UtcNow;
+        var fileCreationTime = DateTimeOffset.UtcNow;
         var backupTime = fileCreationTime.Subtract(TimeSpan.FromSeconds(1));
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
@@ -88,7 +88,7 @@ public class SkipUpdatedBackupStrategyTest
     [Fact]
     public void RestoreBackup_ProxiesCallToInnerStrategyIfNotOverwritten()
     {
-        var backupTime = DateTime.UtcNow;
+        var backupTime = DateTimeOffset.UtcNow;
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
             { originalFile.Full, new MockFileData("") { CreationTime = backupTime } },
@@ -105,7 +105,7 @@ public class SkipUpdatedBackupStrategyTest
     [Fact]
     public void AfterInstall_EnsuresDateInThePast()
     {
-        var backupTime = DateTime.UtcNow;
+        var backupTime = DateTimeOffset.UtcNow;
         var futureDate = backupTime.AddDays(1);
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
@@ -115,7 +115,7 @@ public class SkipUpdatedBackupStrategyTest
 
         subs.AfterInstall(originalFile);
 
-        fs.File.GetCreationTimeUtc(originalFile.Full).Should().BeOnOrBefore(backupTime);
+        fs.File.GetCreationTimeUtc(originalFile.Full).Should().BeOnOrBefore(backupTime.UtcDateTime);
 
         eventHandlerMock.VerifyNoOtherCalls();
     }

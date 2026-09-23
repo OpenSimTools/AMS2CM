@@ -3,7 +3,6 @@ using Core.IO;
 using Core.Mods;
 using Core.Mods.Installation;
 using Core.Mods.Installation.Installers;
-using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Repository;
 using Core.State;
@@ -36,7 +35,7 @@ public static class Init
         ModInstallConfig modInstallConfig)
     {
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider<IEventHandler>(
-            new SuffixBackupStrategy.Provider<DateTime, IEventHandler>());
+            new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>());
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
         var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
             modInstallConfig);

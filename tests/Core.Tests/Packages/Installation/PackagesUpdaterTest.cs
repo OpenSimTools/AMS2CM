@@ -7,7 +7,6 @@ using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
-using FluentAssertions.Extensions;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Packages.Installation;
@@ -20,10 +19,10 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     private class TestException : Exception;
 
     // Randomness ensures that at least some test runs will fail if it's used
-    private static readonly DateTime ValueNotUsed = Random.Shared.Next() > 0 ? DateTime.MaxValue : DateTime.MinValue;
+    private static readonly DateTimeOffset ValueNotUsed = Random.Shared.Next() > 0 ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
 
     protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<DateTime, PackagesUpdater.IEventHandler> backupStrategyProvider) =>
+        IBackupStrategyProvider<DateTimeOffset, PackagesUpdater.IEventHandler> backupStrategyProvider) =>
         new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider, TestTimeProvider);
 
     #endregion
@@ -458,7 +457,7 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
     protected readonly Mock<TEventHandler> EventHandlerMock = new();
 
-    protected readonly DateTime TestInstallationTimeUtc;
+    protected readonly DateTimeOffset TestInstallationTimeUtc;
     protected readonly FakeTimeProvider TestTimeProvider;
     protected readonly MockFileSystem TestFileSystem = new();
 
@@ -467,15 +466,15 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
 
     protected PackagesUpdaterTestBase()
     {
-        TestInstallationTimeUtc = DateTime.Today.AddDays(10).ToUniversalTime();
+        TestInstallationTimeUtc = DateTimeOffset.Now.AddDays(10).ToUniversalTime();
         var fakeLocalTimeOffset = TimeSpan.FromHours(3);
-        TestTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.WithOffset(fakeLocalTimeOffset));
+        TestTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.ToOffset(fakeLocalTimeOffset));
     }
 
     protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
 
     protected abstract IPackagesUpdater<TEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<DateTime, TEventHandler> backupStrategyProvider);
+        IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
 
     protected void Apply(IPackageInstaller[] installers)
     {
@@ -486,8 +485,8 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
             package.SetupGet(p => p.Installer).Returns(installer);
             return package.Object;
         }).ToArray();
-        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<DateTime, TEventHandler>>();
-        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<DateTime>(), It.IsAny<TEventHandler>()))
+        var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<DateTimeOffset, TEventHandler>>();
+        backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<DateTimeOffset>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
         var packagesUpdater = NewPackagesUpdater(
             backupStrategyProviderMock.Object);
