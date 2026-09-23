@@ -6,8 +6,7 @@ using Core.Utils;
 namespace Core.Packages.Installation;
 
 public class PackagesUpdater<TEventHandler>(
-    IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
-    TimeProvider timeProvider)
+    IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider)
     : IPackagesUpdater<TEventHandler>
     where TEventHandler : PackagesUpdater.IEventHandler
 {
