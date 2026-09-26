@@ -25,6 +25,7 @@ public class ModReconciliationService<TEventHandler> : PackageReconciliationServ
     }
 
     protected override void Apply(
+        IReadOnlyCollection<IPackageInstaller> uninstallers,
         IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
@@ -34,11 +35,11 @@ public class ModReconciliationService<TEventHandler> : PackageReconciliationServ
         var (bootfiles, notBootfiles) = installers.Partition(p => bootfilesNaming.IsBootfiles(p.PackageName));
         var bootfilesInstaller = CreateBootfilesInstaller(bootfiles, eventHandler);
 
-        var allInstallers = notBootfiles
+        var modInstallers = notBootfiles
             .Select(i => modInstallerFactory.ModInstaller(i, bootfilesInstaller))
             .Append(bootfilesInstaller).ToImmutableArray();
 
-        base.Apply(allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
+        base.Apply(uninstallers, modInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
     private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
