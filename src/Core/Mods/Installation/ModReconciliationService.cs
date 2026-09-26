@@ -7,27 +7,26 @@ using Core.Utils;
 
 namespace Core.Mods.Installation;
 
-public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
-    where TEventHandler : PackagesUpdater.IEventHandler
+public class ModReconciliationService<TEventHandler> : PackageReconciliationService<TEventHandler>
+    where TEventHandler : PackageReconciliationService.IEventHandler
 {
     private readonly IBootfilesNaming bootfilesNaming;
     private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
-    public ModPackagesUpdater(
-        IInstallerFactory installerFactory,
-        IBackupStrategyProvider<PackageInstallationState, TEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider,
+    public ModReconciliationService(
+        IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
+        TimeProvider _,
         IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :
-        base(installerFactory, backupStrategyProvider, timeProvider)
+        base(backupStrategyProvider)
     {
         this.bootfilesNaming = bootfilesNaming;
         this.modInstallerFactory = modInstallerFactory;
     }
 
     protected override void Apply(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState,
-        IReadOnlyCollection<IInstaller> installers,
+        IReadOnlyCollection<IPackageInstaller> uninstallers,
+        IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
@@ -36,14 +35,14 @@ public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
         var (bootfiles, notBootfiles) = installers.Partition(p => bootfilesNaming.IsBootfiles(p.PackageName));
         var bootfilesInstaller = CreateBootfilesInstaller(bootfiles, eventHandler);
 
-        var allInstallers = notBootfiles
+        var modInstallers = notBootfiles
             .Select(i => modInstallerFactory.ModInstaller(i, bootfilesInstaller))
             .Append(bootfilesInstaller).ToImmutableArray();
 
-        base.Apply(currentState, allInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
+        base.Apply(uninstallers, modInstallers, installDir, updatePackageState, eventHandler, cancellationToken);
     }
 
-    private IInstaller CreateBootfilesInstaller(IEnumerable<IInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
+    private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
     {
         var installer = bootfilesPackageInstallers.FirstOrDefault();
         return modInstallerFactory.BootfilesInstaller(installer, eventHandler);

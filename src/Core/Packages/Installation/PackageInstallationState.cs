@@ -1,13 +1,9 @@
-﻿using Newtonsoft.Json;
-
-namespace Core.Packages.Installation;
+﻿namespace Core.Packages.Installation;
 
 public record PackageInstallationState(
-    DateTime Time,
+    DateTimeOffset Time,
     // Unknown when partially installed or upgrading from a previous version
-    int? FsHash,
-    // TODO: needed for backward compatibility
-    // infer from null hash after the first install
+    int? VersionHash,
     bool Partial,
     IReadOnlyCollection<string> Dependencies,
     IReadOnlyCollection<string> Files,

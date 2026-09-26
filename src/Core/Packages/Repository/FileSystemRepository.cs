@@ -1,7 +1,22 @@
-﻿namespace Core.Packages.Repository;
+﻿using Core.Packages.Installation.Installers;
+
+namespace Core.Packages.Repository;
 
 public class FileSystemRepository : IPackageRepository
 {
+    internal record Package
+    (
+        string Name,
+        int ? VersionHash,
+        string Location
+    ) : IPackage
+    {
+        public IPackageInstaller Installer =>
+            Directory.Exists(Location)
+                ? new DirectoryInstaller(Name, VersionHash, Location)
+                : new ArchiveInstaller(Name, VersionHash, Location);
+    }
+
     private const string EnabledSubdir = "Enabled";
     private const string DisabledSubdir = "Disabled";
 
@@ -14,7 +29,7 @@ public class FileSystemRepository : IPackageRepository
         disabledDirPath = Path.Combine(repositoryDir, DisabledSubdir);
     }
 
-    public Package Upload(string sourceFilePath)
+    public void Upload(string sourceFilePath)
     {
         var fileName = Path.GetFileName(sourceFilePath);
 
@@ -24,8 +39,6 @@ public class FileSystemRepository : IPackageRepository
 
         ExistingDirectoryOrCreate(destinationDirPath);
         File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
-
-        return FilePackage(new FileInfo(destinationFilePath));
     }
 
     public string Enable(string packagePath)
@@ -53,49 +66,45 @@ public class FileSystemRepository : IPackageRepository
         return destinationPackagePath;
     }
 
-    public IReadOnlyCollection<Package> ListEnabled() => ListPackages(enabledDirPath);
+    public IReadOnlyCollection<IPackage> ListEnabled() => ListPackages(enabledDirPath);
 
-    public IReadOnlyCollection<Package> ListDisabled() => ListPackages(disabledDirPath);
+    public IReadOnlyCollection<IPackage> ListDisabled() => ListPackages(disabledDirPath);
 
     private IReadOnlyCollection<Package> ListPackages(string rootPath)
     {
         var directoryInfo = new DirectoryInfo(rootPath);
-        if (directoryInfo.Exists)
-        {
-            var options = new EnumerationOptions()
-            {
-                MatchType = MatchType.Win32,
-                IgnoreInaccessible = false,
-                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                RecurseSubdirectories = false,
-            };
-            return directoryInfo.GetFiles("*", options).Select(fileInfo => FilePackage(fileInfo))
-                .Concat(directoryInfo.GetDirectories("*", options).Select(fileInfo => DirectoryPackage(fileInfo)))
-                .ToList();
-        }
-        else
+        if (!directoryInfo.Exists)
         {
             return Array.Empty<Package>();
         }
+
+        var options = new EnumerationOptions()
+        {
+            MatchType = MatchType.Win32,
+            IgnoreInaccessible = false,
+            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+            RecurseSubdirectories = false,
+        };
+        return directoryInfo.GetFiles("*", options).Select(fileInfo => FilePackage(fileInfo))
+            .Concat(directoryInfo.GetDirectories("*", options).Select(fileInfo => DirectoryPackage(fileInfo)))
+            .ToList();
     }
 
     private Package FilePackage(FileInfo fileInfo) =>
         new(
             Name: fileInfo.Name,
-            FullPath: fileInfo.FullName,
-            Enabled: IsEnabled(fileInfo),
-            FsHash: FsHash(fileInfo)
+            VersionHash: FsHash(fileInfo),
+            Location: fileInfo.FullName
         );
 
     private Package DirectoryPackage(DirectoryInfo directoryInfo) =>
         new(
             Name: $"{directoryInfo.Name}{Path.DirectorySeparatorChar}",
-            FullPath: directoryInfo.FullName,
-            Enabled: IsEnabled(directoryInfo),
-            FsHash: null
+            VersionHash: null,
+            Location: directoryInfo.FullName
         );
 
-    private bool IsEnabled(FileSystemInfo fileSystemInfo) =>
+    private bool IsEnabledPath(FileSystemInfo fileSystemInfo) =>
         Directory.GetParent(fileSystemInfo.FullName)?.FullName == enabledDirPath;
 
     /// <summary>

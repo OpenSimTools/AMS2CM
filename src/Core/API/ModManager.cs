@@ -1,7 +1,7 @@
 using Core.Games;
 using Core.IO;
 using Core.Mods;
-using Core.Mods.Installation.Installers;
+using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Repository;
 using Core.State;
@@ -18,13 +18,13 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly IPackagesUpdater<IEventHandler> packagesUpdater;
+    private readonly IReconciliationService<IEventHandler> reconciliationService;
 
     internal ModManager(
         IGame game,
         IPackageRepository packageRepository,
         IBootfilesNaming bootfilesNaming,
-        IPackagesUpdater<IEventHandler> packagesUpdater,
+        IReconciliationService<IEventHandler> reconciliationService,
         IStatePersistence statePersistence,
         ISafeFileDelete safeFileDelete,
         ITempDir tempDir)
@@ -35,7 +35,7 @@ internal class ModManager : IModManager
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
-        this.packagesUpdater = packagesUpdater;
+        this.reconciliationService = reconciliationService;
     }
 
     private static void AddToEnvironmentPath(string additionalPath)
@@ -51,14 +51,18 @@ internal class ModManager : IModManager
 
     public List<ModState> FetchState()
     {
-        var installedMods = statePersistence.ReadState().Install.Mods;
+        var installedMods = statePersistence.ReadState().Installation;
         var enabledModPackages = packageRepository.ListEnabled().ToDictionary(p => p.Name);
         var disabledModPackages = packageRepository.ListDisabled().ToDictionary(p => p.Name);
         var availableModPackages = enabledModPackages.Merge(disabledModPackages);
 
         var isModInstalled = DependencyResolver
-            .CollectValues(installedMods, s => s.Dependencies.Concat(s.ShadowedBy).ToArray(), s => s?.Partial ?? true)
-            .SelectValues<string, IReadOnlySet<bool>, bool?>(partials => partials.Any(p => p) ? null : true);
+            .CollectValues(
+                installedMods,
+                s => s.Dependencies.Concat(s.ShadowedBy).ToArray(),
+                s => s?.Partial ?? true)
+            .SelectValues<string, IReadOnlySet<bool>, bool?>(
+                partials => partials.Any(p => p) ? null : true);
 
         var modsOutOfDate = installedMods.SelectValues((packageName, modInstallationState) =>
         {
@@ -74,45 +78,36 @@ internal class ModManager : IModManager
         return allPackageNames
             .Select(packageName => new ModState(
                 PackageName: packageName,
-                PackagePath: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.FullPath : null,
+                PackageLocation: availableModPackages.TryGetValue(packageName, out var modPackage) ? modPackage.Location : null,
                 IsInstalled: isModInstalled.GetValueOrDefault(packageName, false),
                 IsEnabled: enabledModPackages.ContainsKey(packageName),
                 IsOutOfDate: modsOutOfDate.TryGetValue(packageName, out var isOutOfDate) && isOutOfDate
             )).ToList();
     }
 
-    private static bool IsOutOfDate(Package? modPackage, PackageInstallationState? modInstallationState)
+    private static bool IsOutOfDate(IPackage? modPackage, PackageInstallationState? modInstallationState)
     {
         if (modPackage is null || modInstallationState is null)
         {
             return false;
         }
-        var installedFsHash = modInstallationState.FsHash;
-        if (installedFsHash is null)
+        var installedVersionHash = modInstallationState.VersionHash;
+        if (installedVersionHash is null)
         {
             // When partially installed or for state backwards compatibility
             return true;
         }
-        return installedFsHash != modPackage.FsHash;
+        return installedVersionHash != modPackage.VersionHash;
     }
 
-    public ModState AddNewMod(string packageFullPath)
+    public void AddNewMod(string packageFullPath)
     {
         if (IsDirectory(packageFullPath))
         {
             throw new Exception($"{packageFullPath} is a directory");
         }
 
-        var modPackage = packageRepository.Upload(packageFullPath);
-        statePersistence.ReadState().Install.Mods.TryGetValue(modPackage.Name, out var modInstallationState);
-
-        return new ModState(
-                PackageName: modPackage.Name,
-                PackagePath: modPackage.FullPath,
-                IsEnabled: modPackage.Enabled,
-                IsInstalled: false,
-                IsOutOfDate: IsOutOfDate(modPackage, modInstallationState)
-            );
+        packageRepository.Upload(packageFullPath);
     }
 
     public void DeleteMod(string packagePath) =>
@@ -140,7 +135,7 @@ internal class ModManager : IModManager
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
-        var modsInPriorityOrder = packageRepository.ListEnabled().Reverse();
+        var modsInPriorityOrder = packageRepository.ListEnabled().Reverse().ToArray();
         UpdateMods(modsInPriorityOrder, eventHandler, cancellationToken);
         tempDir.Cleanup();
     }
@@ -148,7 +143,7 @@ internal class ModManager : IModManager
     public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken = default)
     {
         CheckGameNotRunning();
-        UpdateMods(Array.Empty<Package>(), eventHandler, cancellationToken);
+        UpdateMods(Array.Empty<IPackage>(), eventHandler, cancellationToken);
     }
 
     private void CheckGameNotRunning()
@@ -159,18 +154,15 @@ internal class ModManager : IModManager
         }
     }
 
-    private void UpdateMods(IEnumerable<Package> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void UpdateMods(IReadOnlyCollection<IPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        packagesUpdater.Apply(
-            statePersistence.ReadState().Install.Mods,
+        reconciliationService.Reconcile(
+            statePersistence.ReadState().Installation,
             packages,
             game.InstallationDirectory,
             nextState =>
                 statePersistence.WriteState(new SavedState(
-                    Install: new InstallationState(
-                        Time: null,
-                        Mods: nextState
-                    )
+                    Installation: nextState
                 )),
             eventHandler,
             cancellationToken);

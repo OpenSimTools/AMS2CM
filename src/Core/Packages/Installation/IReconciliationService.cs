@@ -1,12 +1,10 @@
-﻿using Core.Packages.Repository;
+﻿namespace Core.Packages.Installation;
 
-namespace Core.Packages.Installation;
-
-public interface IPackagesUpdater<in TEventHandler>
+public interface IReconciliationService<in TEventHandler>
 {
-    void Apply(
+    void Reconcile(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IEnumerable<Package> packages,
+        IReadOnlyCollection<IPackage> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,

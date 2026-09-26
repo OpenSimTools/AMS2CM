@@ -1,13 +1,12 @@
 ﻿using Core.Utils;
 
-namespace Core.Packages.Installation;
+namespace Core.Packages.Installation.Installers;
 
-public interface IInstallation : IPackageInfo
+public interface IInstallation
 {
-    IReadOnlySet<string> PackageDependencies { get; }
-
     IReadOnlySet<RootedPath> InstalledFiles { get; }
     State Installed { get; }
+    DateTimeOffset InstallTime { get; }
 
     enum State
     {

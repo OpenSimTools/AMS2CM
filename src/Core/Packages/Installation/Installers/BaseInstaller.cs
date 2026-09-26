@@ -8,38 +8,35 @@ namespace Core.Packages.Installation.Installers;
 /// <summary>
 ///
 /// </summary>
-/// <typeparam name="TPassthrough">Type used by the implementation during the install loop.</typeparam>
-internal abstract class BaseInstaller<TPassthrough> : IInstaller
+/// <typeparam name="TPassthrough">Type used by the implementation during the installation loop.</typeparam>
+internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 {
     public string PackageName { get; }
-    public int? PackageFsHash { get; }
+    public int? PackageVersionHash { get; }
 
     public IReadOnlySet<string> PackageDependencies { get; }
 
     public IInstallation.State Installed { get; private set; }
     public IReadOnlySet<RootedPath> InstalledFiles => installedFiles;
+    public DateTimeOffset InstallTime { get; }
 
     protected readonly IFileSystem FileSystem;
 
     private readonly HashSet<RootedPath> installedFiles = new();
 
-    protected BaseInstaller(string packageName, int? packageFsHash)
-        : this(packageName, packageFsHash, ImmutableHashSet<string>.Empty)
-    {
-    }
-
-    protected BaseInstaller(string packageName, int? packageFsHash, IReadOnlySet<string> packageDependencies) :
-        this(new FileSystem(), packageName, packageFsHash, packageDependencies)
+    protected BaseInstaller(string packageName, int? packageVersionHash) :
+        this(new FileSystem(), TimeProvider.System, packageName, packageVersionHash, ImmutableHashSet<string>.Empty)
     {
     }
 
     // A package cannot currently specify dependencies.
-    protected BaseInstaller(IFileSystem fs, string packageName, int? packageFsHash, IReadOnlySet<string> packageDependencies)
+    protected BaseInstaller(IFileSystem fs, TimeProvider timeProvider, string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies)
     {
         FileSystem = fs;
         PackageName = packageName;
-        PackageFsHash = packageFsHash;
+        PackageVersionHash = packageVersionHash;
         PackageDependencies = packageDependencies;
+        InstallTime = timeProvider.GetUtcNow();
     }
 
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
@@ -50,7 +47,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
         }
         Installed = IInstallation.State.PartiallyInstalled;
 
-        InstalAllFiles((pathInPackage, context) =>
+        InstallAllFiles((pathInPackage, context) =>
         {
             var (destPath, removeFile) = NeedsRemoving(destination(pathInPackage));
 
@@ -85,7 +82,7 @@ internal abstract class BaseInstaller<TPassthrough> : IInstaller
     /// Installation loop.
     /// </summary>
     /// <param name="body">Function to call for each file.</param>
-    protected abstract void InstalAllFiles(InstallBody body);
+    protected abstract void InstallAllFiles(InstallBody body);
 
     protected delegate void InstallBody(string relativePathInMod, TPassthrough context);
 

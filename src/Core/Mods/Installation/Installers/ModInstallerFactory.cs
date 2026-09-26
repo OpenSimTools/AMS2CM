@@ -23,10 +23,10 @@ public class ModInstallerFactory<TConfig> : IModInstallerFactory<BootfilesInstal
         this.config = config;
     }
 
-    public IInstaller ModInstaller(IInstaller packageInstaller, IInstaller bootfilesInstaller) =>
+    public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
         new ModInstaller(packageInstaller, tempDir.BasePath, config, game.InstallationDirectory, bootfilesInstaller.PackageName);
 
-    public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller,
+    public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller,
         BootfilesInstaller.IEventHandler eventHandler) =>
         new BootfilesInstaller(bootfilesPackageInstaller, tempDir.BasePath, config,
             game.InstallationDirectory, bootfilesNaming, eventHandler);

@@ -13,44 +13,43 @@ using FluentAssertions;
 namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
-public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>
+public class ModReconciliationServiceTest :
+    ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>,
+    IModInstallerFactory<PackageReconciliationService.IEventHandler>
 {
-    #region Initialisation
+    #region Setup
 
     private static readonly string GeneratedBootfilesName = "__generated";
     private static readonly string BootfilesPackageName = "__package";
 
-    private class WrappedInstaller(IInstaller inner) : IInstaller
+    private class WrappedInstaller(IPackageInstaller inner) : IPackageInstaller
     {
         public string PackageName => $"({inner.PackageName})";
-        public int? PackageFsHash => inner.PackageFsHash;
+        public int? PackageVersionHash => inner.PackageVersionHash;
         public IReadOnlySet<string> PackageDependencies => inner.PackageDependencies;
         public IReadOnlySet<RootedPath> InstalledFiles => inner.InstalledFiles;
         public IInstallation.State Installed => inner.Installed;
+        public DateTimeOffset InstallTime => inner.InstallTime;
+
         public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
             ProcessingCallbacks<RootedPath> callbacks) => inner.Install(destination, backupStrategy, callbacks);
         public IEnumerable<string> RelativeDirectoryPaths => inner.RelativeDirectoryPaths;
     }
 
-    private class TestModInstallerFactory : IModInstallerFactory<PackagesUpdater.IEventHandler>
-    {
-        public IInstaller ModInstaller(IInstaller packageInstaller, IInstaller bootfilesInstaller) =>
-            new WrappedInstaller(packageInstaller);
-
-        public IInstaller BootfilesInstaller(IInstaller? bootfilesPackageInstaller, PackagesUpdater.IEventHandler eventHandler) =>
-            bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
-    }
-
-    protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IInstallerFactory installerFactory,
-        IBackupStrategyProvider<PackageInstallationState, PackagesUpdater.IEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider)
+    protected override IReconciliationService<PackageReconciliationService.IEventHandler> NewService(
+        IBackupStrategyProvider<DateTimeOffset, PackageReconciliationService.IEventHandler> backupStrategyProvider)
     {
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();
         bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
-        return new ModPackagesUpdater<PackagesUpdater.IEventHandler>(
-            installerFactory, backupStrategyProvider, timeProvider, bootfilesNamingMock.Object, new TestModInstallerFactory());
+        return new ModReconciliationService<PackageReconciliationService.IEventHandler>(
+            backupStrategyProvider, TestTimeProvider, bootfilesNamingMock.Object, this);
     }
+
+    public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
+        new WrappedInstaller(packageInstaller);
+
+    public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, PackageReconciliationService.IEventHandler eventHandler) =>
+        bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
 
     #endregion
 
@@ -59,20 +58,20 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
     {
         var packages = new List<string>();
         var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.InstallCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
+        EventHandlerMock.Setup(m => m.UpdateCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
         Apply([
-            // Uninstall                          25%
-            InstallerOf("I1"),                 // 50%
-            InstallerOf("I2"),                 // 75%
+            InstallerOf("I1"),            // 25%
+            InstallerOf("I2"),            // 50%
+            InstallerOf("I3"),            // 75%
             InstallerOf(BootfilesPackageName), // 100%
         ]);
 
         InstallationState.Should().BeEmpty();
 
-        packages.Should().Equal("(I1)", "(I2)", BootfilesPackageName);
+        packages.Should().Equal("(I1)", "(I2)", "(I3)", BootfilesPackageName);
         progress.Should().Equal(0.25, 0.5, 0.75, 1.0);
     }
 
@@ -81,21 +80,24 @@ public class ModPackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IE
     {
         var packages = new List<string>();
         var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.InstallCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
+        EventHandlerMock.Setup(m => m.UpdateCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
         Apply([
-            // Uninstall           50%
             // Generated bootfiles 100%
         ]);
 
         InstallationState.Should().BeEmpty();
 
         packages.Should().Equal(GeneratedBootfilesName);
-        progress.Should().Equal(0.5, 1.0);
+        progress.Should().Equal(1.0);
     }
 
-    internal static IInstaller InstallerOf(string name) =>
-        new StaticFilesInstaller(name, null, ReadOnlyDictionary<string, string>.Empty, []);
+    #region Utility Methods
+
+    private IPackageInstaller InstallerOf(string name) =>
+        new StaticFilesInstaller(TestFileSystem, TestTimeProvider, name, null, ReadOnlyDictionary<string, string>.Empty, []);
+
+    #endregion
 }

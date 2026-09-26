@@ -5,6 +5,7 @@ using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Mods.Installation.Installers;
 
@@ -21,6 +22,7 @@ public class ModInstallerTest
     #region Setup
 
     private readonly MockFileSystem fs = new();
+    private readonly FakeTimeProvider fakeTimeProvider = new();
     private readonly Mock<ModInstaller.IConfig> configMock = new();
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
     private readonly Mock<Action<RootedPath>> callbackMock = new();
@@ -110,8 +112,12 @@ public class ModInstallerTest
         fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
+        backupStrategyMock.Verify(m => m.AfterInstall(
+            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile))));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
             .TextContents.Should().Be(drivelineRecord.Trim());
+        backupStrategyMock.Verify(m => m.AfterInstall(
+            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile))));
     }
 
     [Fact]
@@ -163,9 +169,9 @@ public class ModInstallerTest
     }
 
 
-    #region Utility
+    #region Utility Methods
 
-    private ModInstaller InstallWithModInstaller(IInstaller inner)
+    private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
     {
         var modInstaller = new ModInstaller(fs, inner, tempDir, configMock.Object, destDir, BootfilesPackageName);
         modInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
@@ -177,11 +183,11 @@ public class ModInstallerTest
         return modInstaller;
     }
 
-    private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyCollection<string> files) =>
-        InstallerOf(name, fsHash, files.ToDictionary(f => f, _ => Convert.ToString(fsHash) ?? string.Empty));
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
+        InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
-    private IInstaller InstallerOf(string name, int? fsHash, IReadOnlyDictionary<string, string> fileContents) =>
-        new StaticFilesInstaller(fs, name, fsHash, fileContents, Array.Empty<string>());
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
+        new StaticFilesInstaller(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
     private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
         relativePaths.Select(f => Path.Combine(destDir, f)).ToHashSet();

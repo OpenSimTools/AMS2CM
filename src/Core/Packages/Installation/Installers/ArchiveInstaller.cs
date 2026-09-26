@@ -10,8 +10,8 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
 
     private readonly string archivePath;
 
-    public ArchiveInstaller(string packageName, int? packageFsHash,  string archivePath) :
-        base(packageName, packageFsHash)
+    public ArchiveInstaller(string packageName, int? packageVersionHash,  string archivePath) :
+        base(packageName, packageVersionHash)
     {
         this.archivePath = archivePath;
     }
@@ -44,7 +44,7 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
         }
     }
 
-    protected override void InstalAllFiles(InstallBody body)
+    protected override void InstallAllFiles(InstallBody body)
     {
         using var reader = new LibArchiveReader(archivePath, BlockSize);
         foreach (var entry in reader.Entries())

@@ -6,6 +6,7 @@ using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Mods.Installation.Installers;
 
@@ -27,6 +28,7 @@ public class BootfilesInstallerTest
     #region Setup
 
     private readonly MockFileSystem fs = new();
+    private readonly FakeTimeProvider fakeTimeProvider = new();
     private readonly Mock<BootfilesInstaller.IConfig> configMock = new();
     private readonly Mock<IBootfilesNaming> bootfilesNamingMock = new();
     private readonly Mock<BootfilesInstaller.IEventHandler> eventHandlerMock = new();
@@ -171,11 +173,11 @@ public class BootfilesInstallerTest
     }
 
 
-    #region Utility
+    #region Utility Methods
 
     private BootfilesInstaller InstallBootfiles()
     {
-        var emptyPackage = new StaticFilesInstaller(fs, BootfilesPackageName, null,
+        var emptyPackage = new StaticFilesInstaller(fs, fakeTimeProvider, BootfilesPackageName, null,
             new Dictionary<string, string>
             {
                 [FileInBootfilesPackage] = ""

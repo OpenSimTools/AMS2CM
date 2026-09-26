@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.IO.Abstractions;
-using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
@@ -8,7 +7,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Core.Mods.Installation.Installers;
 
-public abstract class BaseModInstaller : IInstaller
+public abstract class BaseModInstaller : IPackageInstaller
 {
     public interface IConfig
     {
@@ -25,7 +24,7 @@ public abstract class BaseModInstaller : IInstaller
     protected readonly string DrivelineFileName;
 
     protected readonly IFileSystem FileSystem;
-    protected readonly IInstaller Inner;
+    protected readonly IPackageInstaller Inner;
     protected readonly string StagingFullPath;
     protected readonly string GameSupportedModRelativeDir;
 
@@ -36,7 +35,7 @@ public abstract class BaseModInstaller : IInstaller
 
     private readonly HashSet<RootedPath> localInstalledFiles = new();
 
-    protected BaseModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config)
+    protected BaseModInstaller(IFileSystem fileSystem, IPackageInstaller inner, string tempDir, IConfig config)
     {
         FileSystem = fileSystem;
         Inner = inner;
@@ -53,8 +52,7 @@ public abstract class BaseModInstaller : IInstaller
     }
 
     public string PackageName => Inner.PackageName;
-
-    public int? PackageFsHash => Inner.PackageFsHash;
+    public int? PackageVersionHash => Inner.PackageVersionHash;
 
     public abstract IReadOnlySet<string> PackageDependencies { get; }
 
@@ -69,6 +67,8 @@ public abstract class BaseModInstaller : IInstaller
             ? IInstallation.State.PartiallyInstalled
             : Inner.Installed;
 
+    public DateTimeOffset InstallTime => Inner.InstallTime;
+
     public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks)
     {
@@ -77,7 +77,7 @@ public abstract class BaseModInstaller : IInstaller
                 ConfigToStagingDir(destination),
                 backupStrategy,
                 IgnoreForStagedFiles(callbacks.AndAccept(Whitelisted))),
-            callbacks);
+            backupStrategy, callbacks);
 
         postProcessingDone = true;
     }
@@ -85,7 +85,8 @@ public abstract class BaseModInstaller : IInstaller
     public IEnumerable<string> RelativeDirectoryPaths =>
         Inner.RelativeDirectoryPaths.SelectNotNull(rootPaths.Value.GetPathFromRoot);
 
-    protected abstract void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks);
+    protected abstract void Install(Action innerInstall, IBackupStrategy backupStrategy,
+        ProcessingCallbacks<RootedPath> callbacks);
 
     private IInstaller.Destination ConfigToStagingDir(IInstaller.Destination destination) =>
         pathInPackage =>
@@ -127,18 +128,21 @@ public abstract class BaseModInstaller : IInstaller
         rp.Root == StagingFullPath;
 
     protected void AppendCrdFileEntries(IEnumerable<string> crdFileEntries,
+        IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks) =>
-        AppendEntryList(VehicleListDir.SubPath(VehicleListFileName), crdFileEntries, callbacks);
+        AppendEntryList(VehicleListDir.SubPath(VehicleListFileName), crdFileEntries, backupStrategy, callbacks);
 
     protected abstract RootedPath VehicleListDir { get; }
 
     protected void AppendTrdFileEntries(IEnumerable<string> trdFileEntries,
+        IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks) =>
-        AppendEntryList(TrackListDir.SubPath(TrackListFileName), trdFileEntries, callbacks);
+        AppendEntryList(TrackListDir.SubPath(TrackListFileName), trdFileEntries, backupStrategy, callbacks);
 
     protected abstract RootedPath TrackListDir { get; }
 
     protected void InsertDrivelineRecords(IEnumerable<string> recordBlocks,
+        IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks)
     {
         var recordsTextBlock = DrivelineBlock(recordBlocks);
@@ -150,7 +154,7 @@ public abstract class BaseModInstaller : IInstaller
         var driveLineFilePath = DrivelineDir.SubPath(DrivelineFileName);
         var newContents = DrivelineFileContents(driveLineFilePath, WrapConfigBlock(recordsTextBlock));
 
-        SafeWriteAllText(driveLineFilePath, newContents, callbacks);
+        SafeWriteAllText(driveLineFilePath, newContents, backupStrategy, callbacks);
     }
 
     protected abstract RootedPath DrivelineDir { get; }
@@ -197,6 +201,7 @@ public abstract class BaseModInstaller : IInstaller
     private void AppendEntryList(
         RootedPath filePath,
         IEnumerable<string> entries,
+        IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks)
     {
         var entriesBlock = string.Join(Environment.NewLine, entries);
@@ -206,21 +211,21 @@ public abstract class BaseModInstaller : IInstaller
         }
         var contents = WrapConfigBlock(entriesBlock);
 
-        SafeAppendAllText(filePath, contents, callbacks);
+        SafeAppendAllText(filePath, contents, backupStrategy, callbacks);
     }
 
     protected virtual string WrapConfigBlock(string configBlock) => configBlock;
 
     protected void SafeWriteAllText(RootedPath filePath, string contents,
-        ProcessingCallbacks<RootedPath> callbacks) =>
-        SafeFileOperation(FileSystem.File.WriteAllText, filePath, contents, callbacks);
+        IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks) =>
+        SafeFileOperation(FileSystem.File.WriteAllText, filePath, contents, backupStrategy, callbacks);
 
     protected void SafeAppendAllText(RootedPath filePath, string contents,
-        ProcessingCallbacks<RootedPath> callbacks) =>
-        SafeFileOperation(FileSystem.File.AppendAllText, filePath, contents, callbacks);
+        IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks) =>
+        SafeFileOperation(FileSystem.File.AppendAllText, filePath, contents, backupStrategy, callbacks);
 
     private void SafeFileOperation(Action<string, string> fileOperation, RootedPath filePath,
-        string contents, ProcessingCallbacks<RootedPath> callbacks)
+        string contents, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
     {
         var fullFilePath = filePath.Full;
 
@@ -232,6 +237,7 @@ public abstract class BaseModInstaller : IInstaller
                 FileSystem.Directory.CreateDirectory(dirPath);
             }
             fileOperation(fullFilePath, contents);
+            backupStrategy.AfterInstall(filePath);
             localInstalledFiles.Add(filePath);
         }, filePath);
     }

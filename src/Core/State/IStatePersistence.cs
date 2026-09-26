@@ -1,4 +1,6 @@
-﻿namespace Core.State;
+﻿using Core.Packages.Installation;
+
+namespace Core.State;
 
 public interface IStatePersistence
 {

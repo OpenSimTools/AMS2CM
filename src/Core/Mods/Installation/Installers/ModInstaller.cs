@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.IO.Abstractions;
+using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -26,13 +27,13 @@ public class ModInstaller : BaseModInstaller
     private RootedPath modConfigPath;
     private string modName;
 
-    internal ModInstaller(IInstaller inner, string tempDir, IConfig config,
+    internal ModInstaller(IPackageInstaller inner, string tempDir, IConfig config,
         string gameInstallationDir, string bootfilesPackageName) :
         this(new FileSystem(), inner, tempDir, config, gameInstallationDir, bootfilesPackageName)
     {
     }
 
-    internal ModInstaller(IFileSystem fileSystem, IInstaller inner, string tempDir, IConfig config,
+    internal ModInstaller(IFileSystem fileSystem, IPackageInstaller inner, string tempDir, IConfig config,
         string gameInstallationDir, string bootfilesPackageName) :
         base(fileSystem, inner, tempDir, config)
     {
@@ -43,8 +44,8 @@ public class ModInstaller : BaseModInstaller
         var normalisedName = string.Concat(
             Path.GetFileNameWithoutExtension(inner.PackageName)
                 .Where(char.IsAsciiLetterOrDigit));
-        var hexFsHash = (inner.PackageFsHash ?? 0).ToString("x");
-        modName = $"{normalisedName}_{hexFsHash}";
+        var hexVersionHash = (inner.PackageVersionHash ?? 0).ToString("x");
+        modName = $"{normalisedName}_{hexVersionHash}";
 
         modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModRelativeDir, modName));
     }
@@ -58,7 +59,8 @@ public class ModInstaller : BaseModInstaller
 
     protected override RootedPath DrivelineDir => modConfigPath;
 
-    protected override void Install(Action innerInstall, ProcessingCallbacks<RootedPath> callbacks)
+    protected override void Install(Action innerInstall, IBackupStrategy backupStrategy,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         innerInstall();
 
@@ -73,12 +75,12 @@ public class ModInstaller : BaseModInstaller
             return;
         }
 
-        AppendCrdFileEntries(modConfig.CrdFileEntries, callbacks);
-        AppendTrdFileEntries(modConfig.TrdFileEntries, callbacks);
-        InsertDrivelineRecords(modConfig.DrivelineRecords, callbacks);
+        AppendCrdFileEntries(modConfig.CrdFileEntries, backupStrategy, callbacks);
+        AppendTrdFileEntries(modConfig.TrdFileEntries, backupStrategy, callbacks);
+        InsertDrivelineRecords(modConfig.DrivelineRecords, backupStrategy, callbacks);
         if (generateModDetails && !modConfig.TrdFileEntries.Any())
         {
-            SafeWriteAllText(modConfigPath.SubPath($"{modName}.xml"), ModManifest, callbacks);
+            SafeWriteAllText(modConfigPath.SubPath($"{modName}.xml"), ModManifest, backupStrategy, callbacks);
         }
         else
         {
@@ -160,7 +162,7 @@ public class ModInstaller : BaseModInstaller
     <class name=""ModDetails"" base=""BPersistent"">
         <prop name=""DisplayName"" type=""String"" />
     </class>
-    <data class=""ModDetails"" id=""0x{PackageFsHash:x08}"">
+    <data class=""ModDetails"" id=""0x{PackageVersionHash:x08}"">
         <prop name=""Name"" data=""{modName}"" />
         <prop name=""DisplayName"" data=""{PackageName}"" />
     </data>
