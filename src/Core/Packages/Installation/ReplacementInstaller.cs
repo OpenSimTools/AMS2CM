@@ -67,9 +67,10 @@ internal class ReplacementInstaller : IPackageInstaller
         switch (behaviour)
         {
             case Behaviour.Keep:
-                foreach (var gamePath in filesStillInstalled)
+                var callbacksAndRemoveShadowed = callbacks.AndNotAccepted(rp => filesStillInstalled.Remove(rp));
+                foreach (var gamePath in filesStillInstalled.ToImmutableList())
                 {
-                    callbacks.Wrap(() => {}, gamePath);
+                    callbacksAndRemoveShadowed.Wrap(() => {}, gamePath);
                 }
                 break;
             case Behaviour.Uninstall:

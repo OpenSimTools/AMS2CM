@@ -46,7 +46,7 @@ public class PackageReconciliationService<TEventHandler>(
                     package is null ||
                     state.VersionHash != package.VersionHash ||
                     state.ShadowedBy.Intersect(toUninstall).Any() ||
-                    !state.ShadowedBy.Intersect(processed).Any()))
+                    (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains))))
             {
                 uninstallers.Add(rif.Uninstall(packageName, state));
                 toUninstall.Add(packageName);

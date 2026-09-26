@@ -239,7 +239,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
             ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [], Files:
             [
                 "AF1",
-            ], ShadowedBy: []),
+            ], ShadowedBy: ["B"]),
             ["B"] = new(Time: ValueNotUsed, VersionHash: 2, Partial: false, Dependencies: [], Files:
             [
                 "SF", // SF in A was shadowed by B
@@ -391,7 +391,11 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
             ["B"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
             [
                 "BF"
-            ], ShadowedBy: ["A"])
+            ], ShadowedBy: ["A"]),
+            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
+            [
+                "UF"
+            ], ShadowedBy: [])
         };
 
         Apply([
@@ -402,17 +406,24 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
             InstallerOf("A", versionHash: 0, [
                 "AF",
                 "Shared"
+            ]),
+            InstallerOf("Untouched", versionHash: 0, [
+                "Not considered"
             ])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files: [
                 "AF"
             ], ShadowedBy: ["B"]),
             ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
                 "BF",
                 "Shared"
+            ], ShadowedBy: []),
+            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
+            [
+                "UF"
             ], ShadowedBy: [])
         });
     }
@@ -482,6 +493,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
         {
             var package = new Mock<IPackage>();
             package.SetupGet(p => p.Name).Returns(installer.PackageName);
+            package.SetupGet(p => p.VersionHash).Returns(installer.PackageVersionHash);
             package.SetupGet(p => p.Installer).Returns(installer);
             return package.Object;
         }).ToArray();
