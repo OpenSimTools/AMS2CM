@@ -18,13 +18,13 @@ internal class ModManager : IModManager
     private readonly ISafeFileDelete safeFileDelete;
     private readonly ITempDir tempDir;
 
-    private readonly IPackagesUpdater<IEventHandler> packagesUpdater;
+    private readonly IReconciliationService<IEventHandler> reconciliationService;
 
     internal ModManager(
         IGame game,
         IPackageRepository packageRepository,
         IBootfilesNaming bootfilesNaming,
-        IPackagesUpdater<IEventHandler> packagesUpdater,
+        IReconciliationService<IEventHandler> reconciliationService,
         IStatePersistence statePersistence,
         ISafeFileDelete safeFileDelete,
         ITempDir tempDir)
@@ -35,7 +35,7 @@ internal class ModManager : IModManager
         this.statePersistence = statePersistence;
         this.safeFileDelete = safeFileDelete;
         this.tempDir = tempDir;
-        this.packagesUpdater = packagesUpdater;
+        this.reconciliationService = reconciliationService;
     }
 
     private static void AddToEnvironmentPath(string additionalPath)
@@ -156,7 +156,7 @@ internal class ModManager : IModManager
 
     private void UpdateMods(IReadOnlyCollection<IPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
-        packagesUpdater.Apply(
+        reconciliationService.Reconcile(
             statePersistence.ReadState().Installation,
             packages,
             game.InstallationDirectory,

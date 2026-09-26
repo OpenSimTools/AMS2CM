@@ -39,9 +39,9 @@ public static class Init
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
         var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
             modInstallConfig);
-        var modPackagesUpdater = new ModPackagesUpdater<IEventHandler>(backupStrategyProvider, TimeProvider.System,
+        var modReconciliationService = new ModReconciliationService<IEventHandler>(backupStrategyProvider, TimeProvider.System,
             bootfilesNaming, modInstallerFactory);
-        return new ModManager(game, modRepository, bootfilesNaming, modPackagesUpdater, statePersistence,
+        return new ModManager(game, modRepository, bootfilesNaming, modReconciliationService, statePersistence,
             safeFileDelete, tempDir);
     }
 }
