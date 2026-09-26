@@ -70,7 +70,8 @@ public class PackageReconciliationService<TEventHandler>(
         try
         {
             Apply(
-                uninstallers.Concat(installers).ToImmutableArray(),
+                uninstallers,
+                installers,
                 installDir,
                 (packageName, state) =>
                 {
@@ -93,72 +94,72 @@ public class PackageReconciliationService<TEventHandler>(
     }
 
     protected virtual void Apply(
+        IReadOnlyCollection<IPackageInstaller> uninstallers,
         IReadOnlyCollection<IPackageInstaller> installers,
         string installDir,
         Action<string, PackageInstallationState?> updatePackageState,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
-        var progress = new PercentOfTotal(installers.Count);
-
-        var allInstalledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (installers.Count > 0)
-        {
-            eventHandler.UpdateStart();
-
-            foreach (var installer in installers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
-            {
-                eventHandler.UpdateCurrent(installer.PackageName);
-                var backupStrategy = backupStrategyProvider.BackupStrategy(installer.InstallTime, eventHandler);
-                var shadowedBy = new HashSet<string>();
-                var installCallbacks = new ProcessingCallbacks<RootedPath>
-                {
-                    Accept = gamePath =>
-                    {
-                        var overridingPackageName = allInstalledFiles.GetValueOrDefault(gamePath.Relative);
-                        if (overridingPackageName is null)
-                        {
-                            return true;
-                        }
-                        if (overridingPackageName != installer.PackageName)
-                        {
-                            shadowedBy.Add(overridingPackageName);
-                        }
-                        return false;
-                    },
-                    Before = gamePath => allInstalledFiles.Add(gamePath.Relative, installer.PackageName)
-                };
-                try
-                {
-                    installer.Install(InstallTo(installDir), backupStrategy, installCallbacks);
-                }
-                finally
-                {
-                    var packageInstalledFiles = installer.InstalledFiles
-                        .Where(rp => rp.Root == installDir)
-                        .Select(rp => rp.Relative)
-                        .ToImmutableList();
-                    updatePackageState(installer.PackageName,
-                        packageInstalledFiles.IsEmpty
-                            ? null
-                            : new PackageInstallationState(
-                                Time: installer.InstallTime,
-                                VersionHash: installer.PackageVersionHash,
-                                Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
-                                Dependencies: installer.PackageDependencies,
-                                ShadowedBy: shadowedBy,
-                                Files: packageInstalledFiles
-                        ));
-                }
-                eventHandler.ProgressUpdate(progress.IncrementDone());
-            }
-
-            eventHandler.UpdateEnd();
-        }
-        else
+        var allInstallers = uninstallers.Concat(installers).ToImmutableArray();
+        if (allInstallers.IsEmpty)
         {
             eventHandler.UpdateNoPackages();
+            return;
         }
+
+        eventHandler.UpdateStart();
+
+        var progress = new PercentOfTotal(allInstallers.Length);
+        var installedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var installer in allInstallers.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
+        {
+            eventHandler.UpdateCurrent(installer.PackageName);
+            var backupStrategy = backupStrategyProvider.BackupStrategy(installer.InstallTime, eventHandler);
+            var shadowedBy = new HashSet<string>();
+            var installCallbacks = new ProcessingCallbacks<RootedPath>
+            {
+                Accept = gamePath =>
+                {
+                    var overridingPackageName = installedFiles.GetValueOrDefault(gamePath.Relative);
+                    if (overridingPackageName is null)
+                    {
+                        return true;
+                    }
+                    if (overridingPackageName != installer.PackageName)
+                    {
+                        shadowedBy.Add(overridingPackageName);
+                    }
+                    return false;
+                },
+                Before = gamePath => installedFiles.Add(gamePath.Relative, installer.PackageName)
+            };
+            try
+            {
+                installer.Install(InstallTo(installDir), backupStrategy, installCallbacks);
+            }
+            finally
+            {
+                var packageInstalledFiles = installer.InstalledFiles
+                    .Where(rp => rp.Root == installDir)
+                    .Select(rp => rp.Relative)
+                    .ToImmutableList();
+                updatePackageState(installer.PackageName,
+                    packageInstalledFiles.IsEmpty
+                        ? null
+                        : new PackageInstallationState(
+                            Time: installer.InstallTime,
+                            VersionHash: installer.PackageVersionHash,
+                            Partial: installer.Installed == IInstallation.State.PartiallyInstalled,
+                            Dependencies: installer.PackageDependencies,
+                            ShadowedBy: shadowedBy,
+                            Files: packageInstalledFiles
+                    ));
+            }
+            eventHandler.ProgressUpdate(progress.IncrementDone());
+        }
+
+        eventHandler.UpdateEnd();
     }
 
     private static IInstaller.Destination InstallTo(string destDir) =>
