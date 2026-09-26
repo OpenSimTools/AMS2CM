@@ -12,7 +12,7 @@ using Microsoft.Extensions.Time.Testing;
 namespace Core.Tests.Packages.Installation;
 
 [IntegrationTest]
-public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>
+public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>
 {
     #region Setup
 
@@ -21,9 +21,9 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
     // Randomness ensures that at least some test runs will fail if it's used
     private static readonly DateTimeOffset ValueNotUsed = Random.Shared.Next() > 0 ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
 
-    protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<DateTimeOffset, PackagesUpdater.IEventHandler> backupStrategyProvider) =>
-        new PackagesUpdater<PackagesUpdater.IEventHandler>(backupStrategyProvider);
+    protected override IReconciliationService<PackageReconciliationService.IEventHandler> NewService(
+        IBackupStrategyProvider<DateTimeOffset, PackageReconciliationService.IEventHandler> backupStrategyProvider) =>
+        new PackageReconciliationService<PackageReconciliationService.IEventHandler>(backupStrategyProvider);
 
     #endregion
 
@@ -452,7 +452,7 @@ public class PackagesUpdaterTest : PackagesUpdaterTestBase<PackagesUpdater.IEven
             name, versionHash, files.ToDictionary(f => f, _ => ""), dependencies);
 }
 
-public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler : class
+public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventHandler : class
 {
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
     protected readonly Mock<TEventHandler> EventHandlerMock = new();
@@ -464,7 +464,7 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
     protected IReadOnlyDictionary<string, PackageInstallationState>? InstallationState;
     private readonly string destinationDir = Path.GetRandomFileName();
 
-    protected PackagesUpdaterTestBase()
+    protected ReconciliationServiceTestBase()
     {
         TestInstallationTimeUtc = DateTimeOffset.Now.AddDays(10).ToUniversalTime();
         var fakeLocalTimeOffset = TimeSpan.FromHours(3);
@@ -473,7 +473,7 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
 
     protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
 
-    protected abstract IPackagesUpdater<TEventHandler> NewPackagesUpdater(
+    protected abstract IReconciliationService<TEventHandler> NewService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
 
     protected void Apply(IPackageInstaller[] installers)
@@ -488,9 +488,9 @@ public abstract class PackagesUpdaterTestBase<TEventHandler> where TEventHandler
         var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<DateTimeOffset, TEventHandler>>();
         backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<DateTimeOffset>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
-        var packagesUpdater = NewPackagesUpdater(
+        var service = NewService(
             backupStrategyProviderMock.Object);
-        packagesUpdater.Apply(
+        service.Reconcile(
             InstallationState ?? ReadOnlyDictionary<string, PackageInstallationState>.Empty,
             packages,
             destinationDir,

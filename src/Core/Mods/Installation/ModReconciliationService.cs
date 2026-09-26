@@ -7,15 +7,15 @@ using Core.Utils;
 
 namespace Core.Mods.Installation;
 
-public class ModPackagesUpdater<TEventHandler> : PackagesUpdater<TEventHandler>
-    where TEventHandler : PackagesUpdater.IEventHandler
+public class ModReconciliationService<TEventHandler> : PackageReconciliationService<TEventHandler>
+    where TEventHandler : PackageReconciliationService.IEventHandler
 {
     private readonly IBootfilesNaming bootfilesNaming;
     private readonly IModInstallerFactory<TEventHandler> modInstallerFactory;
 
-    public ModPackagesUpdater(
+    public ModReconciliationService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
-        TimeProvider timeProvider,
+        TimeProvider _,
         IBootfilesNaming bootfilesNaming,
         IModInstallerFactory<TEventHandler> modInstallerFactory) :
         base(backupStrategyProvider)

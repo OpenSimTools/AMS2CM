@@ -5,12 +5,12 @@ using Core.Utils;
 
 namespace Core.Packages.Installation;
 
-public class PackagesUpdater<TEventHandler>(
+public class PackageReconciliationService<TEventHandler>(
     IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider)
-    : IPackagesUpdater<TEventHandler>
-    where TEventHandler : PackagesUpdater.IEventHandler
+    : IReconciliationService<TEventHandler>
+    where TEventHandler : PackageReconciliationService.IEventHandler
 {
-    public void Apply(
+    public void Reconcile(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
         IReadOnlyCollection<IPackage> packages,
         string installDir,
@@ -165,7 +165,7 @@ public class PackagesUpdater<TEventHandler>(
         relativePath => new RootedPath(destDir, relativePath);
 }
 
-public static class PackagesUpdater
+public static class PackageReconciliationService
 {
     public interface IEventHandler : IProgress, IBackupEventHandler
     {

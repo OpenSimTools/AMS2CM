@@ -13,9 +13,9 @@ using FluentAssertions;
 namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
-public class ModPackagesUpdaterTest :
-    PackagesUpdaterTestBase<PackagesUpdater.IEventHandler>,
-    IModInstallerFactory<PackagesUpdater.IEventHandler>
+public class ModReconciliationServiceTest :
+    ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>,
+    IModInstallerFactory<PackageReconciliationService.IEventHandler>
 {
     #region Setup
 
@@ -36,19 +36,19 @@ public class ModPackagesUpdaterTest :
         public IEnumerable<string> RelativeDirectoryPaths => inner.RelativeDirectoryPaths;
     }
 
-    protected override IPackagesUpdater<PackagesUpdater.IEventHandler> NewPackagesUpdater(
-        IBackupStrategyProvider<DateTimeOffset, PackagesUpdater.IEventHandler> backupStrategyProvider)
+    protected override IReconciliationService<PackageReconciliationService.IEventHandler> NewService(
+        IBackupStrategyProvider<DateTimeOffset, PackageReconciliationService.IEventHandler> backupStrategyProvider)
     {
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();
         bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
-        return new ModPackagesUpdater<PackagesUpdater.IEventHandler>(
+        return new ModReconciliationService<PackageReconciliationService.IEventHandler>(
             backupStrategyProvider, TestTimeProvider, bootfilesNamingMock.Object, this);
     }
 
     public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
         new WrappedInstaller(packageInstaller);
 
-    public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, PackagesUpdater.IEventHandler eventHandler) =>
+    public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, PackageReconciliationService.IEventHandler eventHandler) =>
         bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
 
     #endregion
