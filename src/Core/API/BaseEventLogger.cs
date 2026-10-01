@@ -17,9 +17,9 @@ public abstract class BaseEventLogger : IEventHandler
     public void UpdateStart()
     {
     }
-
-    public void UpdateCurrent(string packageName) =>
-        LogMessage($"- {packageName}");
+    public void InstallingPackage(string packageName) => LogMessage($"- Installing {packageName}");
+    public void SkippingPackage(string packageName) => LogMessage($"- {packageName} up to date");
+    public void UninstallingPackage(string packageName) => LogMessage($"- Uninstalling {packageName}");
     public void UpdateEnd()
     {
     }

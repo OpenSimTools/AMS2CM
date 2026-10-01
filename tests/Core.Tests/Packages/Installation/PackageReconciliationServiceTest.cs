@@ -89,7 +89,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         BackupStrategyMock.VerifyNoOtherCalls();
 
         EventHandlerMock.Verify(m => m.UpdateStart());
-        EventHandlerMock.Verify(m => m.UpdateCurrent("A"));
+        EventHandlerMock.Verify(m => m.InstallingPackage("A"));
         EventHandlerMock.Verify(m => m.UpdateEnd());
         EventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
         EventHandlerMock.VerifyNoOtherCalls();
@@ -117,7 +117,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         BackupStrategyMock.VerifyNoOtherCalls();
 
         EventHandlerMock.Verify(m => m.UpdateStart());
-        EventHandlerMock.Verify(m => m.UpdateCurrent("A"));
+        EventHandlerMock.Verify(m => m.UninstallingPackage("A"));
         EventHandlerMock.Verify(m => m.UpdateEnd());
         EventHandlerMock.Verify(m => m.ProgressUpdate(It.IsAny<IPercent>()));
         EventHandlerMock.VerifyNoOtherCalls();
@@ -426,6 +426,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
                 "UF"
             ], ShadowedBy: [])
         });
+
+        EventHandlerMock.Verify(m => m.SkippingPackage("Untouched"));
     }
 
     [Fact]

@@ -42,7 +42,7 @@ public class ModReconciliationServiceTest :
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();
         bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
         return new ModReconciliationService<PackageReconciliationService.IEventHandler>(
-            backupStrategyProvider, TestTimeProvider, bootfilesNamingMock.Object, this);
+            backupStrategyProvider, bootfilesNamingMock.Object, this);
     }
 
     public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
@@ -58,7 +58,7 @@ public class ModReconciliationServiceTest :
     {
         var packages = new List<string>();
         var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.UpdateCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
+        EventHandlerMock.Setup(m => m.InstallingPackage(It.IsAny<string>())).Callback<string>(packages.Add);
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
@@ -80,7 +80,7 @@ public class ModReconciliationServiceTest :
     {
         var packages = new List<string>();
         var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.UpdateCurrent(It.IsAny<string>())).Callback<string>(packages.Add);
+        EventHandlerMock.Setup(m => m.InstallingPackage(It.IsAny<string>())).Callback<string>(packages.Add);
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
