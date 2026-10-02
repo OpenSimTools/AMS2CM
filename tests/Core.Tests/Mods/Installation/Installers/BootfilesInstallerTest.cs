@@ -102,7 +102,9 @@ public class BootfilesInstallerTest
             Path.Combine(BootfilesVehicleListDir, VehicleListFileName)
         );
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
+        var bootfiles = InstallBootfiles();
+        bootfiles.InstalledFiles.Should().BeEquivalentTo(expected);
+        bootfiles.PackageVersionHash.Should().BeNull();
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
@@ -177,7 +179,7 @@ public class BootfilesInstallerTest
 
     private BootfilesInstaller InstallBootfiles()
     {
-        var emptyPackage = new StaticFilesInstaller(fs, fakeTimeProvider, BootfilesPackageName, null,
+        var emptyPackage = new StaticFilesInstaller(fs, fakeTimeProvider, BootfilesPackageName, 42,
             new Dictionary<string, string>
             {
                 [FileInBootfilesPackage] = ""

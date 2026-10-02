@@ -52,7 +52,7 @@ public abstract class BaseModInstaller : IPackageInstaller
     }
 
     public string PackageName => Inner.PackageName;
-    public int? PackageVersionHash => Inner.PackageVersionHash;
+    public virtual int? PackageVersionHash => Inner.PackageVersionHash;
 
     public abstract IReadOnlySet<string> PackageDependencies { get; }
 

@@ -731,7 +731,7 @@ public class ModManagerTest : AbstractFilesystemTest
     }
 
     [Fact]
-    public void Install_OldTrackModsAlwaysRequireBootfiles()
+    public void Install_TrackModsAlwaysRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
             CreateModArchive(101, [
@@ -754,6 +754,29 @@ public class ModManagerTest : AbstractFilesystemTest
             .Full).Should().BeFalse();
 
         File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Contain("Track.trd");
+    }
+
+    [Fact]
+    public void Install_RemovesBootfilesWhenNotNeeded()
+    {
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModArchive(101, [
+                Path.Combine(DirAtRoot, "Track.trd")
+            ]),
+            CreateCustomBootfiles(900),
+        ]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        persistedState.Should().HaveInstalled(["Package101", $"{BootfilesPrefix}900"]);
+
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateCustomBootfiles(900)
+        ]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        persistedState.Should().BeEmpty();
     }
 
     [Fact]
@@ -808,6 +831,8 @@ public class ModManagerTest : AbstractFilesystemTest
                     $"{Environment.NewLine}END")
         );
 
+    private string PackageName(string packagePrefix, int versionHash) => $"{packagePrefix}{versionHash}";
+
     private IPackage CreateModPackage(string packagePrefix, int versionHash, IEnumerable<string> relativePaths,
         Action<string> callback)
     {
@@ -820,7 +845,7 @@ public class ModManagerTest : AbstractFilesystemTest
 
         callback(modContentsDir);
 
-        var packageName = $"{packagePrefix}{versionHash}";
+        var packageName = PackageName(packagePrefix, versionHash);
 
         var package = new Mock<IPackage>();
         package.SetupGet(m => m.Name).Returns(packageName);
