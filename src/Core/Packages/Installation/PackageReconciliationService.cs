@@ -75,6 +75,8 @@ public class PackageReconciliationService<TEventHandler>(
             if (state is not null && (
                     state.Partial ||
                     installer is null ||
+                    state.VersionHash is null ||
+                    installer.PackageVersionHash is null ||
                     state.VersionHash != installer.PackageVersionHash ||
                     state.ShadowedBy.Intersect(toUninstall).Any() ||
                     (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains))))

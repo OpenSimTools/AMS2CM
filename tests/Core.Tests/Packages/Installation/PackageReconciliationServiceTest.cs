@@ -123,12 +123,16 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         EventHandlerMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    public void Apply_UpdatesChangedPackages()
+    [Theory]
+    [InlineData(1, 2)]
+    [InlineData(null, 2)]
+    [InlineData(1, null)]
+    [InlineData(null, null)]
+    public void Apply_UpdatesChangedPackages(int? previousVersionHash, int? currentVersionHash)
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [], Files:
+            ["A"] = new(Time: ValueNotUsed, VersionHash: previousVersionHash, Partial: false, Dependencies: [], Files:
             [
                 "AF",
                 "AF1",
@@ -136,7 +140,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         };
 
         Apply([
-            InstallerOf("A", versionHash: 2, [
+            InstallerOf("A", versionHash: currentVersionHash, [
                 "AF",
                 "AF2"
             ])
@@ -144,7 +148,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: currentVersionHash, Partial: false, Dependencies: [], Files: [
                 "AF",
                 "AF2"
             ], ShadowedBy: [])
@@ -152,6 +156,9 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         BackupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
         BackupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF2")));
+        EventHandlerMock.Verify(m => m.UninstallingPackage("A"), Times.Once);
+        EventHandlerMock.Verify(m => m.InstallingPackage("A"), Times.Once);
+        EventHandlerMock.Verify(m => m.SkippingPackage("A"), Times.Never);
     }
 
     [Fact]
