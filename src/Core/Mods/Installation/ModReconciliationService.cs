@@ -14,9 +14,9 @@ public class ModReconciliationService<TEventHandler>(
     : PackageReconciliationService<TEventHandler>(backupStrategyProvider)
     where TEventHandler : PackageReconciliationService.IEventHandler
 {
-    protected override IEnumerable<IPackageInstaller> PreprocessInstallers(
-        IEnumerable<IPackageInstaller> installers,
-        TEventHandler eventHandler)
+    protected override IReadOnlyCollection<IReconciliationAction> ReconciliationActions(
+        IReadOnlyDictionary<string, PackageInstallationState> previousState,
+        IEnumerable<IPackageInstaller> installers, string installDir, TEventHandler eventHandler)
     {
         var (bootfiles, notBootfiles) = installers.ToImmutableArray()
             .Partition(p => bootfilesNaming.IsBootfiles(p.PackageName));
@@ -26,7 +26,15 @@ public class ModReconciliationService<TEventHandler>(
             .Select(i => modInstallerFactory.ModInstaller(i, bootfilesInstaller))
             .Append(bootfilesInstaller).ToImmutableArray();
 
-        return modInstallers;
+        var stateWithBootfilesDepsReplaced = previousState
+            .SelectValues(s => s with
+            {
+                Dependencies = s.Dependencies
+                    .Select(d => bootfilesNaming.IsBootfiles(d) ? bootfilesInstaller.PackageName : d)
+                    .ToArray()
+            });
+
+        return base.ReconciliationActions(stateWithBootfilesDepsReplaced, modInstallers, installDir, eventHandler);
     }
 
     private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)

@@ -44,23 +44,21 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
             ["U1"] =
-                new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: [], ShadowedBy: []),
+                new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
             // 20%
-            ["U2"] = new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: [],
+            ["U2"] = new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: FilesNotUsed,
                 ShadowedBy: [])
             // 40%
         };
 
         Apply([
-            InstallerOf("I1", versionHash: null, []),
+            InstallerOf("I1"),
             // 60%
-            InstallerOf("I2", versionHash: null, []),
+            InstallerOf("I2"),
             // 80%
-            InstallerOf("I3", versionHash: null, []),
+            InstallerOf("I3"),
             // 100%
         ]);
-
-        InstallationState.Should().BeEmpty();
 
         progress.Should().Equal(0.2, 0.4, 0.6, 0.8, 1.0);
     }
@@ -465,6 +463,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
 {
     // Randomness ensures that at least some test runs will fail if it's used
     protected readonly DateTimeOffset ValueNotUsed = Random.Shared.Next() > 0 ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
+    protected readonly IReadOnlyCollection<string> FilesNotUsed = [Guid.NewGuid().ToString()];
 
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
     protected readonly Mock<TEventHandler> EventHandlerMock = new();

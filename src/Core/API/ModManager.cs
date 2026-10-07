@@ -135,7 +135,7 @@ internal class ModManager : IModManager
 
         // Clean what left by a previous failed installation
         tempDir.Cleanup();
-        var modsInPriorityOrder = packageRepository.ListEnabled().Reverse().ToArray();
+        var modsInPriorityOrder = packageRepository.ListEnabled().Reverse();
         UpdateMods(modsInPriorityOrder, eventHandler, cancellationToken);
         tempDir.Cleanup();
     }
@@ -154,7 +154,7 @@ internal class ModManager : IModManager
         }
     }
 
-    private void UpdateMods(IReadOnlyCollection<IPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
+    private void UpdateMods(IEnumerable<IPackage> packages, IEventHandler eventHandler, CancellationToken cancellationToken)
     {
         reconciliationService.Reconcile(
             statePersistence.ReadState().Installation,

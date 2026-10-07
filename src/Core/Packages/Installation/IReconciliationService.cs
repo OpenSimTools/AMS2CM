@@ -4,7 +4,7 @@ public interface IReconciliationService<in TEventHandler>
 {
     void Reconcile(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IReadOnlyCollection<IPackage> packages,
+        IEnumerable<IPackage> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,

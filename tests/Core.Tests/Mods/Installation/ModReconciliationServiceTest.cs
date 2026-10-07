@@ -114,4 +114,32 @@ public class ModReconciliationServiceTest :
         packages.Should().Equal(GeneratedBootfilesName);
         progress.Should().Equal(1.0);
     }
+
+    [Fact]
+    public void Apply_AlignsBootfilesDepsWithCurrent()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            [ModRequiringBootfiles] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [BootfilesPackageName], Files: FilesNotUsed, ShadowedBy: []),
+            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 2, Partial: false,
+                Dependencies: [BootfilesPackageName], Files: ["F2"], ShadowedBy: []),
+            [BootfilesPackageName] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: FilesNotUsed, ShadowedBy: [])
+        };
+
+        Apply([
+            InstallerOf(ModRequiringBootfiles, versionHash: 3, files: ["F3"]),
+            InstallerOf("Untouched", versionHash: 2, files: FilesNotUsed)
+        ]);
+
+        EventHandlerMock.Verify(m => m.UninstallingPackage(ModRequiringBootfiles));
+        EventHandlerMock.Verify(m => m.InstallingPackage(ModRequiringBootfiles));
+        EventHandlerMock.Verify(m => m.SkippingPackage("Untouched"));
+        EventHandlerMock.Verify(m => m.InstallingPackage(GeneratedBootfilesName));
+
+        InstallationState.Keys.Should().BeEquivalentTo(ModRequiringBootfiles, "Untouched", GeneratedBootfilesName);
+        InstallationState[ModRequiringBootfiles].Dependencies.Should().BeEquivalentTo([GeneratedBootfilesName]);
+        InstallationState["Untouched"].Dependencies.Should().BeEquivalentTo([GeneratedBootfilesName]);
+    }
 }

@@ -12,17 +12,18 @@ public class PackageReconciliationService<TEventHandler>(
 {
     public void Reconcile(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IReadOnlyCollection<IPackage> packages,
+        IEnumerable<IPackage> packages,
         string installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {
         var currentState = new Dictionary<string, PackageInstallationState>(previousState);
+        var installers = packages.Select(p => p.Installer).ToArray();
         try
         {
             Execute(
-                ReconciliationActions(previousState, packages, installDir, eventHandler),
+                ReconciliationActions(previousState, installers, installDir, eventHandler),
                 (packageName, state) =>
                 {
                     if (state is null)
@@ -43,14 +44,13 @@ public class PackageReconciliationService<TEventHandler>(
         }
     }
 
-    private List<IReconciliationAction> ReconciliationActions(IReadOnlyDictionary<string, PackageInstallationState> previousState, IReadOnlyCollection<IPackage> packages, string installDir,
+    protected virtual IReadOnlyCollection<IReconciliationAction> ReconciliationActions(IReadOnlyDictionary<string, PackageInstallationState> previousState, IEnumerable<IPackageInstaller> installers, string installDir,
         TEventHandler eventHandler)
     {
+        var installersCollection = installers.ToArray();
         var joinedState = new OrderedDictionary<string, (PackageInstallationState?, IPackageInstaller?)>();
-        var installers = PreprocessInstallers(packages.Select(p => p.Installer), eventHandler)
-            .ToArray();
 
-        var available = installers.Select(p => p.PackageName).ToImmutableHashSet();
+        var available = installersCollection.Select(p => p.PackageName).ToImmutableHashSet();
         foreach (var (packageName, state) in previousState)
         {
             if (!available.Contains(packageName))
@@ -59,7 +59,7 @@ public class PackageReconciliationService<TEventHandler>(
             }
         }
 
-        foreach (var i in installers)
+        foreach (var i in installersCollection)
         {
             joinedState.Add(i.PackageName, (previousState.GetValueOrDefault(i.PackageName), i));
         }
