@@ -6,6 +6,7 @@ using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Core.Tests.Mods.Installation.Installers;
 
@@ -27,6 +28,7 @@ public class BootfilesInstallerTest
     #region Setup
 
     private readonly MockFileSystem fs = new();
+    private readonly FakeTimeProvider fakeTimeProvider = new();
     private readonly Mock<BootfilesInstaller.IConfig> configMock = new();
     private readonly Mock<IBootfilesNaming> bootfilesNamingMock = new();
     private readonly Mock<BootfilesInstaller.IEventHandler> eventHandlerMock = new();
@@ -100,7 +102,9 @@ public class BootfilesInstallerTest
             Path.Combine(BootfilesVehicleListDir, VehicleListFileName)
         );
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
+        var bootfiles = InstallBootfiles();
+        bootfiles.InstalledFiles.Should().BeEquivalentTo(expected);
+        bootfiles.PackageVersionHash.Should().BeNull();
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
@@ -171,11 +175,11 @@ public class BootfilesInstallerTest
     }
 
 
-    #region Utility
+    #region Utility Methods
 
     private BootfilesInstaller InstallBootfiles()
     {
-        var emptyPackage = new StaticFilesInstaller(fs, BootfilesPackageName, null,
+        var emptyPackage = new StaticFilesInstaller(fs, fakeTimeProvider, BootfilesPackageName, 42,
             new Dictionary<string, string>
             {
                 [FileInBootfilesPackage] = ""

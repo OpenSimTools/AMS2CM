@@ -10,7 +10,7 @@ internal class ModVM : INotifyPropertyChanged
     private readonly IModManager modManager;
     private bool isEnabled;
     private readonly bool isOutOfDate;
-    private string? packagePath;
+    private string? packageLocation;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -19,7 +19,7 @@ internal class ModVM : INotifyPropertyChanged
         this.modState = modState;
         this.modManager = modManager;
         isEnabled = modState.IsEnabled;
-        packagePath = modState.PackagePath;
+        packageLocation = modState.PackageLocation;
         isOutOfDate = modState.IsOutOfDate;
     }
 
@@ -30,7 +30,7 @@ internal class ModVM : INotifyPropertyChanged
 
     public string PackageName => modState.PackageName;
 
-    public string? PackagePath => packagePath;
+    public string? PackageLocation => packageLocation;
 
     public bool? IsInstalled => modState.IsInstalled;
 
@@ -44,24 +44,24 @@ internal class ModVM : INotifyPropertyChanged
 
     public bool IsAvailable
     {
-        get => PackagePath is not null;
+        get => PackageLocation is not null;
         set { }
     }
 
     private void EnableOrDisable(bool shouldEnable)
     {
-        if (packagePath is null || shouldEnable == isEnabled)
+        if (packageLocation is null || shouldEnable == isEnabled)
         {
             return;
         }
 
         if (shouldEnable)
         {
-            packagePath = modManager.EnableMod(packagePath);
+            packageLocation = modManager.EnableMod(packageLocation);
         }
         else
         {
-            packagePath = modManager.DisableMod(packagePath);
+            packageLocation = modManager.DisableMod(packageLocation);
         }
         isEnabled = shouldEnable;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEnabled)));

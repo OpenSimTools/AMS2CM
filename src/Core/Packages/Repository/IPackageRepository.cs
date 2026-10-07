@@ -1,19 +1,10 @@
-﻿
-namespace Core.Packages.Repository;
+﻿namespace Core.Packages.Repository;
 
 public interface IPackageRepository
 {
-    Package Upload(string sourceFilePath);
+    void Upload(string sourceFilePath);
     string Enable(string packagePath);
     string Disable(string packagePath);
-    IReadOnlyCollection<Package> ListEnabled();
-    IReadOnlyCollection<Package> ListDisabled();
+    IReadOnlyCollection<IPackage> ListEnabled();
+    IReadOnlyCollection<IPackage> ListDisabled();
 }
-
-public record Package
-(
-    string Name,
-    string FullPath,
-    bool Enabled,
-    int? FsHash
-);

@@ -4,8 +4,8 @@ namespace Core.Packages.Installation.Installers;
 
 internal class DirectoryInstaller : BaseDirectoryInstaller
 {
-    public DirectoryInstaller(string packageName, int? packageFsHash, string sourcePath) :
-        base(packageName, packageFsHash)
+    public DirectoryInstaller(string packageName, int? packageVersionHash, string sourcePath) :
+        base(packageName, packageVersionHash)
     {
         Source = new DirectoryInfo(sourcePath);
     }

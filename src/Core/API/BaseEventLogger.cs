@@ -11,13 +11,16 @@ public abstract class BaseEventLogger : IEventHandler
     public abstract void ProgressUpdate(IPercent? progress);
     protected abstract void LogMessage(string message);
 
-    public void InstallNoPackages() =>
-        LogMessage($"No mod archives to install");
-    public void InstallStart() =>
-        LogMessage("Installing mods:");
-    public void InstallCurrent(string packageName) =>
-        LogMessage($"- {packageName}");
-    public void InstallEnd()
+    public void ReconciliationNoPackages() =>
+        LogMessage($"Nothing to do");
+
+    public void ReconciliationStart()
+    {
+    }
+    public void InstallingPackage(string packageName) => LogMessage($"- Installing {packageName}");
+    public void SkippingPackage(string packageName) => LogMessage($"- {packageName} up to date");
+    public void UninstallingPackage(string packageName) => LogMessage($"- Uninstalling {packageName}");
+    public void ReconciliationEnd()
     {
     }
 
@@ -34,16 +37,6 @@ public abstract class BaseEventLogger : IEventHandler
     public void PostProcessingDrivelines() =>
         LogMessage("- Appending driveline records");
     public void PostProcessingEnd()
-    {
-    }
-
-    public void UninstallNoPackages() =>
-        LogMessage("No previously installed mods found. Skipping uninstall phase.");
-    public void UninstallStart() =>
-        LogMessage($"Uninstalling mods:");
-    public void UninstallCurrent(string packageName) =>
-        LogMessage($"- {packageName}");
-    public void UninstallEnd()
     {
     }
 

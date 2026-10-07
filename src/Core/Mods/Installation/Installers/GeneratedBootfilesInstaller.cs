@@ -1,5 +1,4 @@
-﻿using Core.Games;
-using Core.Packages.Installation.Installers;
+﻿using Core.Packages.Installation.Installers;
 using Core.Utils;
 using PCarsTools;
 using PCarsTools.Encryption;
@@ -27,10 +26,10 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     protected override DirectoryInfo Source { get; }
 
-    protected override void InstalAllFiles(InstallBody body)
+    protected override void InstallAllFiles(InstallBody body)
     {
         GenerateBootfiles();
-        base.InstalAllFiles(body);
+        base.InstallAllFiles(body);
     }
 
     protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)

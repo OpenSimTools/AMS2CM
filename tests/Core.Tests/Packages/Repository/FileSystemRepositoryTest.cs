@@ -1,14 +1,13 @@
 using Core.Packages.Repository;
 using Core.Tests.Base;
 using FluentAssertions;
+using static Core.Packages.Repository.FileSystemRepository;
 
 namespace Core.Tests.Packages.Repository;
 
 [IntegrationTest]
 public class FileSystemRepositoryTest : AbstractFilesystemTest
 {
-    private const int NotChecked = 42;
-
     private readonly FileSystemRepository fileSystemRepository;
 
     public FileSystemRepositoryTest() : base()
@@ -26,16 +25,16 @@ public class FileSystemRepositoryTest : AbstractFilesystemTest
             @"Disabled\File4.Ext"
         );
 
-        fileSystemRepository.ListEnabled().Select(_ => _ with { FsHash = NotChecked })
-            .Should().BeEquivalentTo(new Package[] {
-                new("File1.Ext", Path.Combine(TestDir.FullName, @"Enabled\File1.Ext"), true, NotChecked),
-                new("File2.Ext", Path.Combine(TestDir.FullName, @"Enabled\File2.Ext"), true, NotChecked)
+        fileSystemRepository.ListEnabled().Select(p => (p.Name, p.Location))
+            .Should().BeEquivalentTo(new[] {
+                ("File1.Ext", Path.Combine(TestDir.FullName, @"Enabled\File1.Ext")),
+                ("File2.Ext", Path.Combine(TestDir.FullName, @"Enabled\File2.Ext"))
             });
 
-        fileSystemRepository.ListDisabled().Select(_ => _ with { FsHash = NotChecked })
-            .Should().BeEquivalentTo(new Package[] {
-                new("File3.Ext", Path.Combine(TestDir.FullName, @"Disabled\File3.Ext"), false, NotChecked),
-                new("File4.Ext", Path.Combine(TestDir.FullName, @"Disabled\File4.Ext"), false, NotChecked)
+        fileSystemRepository.ListDisabled().Cast<Package>().Select(p => (p.Name, p.Location))
+            .Should().BeEquivalentTo(new[] {
+                ("File3.Ext", Path.Combine(TestDir.FullName, @"Disabled\File3.Ext")),
+                ("File4.Ext", Path.Combine(TestDir.FullName, @"Disabled\File4.Ext"))
             });
     }
 
@@ -49,15 +48,15 @@ public class FileSystemRepositoryTest : AbstractFilesystemTest
             @"Disabled\Dir4\SubDir\Content"
         );
 
-        fileSystemRepository.ListEnabled()
-            .Should().BeEquivalentTo(new Package[] {
-                new(@"Dir1\", Path.Combine(TestDir.FullName, @"Enabled\Dir1"), true, null),
-                new(@"Dir2\", Path.Combine(TestDir.FullName, @"Enabled\Dir2"), true, null)
+        fileSystemRepository.ListEnabled().Select(p => (p.Name, p.Location))
+            .Should().BeEquivalentTo(new [] {
+                (@"Dir1\", Path.Combine(TestDir.FullName, @"Enabled\Dir1")),
+                (@"Dir2\", Path.Combine(TestDir.FullName, @"Enabled\Dir2"))
             });
-        fileSystemRepository.ListDisabled()
-            .Should().BeEquivalentTo(new Package[] {
-                new(@"Dir3\", Path.Combine(TestDir.FullName, @"Disabled\Dir3"), false, null),
-                new(@"Dir4\", Path.Combine(TestDir.FullName, @"Disabled\Dir4"), false, null)
+        fileSystemRepository.ListDisabled().Select(p => (p.Name, p.Location))
+            .Should().BeEquivalentTo(new [] {
+                (@"Dir3\", Path.Combine(TestDir.FullName, @"Disabled\Dir3")),
+                (@"Dir4\", Path.Combine(TestDir.FullName, @"Disabled\Dir4"))
             });
     }
 

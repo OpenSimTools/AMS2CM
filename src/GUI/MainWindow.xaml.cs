@@ -89,7 +89,7 @@ public sealed partial class MainWindow : WindowEx
     private async void ModListView_DragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
     {
         var storageItems = new List<StorageFile>();
-        var filePaths = e.Items.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
+        var filePaths = e.Items.OfType<ModVM>().SelectNotNull(_ => _.PackageLocation);
         foreach (var filePath in filePaths)
         {
             if (Directory.Exists(filePath))
@@ -147,7 +147,7 @@ public sealed partial class MainWindow : WindowEx
 
     private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
     {
-        var filePaths = ModListView.SelectedItems.OfType<ModVM>().SelectNotNull(_ => _.PackagePath);
+        var filePaths = ModListView.SelectedItems.OfType<ModVM>().SelectNotNull(_ => _.PackageLocation);
         DeleteMods(filePaths);
     }
 
