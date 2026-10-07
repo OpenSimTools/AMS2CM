@@ -114,11 +114,11 @@ public class PackageReconciliationService<TEventHandler>(
     {
         if (reconciliationActions.Count == 0)
         {
-            eventHandler.UpdateNoPackages();
+            eventHandler.ReconciliationNoPackages();
             return;
         }
 
-        eventHandler.UpdateStart();
+        eventHandler.ReconciliationStart();
 
         var progress = new PercentOfTotal(reconciliationActions.Count);
         var installedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -164,7 +164,7 @@ public class PackageReconciliationService<TEventHandler>(
             eventHandler.ProgressUpdate(progress.IncrementDone());
         }
 
-        eventHandler.UpdateEnd();
+        eventHandler.ReconciliationEnd();
     }
 }
 
@@ -172,12 +172,12 @@ public static class PackageReconciliationService
 {
     public interface IEventHandler : IProgress, IBackupEventHandler
     {
-        void UpdateNoPackages();
-        void UpdateStart();
+        void ReconciliationNoPackages();
+        void ReconciliationStart();
         void InstallingPackage(string packageName);
         void SkippingPackage(string packageName);
         void UninstallingPackage(string packageName);
-        void UpdateEnd();
+        void ReconciliationEnd();
     }
 
     public interface IProgress
