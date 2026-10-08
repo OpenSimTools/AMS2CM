@@ -14,7 +14,6 @@ record JsonInstallationStateV2(
 
 record JsonPackageInstallationStateV2(
     DateTime Time,
-    [JsonProperty("FsHash")]
     int? VersionHash,
     bool Partial,
     IReadOnlyCollection<string> Dependencies,
