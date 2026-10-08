@@ -100,7 +100,7 @@ public class ModInstaller : BaseModInstaller
             .ToList();
 
     private IEnumerable<string> FileEntriesToConfigure() =>
-        Inner.InstalledFiles
+        InstalledFiles
             .Select(rp => rp.Relative)
             .Where(p => filesToConfigureMatcher.Match(p).HasMatches);
 
