@@ -43,8 +43,7 @@ internal class JsonFileStatePersistence : IStatePersistence
     {
         if (fs.File.Exists(stateV2FilePath))
         {
-            var contents = fs.File.ReadAllText(stateV2FilePath);
-            var jsonState = JsonConvert.DeserializeObject<JsonSavedStateV2>(contents, JsonSerializerSettings);
+            var jsonState = ReadState<JsonSavedStateV2>(stateV2FilePath);
             if (jsonState is null)
             {
                 return SavedState.Empty();
@@ -64,8 +63,7 @@ internal class JsonFileStatePersistence : IStatePersistence
 
         if (fs.File.Exists(stateV1FilePath))
         {
-            var contents = fs.File.ReadAllText(stateV1FilePath);
-            var jsonState = JsonConvert.DeserializeObject<Dictionary<string, IReadOnlyCollection<string>>>(contents, JsonSerializerSettings);
+            var jsonState = ReadState<Dictionary<string, IReadOnlyCollection<string>>>(stateV1FilePath);
             if (jsonState is null)
             {
                 return SavedState.Empty();
@@ -87,6 +85,26 @@ internal class JsonFileStatePersistence : IStatePersistence
         return SavedState.Empty();
     }
 
+    private T? ReadState<T>(string stateFile)
+    {
+        string contents;
+        try {
+            contents = fs.File.ReadAllText(stateFile);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to read state file", ex);
+        }
+
+        try {
+            return JsonConvert.DeserializeObject<T>(contents, JsonSerializerSettings);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to decode state file", ex);
+        }
+    }
+
     public void WriteState(SavedState state)
     {
         var jsonState = new JsonSavedStateV2(
@@ -105,6 +123,13 @@ internal class JsonFileStatePersistence : IStatePersistence
         // Remove state v1 on write if upgrading from a previous version
         fs.File.Delete(stateV1FilePath);
 
-        fs.File.WriteAllText(stateV2FilePath, JsonConvert.SerializeObject(jsonState, JsonSerializerSettings));
+        try
+        {
+            fs.File.WriteAllText(stateV2FilePath, JsonConvert.SerializeObject(jsonState, JsonSerializerSettings));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to write state V2 file", ex);
+        }
     }
 }

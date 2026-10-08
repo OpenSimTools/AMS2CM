@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.Packages.Installation;
 using Core.State;
@@ -178,6 +179,42 @@ public class JsonFileStatePersistenceTest
         state.Installation.Keys.Should().Contain("V2");
     }
 
+    [Theory]
+    [InlineData(StateV1File)]
+    [InlineData(StateV2File)]
+    public void ReadState_ReadFailure(string stateFile)
+    {
+        var filesystemFailureMessage = "Simulated read failure";
+        var fs = new Mock<IFileSystem>();
+        fs.Setup(x => x.File.Exists(stateFile)).Returns(true);
+        fs.Setup(x => x.File.ReadAllText(stateFile))
+            .Throws(new IOException(filesystemFailureMessage));
+
+        var sp = new JsonFileStatePersistence(fs.Object, StateV2File, StateV1File);
+
+        Action read = () => sp.ReadState();
+        read.Should().Throw<Exception>()
+            .WithoutMessage(filesystemFailureMessage)
+            .WithInnerException<IOException>();
+    }
+
+    [Theory]
+    [InlineData(StateV1File)]
+    [InlineData(StateV2File)]
+    public void ReadState_DecodingFailure(string stateFile)
+    {
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
+        {
+            { stateFile, """{"not terminated""" }
+        });
+
+        var sp = new JsonFileStatePersistence(fs, StateV2File, StateV1File);
+
+        Action read = () => sp.ReadState();
+        read.Should().Throw<Exception>()
+            .WithInnerException<Newtonsoft.Json.JsonReaderException>();
+    }
+
     [Fact]
     public void WriteState_V2WritesUtc()
     {
@@ -214,6 +251,20 @@ public class JsonFileStatePersistenceTest
         sp.WriteState(SavedState.Empty());
 
         fs.AllFiles.Should().BeEquivalentTo(fs.Path.GetFullPath(StateV2File));
+    }
+
+    [Fact]
+    public void WriteState_WriteFailure()
+    {
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
+        {
+            { Path.Combine(StateV2File, "File"), "NotUsed" }
+        });
+        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), fs.Path.GetFullPath(StateV1File));
+
+        Action write = () => sp.WriteState(SavedState.Empty());
+        write.Should().Throw<Exception>()
+            .WithInnerException<UnauthorizedAccessException>();
     }
 
     [Fact]
