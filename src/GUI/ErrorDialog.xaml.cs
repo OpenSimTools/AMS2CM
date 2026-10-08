@@ -27,7 +27,6 @@ public sealed partial class ErrorDialog : ContentDialog
         $@"**Version**: {GitVersionInformation.InformationalVersion}
 **OS**: {Environment.OSVersion.VersionString}
 ```
-{exception.Message}
-{exception.StackTrace}
+{exception}
 ```";
 }
