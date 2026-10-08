@@ -168,6 +168,22 @@ public class ModInstallerTest
         fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
     }
 
+    [Fact]
+    public void TracksAndCarsAreConfiguredOnlyWhenInstalled()
+    {
+        string[] packageFiles =
+        [
+            Path.Combine("Subdir", GameDirAtRoot, "Foo"),
+            Path.Combine("Outside.trd"),
+            Path.Combine("Outside.crd"),
+        ];
+
+        var modInstaller = InstallWithModInstaller(InstallerOf("M", null, packageFiles));
+
+        string[] expectedFiles = [Path.Combine(GameDirAtRoot, "Foo")];
+
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
+    }
 
     #region Utility Methods
 
