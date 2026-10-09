@@ -1,10 +1,8 @@
-﻿using System.Globalization;
-using System.IO.Abstractions;
+﻿using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.Packages.Installation;
 using Core.State;
 using Core.State.JsonFile;
-using Core.Utils;
 using FluentAssertions;
 
 namespace Core.Tests.State.JsonFile;
@@ -36,7 +34,7 @@ public class JsonFileStatePersistenceTest
                             "Mods": {
                                 "M": {
                                     "Time": "2007-06-05T11:22:33+04",
-                                    "FsHash": 101,
+                                    "VersionHash": 101,
                                     "Dependencies": ["D"],
                                     "Files": ["F"],
                                     "ShadowedBy": ["S"],
@@ -72,6 +70,7 @@ public class JsonFileStatePersistenceTest
                     "Install": {
                         "Mods": {
                             "M": {
+                                "FsHash": 102
                             }
                         }
                     }
@@ -86,6 +85,7 @@ public class JsonFileStatePersistenceTest
 
         var mod = state.Installation["M"];
         mod.Time.Should().Be(fileWriteTime.ToUniversalTime());
+        // FsHash not recognised to force reinstall from 0.3
         mod.VersionHash.Should().BeNull();
         mod.Dependencies.Should().BeEmpty();
         mod.Files.Should().BeEmpty();
