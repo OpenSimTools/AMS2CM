@@ -457,6 +457,43 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
             ], ShadowedBy: []),
         });
     }
+
+    [Fact]
+    public void Apply_UninstallsAllPackagesBeforeInstallingOrKeepingPackages()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["Removed"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
+            ["Kept"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: FilesNotUsed, ShadowedBy: [])
+        };
+
+        // InSequence not verified in Loose mode!
+        var eventHandlerMock = new Mock<PackageReconciliationService.IEventHandler>(MockBehavior.Strict);
+        eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()));
+        var sequence = new MockSequence();
+        eventHandlerMock.InSequence(sequence).Setup(m => m.ReconciliationStart());
+        eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("Removed"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("A"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("B"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("New"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("A"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.SkippingPackage("Kept"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("B"));
+        eventHandlerMock.InSequence(sequence).Setup(m => m.ReconciliationEnd());
+
+        Apply([
+            InstallerOf("New", versionHash: 1),
+            InstallerOf("A", versionHash: 2),
+            InstallerOf("Kept", versionHash: 1),
+            InstallerOf("B", versionHash: 2)
+        ], eventHandlerMock.Object);
+    }
 }
 
 public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventHandler : class
@@ -490,7 +527,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
     protected abstract IReconciliationService<TEventHandler> NewService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
 
-    protected void Apply(IPackageInstaller[] installers)
+    protected void Apply(IPackageInstaller[] installers, TEventHandler? eventHandler = null)
     {
         var packages = installers.Select(installer =>
         {
@@ -510,7 +547,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
             packages,
             destinationDir,
             newState => InstallationState = newState,
-            EventHandlerMock.Object,
+            eventHandler ?? EventHandlerMock.Object,
             CancellationToken.None);
     }
 
