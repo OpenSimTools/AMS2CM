@@ -64,7 +64,8 @@ public class PackageReconciliationService<TEventHandler>(
             joinedState.Add(i.PackageName, (previousState.GetValueOrDefault(i.PackageName), i));
         }
 
-        var reconciliationActions = new List<IReconciliationAction>();
+        var uninstallActions = new List<IReconciliationAction>();
+        var installOrKeepActions = new List<IReconciliationAction>();
         var toUninstall = new HashSet<string>();
         var processed = new HashSet<string>();
         var raf = new ReconciliationAction<TEventHandler>.Factory(installDir, backupStrategyProvider, eventHandler);
@@ -81,7 +82,7 @@ public class PackageReconciliationService<TEventHandler>(
                     state.ShadowedBy.Intersect(toUninstall).Any() ||
                     (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains))))
             {
-                reconciliationActions.Add(raf.Uninstall(packageName, state));
+                uninstallActions.Add(raf.Uninstall(packageName, state));
                 toUninstall.Add(packageName);
             }
 
@@ -91,15 +92,15 @@ public class PackageReconciliationService<TEventHandler>(
             }
             if (state is null || toUninstall.Contains(packageName))
             {
-                reconciliationActions.Add(raf.Install(installer));
+                installOrKeepActions.Add(raf.Install(installer));
             }
             else
             {
-                reconciliationActions.Add(raf.Keep(packageName, state));
+                installOrKeepActions.Add(raf.Keep(packageName, state));
             }
         }
 
-        return reconciliationActions;
+        return [.. uninstallActions, .. installOrKeepActions];
     }
 
     protected virtual IEnumerable<IPackageInstaller> PreprocessInstallers(
