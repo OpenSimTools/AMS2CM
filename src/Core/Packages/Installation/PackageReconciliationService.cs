@@ -102,10 +102,6 @@ public class PackageReconciliationService<TEventHandler>(
         return reconciliationActions;
     }
 
-    protected virtual IEnumerable<IPackageInstaller> PreprocessInstallers(
-        IEnumerable<IPackageInstaller> installers,
-        TEventHandler _) => installers;
-
     private static void Execute(
         IReadOnlyCollection<IReconciliationAction> reconciliationActions,
         Action<string, PackageInstallationState?> updatePackageState,
