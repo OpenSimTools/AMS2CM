@@ -266,6 +266,28 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
     }
 
     [Fact]
+    public void Apply_DoesNotBackUpFilesShadowedInKeptPackages()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["Shared", "BF"], ShadowedBy: [])
+        };
+
+        Apply([
+            InstallerOf("A", versionHash: 1, files: ["Shared"]),
+            InstallerOf("B", versionHash: 1, files: ["Shared", "BF"])
+        ]);
+
+        InstallationState["A"].Files.Should().Equal("Shared");
+        InstallationState["B"].Files.Should().Equal("BF");
+        InstallationState["B"].ShadowedBy.Should().Equal("A");
+        BackupStrategyMock.Verify(m => m.PerformBackup(It.IsAny<RootedPath>()), Times.Never);
+        BackupStrategyMock.Verify(m => m.AfterInstall(DestinationPath("Shared")), Times.Once);
+        BackupStrategyMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public void Apply_InstallStopsIfBackupFails()
     {
         BackupStrategyMock.Setup(m => m.PerformBackup(DestinationPath("Fail"))).Throws<TestException>();

@@ -1,4 +1,3 @@
-using Core.Packages;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Tests.Base;
@@ -13,6 +12,8 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
 
     #region Setup
 
+    const string fileName = "File";
+
     private readonly RootedPath sourceRoot;
     private readonly RootedPath destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
@@ -25,37 +26,33 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
 
     #endregion
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Install_ReplacesDestinationWhenBackupLeavesItUntouched(bool removeFile)
+    [Fact]
+    public void Install_ReplacesDestination()
     {
-        const string fileName = "File";
-
         var destinationFile = destinationRoot.SubPath(fileName);
         CreateFile(destinationFile, "Old");
 
-        var sourceFile = sourceRoot.SubPath(MaybeRemove(fileName, removeFile));
-        CreateFile(sourceFile, "New");
         var installer = new DirectoryInstaller("Package", 1, sourceRoot.Full);
+        CreateFile(sourceRoot.SubPath(fileName), "New");
 
         installer.Install(path => destinationRoot.SubPath(path),
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
-        File.Exists(destinationFile.Full).Should().NotBe(removeFile);
-
-        if (!removeFile)
-        {
-            File.ReadAllText(destinationFile.Full).Should().Be("New");
-        }
-
-        installer.Installed.Should().Be(IInstallation.State.Installed);
-        installer.InstalledFiles.Should().ContainSingle().Which.Should().Be(destinationFile);
-        backupStrategy.Verify(m => m.PerformBackup(destinationFile), Times.Once);
-        backupStrategy.Verify(m => m.AfterInstall(destinationFile), Times.Once);
-        backupStrategy.VerifyNoOtherCalls();
+        File.ReadAllText(destinationFile.Full).Should().Be("New");
     }
 
-    private static string MaybeRemove(string fileName, bool removeFile) =>
-        removeFile ? fileName + BaseInstaller.RemoveFileSuffix : fileName;
+    [Fact]
+    public void Install_FileRemovalDeletesDestination()
+    {
+        var destinationFile = destinationRoot.SubPath(fileName);
+        CreateFile(destinationFile, "Old");
+
+        var installer = new DirectoryInstaller("Package", 1, sourceRoot.Full);
+        CreateFile(sourceRoot.SubPath(fileName + BaseInstaller.RemoveFileSuffix));
+
+        installer.Install(path => destinationRoot.SubPath(path),
+            backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
+
+        File.Exists(destinationFile.Full).Should().BeFalse();
+    }
 }

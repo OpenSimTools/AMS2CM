@@ -68,7 +68,11 @@ public class PackageReconciliationService<TEventHandler>(
         var installOrKeepActions = new List<IReconciliationAction>();
         var toUninstall = new HashSet<string>();
         var processed = new HashSet<string>();
-        var raf = new ReconciliationAction<TEventHandler>.Factory(installDir, backupStrategyProvider, eventHandler);
+        var previouslyInstalledPaths = previousState.Values
+            .SelectMany(state => state.Files).Select(path => new RootedPath(installDir, path));
+        var trackingBackupProvider = new SkipInstalledBackupStrategy.Provider<TEventHandler>(
+            backupStrategyProvider, previouslyInstalledPaths);
+        var raf = new ReconciliationAction<TEventHandler>.Factory(installDir, trackingBackupProvider, eventHandler);
         foreach (var (packageName, (state, installer)) in joinedState)
         {
             processed.Add(packageName);
@@ -118,7 +122,7 @@ public class PackageReconciliationService<TEventHandler>(
         eventHandler.ReconciliationStart();
 
         var progress = new PercentOfTotal(reconciliationActions.Count);
-        var installedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var installedFiles = new Dictionary<RootedPath, string>();
         foreach (var action in reconciliationActions.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
         {
             var shadowedBy = new HashSet<string>();
@@ -126,18 +130,18 @@ public class PackageReconciliationService<TEventHandler>(
             {
                 Accept = gamePath =>
                 {
-                    var overridingPackageName = installedFiles.GetValueOrDefault(gamePath.Relative);
-                    if (overridingPackageName is null)
+                    var shadowingPackageName = installedFiles.GetValueOrDefault(gamePath);
+                    if (shadowingPackageName is null)
                     {
                         return true;
                     }
-                    if (overridingPackageName != action.PackageName)
+                    if (shadowingPackageName != action.PackageName)
                     {
-                        shadowedBy.Add(overridingPackageName);
+                        shadowedBy.Add(shadowingPackageName);
                     }
                     return false;
                 },
-                Before = gamePath => installedFiles.Add(gamePath.Relative, action.PackageName)
+                Before = gamePath => installedFiles.Add(gamePath, action.PackageName)
             };
             try
             {

@@ -58,10 +58,7 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
                     backupStrategy.PerformBackup(destPath);
                     if (removeFile)
                     {
-                        if (FileSystem.File.Exists(destPath.Full))
-                        {
-                            FileSystem.File.Delete(destPath.Full);
-                        }
+                        FileSystem.File.Delete(destPath.Full);
                     }
                     else
                     {
