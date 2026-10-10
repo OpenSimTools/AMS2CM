@@ -686,6 +686,33 @@ public class ModManagerTest : AbstractFilesystemTest
     }
 
     [Fact]
+    public void Install_DoesNotBackUpFilesFromPreviouslyInstalledMods()
+    {
+        var sharedFile = Path.Combine(DirAtRoot, "Shared");
+        var modA = CreateModArchive(101, [sharedFile]);
+        var modB = CreateModArchive(102, [sharedFile]);
+
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [modB.Name] = new(
+                Time: PastDate, VersionHash: modB.VersionHash, Partial: false,
+                Dependencies: [],
+                Files: [sharedFile],
+                ShadowedBy: [])
+        });
+        CreateFile(GamePath(sharedFile), "PreviousB");
+
+        // A is going to shadow the previously-unshadowed B
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([modB, modA]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        File.ReadAllText(GamePath(sharedFile).Full).Should().Be("101");
+        File.Exists(GamePath(BackupName(sharedFile)).Full).Should().BeFalse(
+            "the shared file was introduced by B, so there is no original game file to back up");
+    }
+
+    [Fact]
     public void Install_GameSupportedModsNeverRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
