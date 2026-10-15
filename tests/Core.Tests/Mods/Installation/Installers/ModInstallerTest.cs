@@ -148,15 +148,15 @@ public class ModInstallerTest
     [Fact]
     public void AutomaticModConfigurationNotPossibleForTracks()
     {
-        string[] packageFiles =
-        [
+        string[] packageFiles = [
             Path.Combine(GameDirAtRoot, "File.trd")
         ];
 
         var modInstaller = InstallWithModInstaller(InstallerOf("Bee Cee", null, packageFiles));
 
+        var trackListFile = Path.Combine(GameSupportedModDirectory, "BeeCee_0", TrackListFile);
         var expectedFiles = packageFiles.Concat([
-            Path.Combine(GameSupportedModDirectory, "BeeCee_0", TrackListFile)
+            trackListFile
             // No mod xml
         ]).ToArray();
 
@@ -166,23 +166,25 @@ public class ModInstallerTest
         VerifyCallbackCalledWith(expectedFiles);
 
         fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
+
+        fs.GetFile(Path.Combine(destDir, trackListFile))
+            .TextContents.Should().Be(Path.Combine(GameDirAtRoot, "@File.trd"));
     }
 
     [Fact]
     public void TracksAndCarsAreConfiguredOnlyWhenInstalled()
     {
+        var modFile = Path.Combine(GameDirAtRoot, "Foo");
         string[] packageFiles =
         [
-            Path.Combine("Subdir", GameDirAtRoot, "Foo"),
+            Path.Combine("Subdir", modFile),
             Path.Combine("Outside.trd"),
             Path.Combine("Outside.crd"),
         ];
 
         var modInstaller = InstallWithModInstaller(InstallerOf("M", null, packageFiles));
 
-        string[] expectedFiles = [Path.Combine(GameDirAtRoot, "Foo")];
-
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath([modFile]));
     }
 
     [Fact]
@@ -201,6 +203,24 @@ public class ModInstallerTest
         ));
 
         fs.AllFiles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ConfiguredFilesExtensionsAreCaseInsensitive()
+    {
+        string[] files =
+        [
+            Path.Combine(GameDirAtRoot, "File.CRD"),
+            Path.Combine(GameDirAtRoot, "File.TRD")
+        ];
+
+        InstallWithModInstaller(InstallerOf("A", 1, files));
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath([
+            .. files,
+            Path.Combine(GameSupportedModDirectory, "A_1", VehicleListFile),
+            Path.Combine(GameSupportedModDirectory, "A_1", TrackListFile),
+        ]));
     }
 
     #region Utility Methods

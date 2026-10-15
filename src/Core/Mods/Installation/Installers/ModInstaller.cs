@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -90,12 +90,12 @@ public class ModInstaller : BaseModInstaller
 
     private List<string> FindCrdFileEntries() =>
         FileEntriesToConfigure()
-            .Where(p => p.EndsWith(".crd"))
+            .Where(p => p.EndsWith(".crd", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
     private List<string> FindTrdFileEntries() =>
         FileEntriesToConfigure()
-            .Where(p => p.EndsWith(".trd"))
+            .Where(p => p.EndsWith(".trd", StringComparison.OrdinalIgnoreCase))
             .Select(fp => $"{Path.GetDirectoryName(fp)}{Path.DirectorySeparatorChar}@{Path.GetFileName(fp)}")
             .ToList();
 
