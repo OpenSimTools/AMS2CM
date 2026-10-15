@@ -56,7 +56,11 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
                 try
                 {
                     backupStrategy.PerformBackup(destPath);
-                    if (!removeFile)
+                    if (removeFile)
+                    {
+                        FileSystem.File.Delete(destPath.Full);
+                    }
+                    else
                     {
                         FileSystem.Directory.GetParent(destPath.Full)?.Create();
                         InstallFile(destPath, context);

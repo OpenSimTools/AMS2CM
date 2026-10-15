@@ -34,7 +34,7 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)
     {
-        File.Move(fileInfo.FullName, destinationPath.Full);
+        File.Move(fileInfo.FullName, destinationPath.Full, overwrite: true);
     }
 
     #region Bootfiles Generation

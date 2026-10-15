@@ -121,7 +121,7 @@ public class ModInstaller : BaseModInstaller
                 // Read each line until we find one with RECORD
                 if (recordIndent < 0)
                 {
-                    recordIndent = line.IndexOf("RECORD", StringComparison.InvariantCulture);
+                    recordIndent = line.IndexOf("RECORD", StringComparison.Ordinal);
                 }
                 if (recordIndent < 0)
                 {

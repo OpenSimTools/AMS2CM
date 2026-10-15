@@ -8,7 +8,7 @@ internal class ContainedDirsRootFinder : IRootFinder
 
     internal ContainedDirsRootFinder(IEnumerable<string> rootDirs)
     {
-        this.rootDirs = rootDirs.ToImmutableHashSet(StringComparer.InvariantCultureIgnoreCase);
+        this.rootDirs = rootDirs.ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     // Simplistic implementation. Not the best performance, but short and readable.
@@ -17,15 +17,10 @@ internal class ContainedDirsRootFinder : IRootFinder
             .SelectMany(file =>
             {
                 var dirSegments = file.Split(Path.DirectorySeparatorChar);
-                var segmentsUntilRoot = dirSegments.TakeWhile(_ => !rootDirs.Contains(_));
-                if (dirSegments.Length == segmentsUntilRoot.Count())
-                {
-                    return Array.Empty<string>();
-                }
-                else
-                {
-                    return new[] { Path.Join(segmentsUntilRoot.ToArray()) };
-                }
+                var segmentsUntilRoot = dirSegments.TakeWhile(_ => !rootDirs.Contains(_)).ToArray();
+                return dirSegments.Length == segmentsUntilRoot.Length
+                    ? Array.Empty<string>()
+                    : new[] { Path.Join(segmentsUntilRoot) };
             })
             .ToImmutableSortedSet()
             .Aggregate(new IRootFinder.RootPaths(), (roots, potentialRoot) =>

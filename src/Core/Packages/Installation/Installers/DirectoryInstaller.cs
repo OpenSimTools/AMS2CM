@@ -17,6 +17,6 @@ internal class DirectoryInstaller : BaseDirectoryInstaller
 
     protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)
     {
-        File.Copy(fileInfo.FullName, destinationPath.Full);
+        File.Copy(fileInfo.FullName, destinationPath.Full, overwrite: true);
     }
 }

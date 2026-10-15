@@ -686,6 +686,108 @@ public class ModManagerTest : AbstractFilesystemTest
     }
 
     [Fact]
+    public void Install_DoesNotBackUpFilesFromPreviouslyInstalledMods()
+    {
+        var sharedFile = Path.Combine(DirAtRoot, "Shared");
+        var modA = CreateModArchive(101, [sharedFile]);
+        var modB = CreateModArchive(102, [sharedFile]);
+
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [modB.Name] = new(
+                Time: PastDate, VersionHash: modB.VersionHash, Partial: false,
+                Dependencies: [],
+                Files: [sharedFile],
+                ShadowedBy: [])
+        });
+        CreateFile(GamePath(sharedFile), "Original");
+
+        // A is going to shadow the previously-unshadowed B
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([modB, modA]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        File.ReadAllText(GamePath(sharedFile).Full).Should().Be("101");
+        File.Exists(GamePath(BackupName(sharedFile)).Full).Should().BeFalse(
+            "the shared file was introduced by B, so there is no original game file to back up");
+    }
+
+    [Fact]
+    public void Install_ShadowingPreservesOriginalBackupThroughUninstall()
+    {
+        var sharedFile = Path.Combine(DirAtRoot, "Shared");
+        var modA = CreateModArchive(101, [sharedFile]);
+        var modB = CreateModArchive(102, [sharedFile]);
+
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [modB.Name] = new(
+                Time: PastDate, VersionHash: modB.VersionHash, Partial: false,
+                Dependencies: [], Files: [sharedFile], ShadowedBy: [])
+        });
+        CreateFile(GamePath(sharedFile), "102").CreationTimeUtc = PastDate.UtcDateTime;
+        CreateFile(GamePath(BackupName(sharedFile)), "Original");
+
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([modB, modA]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        File.ReadAllText(GamePath(sharedFile).Full).Should().Be("101");
+        File.ReadAllText(GamePath(BackupName(sharedFile)).Full).Should().Be("Original");
+    }
+
+    [Fact]
+    public void Install_DeletingModAddedFileDoesNotBackUpOrRestoreIt()
+    {
+        var sharedFile = Path.Combine(DirAtRoot, "Shared");
+        var modA = CreateModArchive(101, [DeletionName(sharedFile)]);
+        var modB = CreateModArchive(102, [sharedFile]);
+
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [modB.Name] = new(
+                Time: PastDate, VersionHash: modB.VersionHash, Partial: false,
+                Dependencies: [], Files: [sharedFile], ShadowedBy: [])
+        });
+        CreateFile(GamePath(sharedFile), "102").CreationTimeUtc = PastDate.UtcDateTime;
+
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([modB, modA]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        File.Exists(GamePath(sharedFile).Full).Should().BeFalse();
+        File.Exists(GamePath(BackupName(sharedFile)).Full).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Install_BacksUpRestoredOriginalWhenReplacingRemovedPackage()
+    {
+        var sharedFile = Path.Combine(DirAtRoot, "Shared");
+        var modA = CreateModArchive(101, [sharedFile]);
+        var modB = CreateModArchive(102, [sharedFile]);
+
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [modB.Name] = new(
+                Time: PastDate, VersionHash: modB.VersionHash, Partial: false,
+                Dependencies: [], Files: [sharedFile], ShadowedBy: [])
+        });
+        CreateFile(GamePath(sharedFile), "102").CreationTimeUtc = PastDate.UtcDateTime;
+        CreateFile(GamePath(BackupName(sharedFile)), "Original");
+
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([modA]);
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        File.ReadAllText(GamePath(sharedFile).Full).Should().Be("101");
+        File.ReadAllText(GamePath(BackupName(sharedFile)).Full).Should().Be("Original");
+
+        modManager.UninstallAllMods(eventHandlerMock.Object);
+
+        File.ReadAllText(GamePath(sharedFile).Full).Should().Be("Original");
+        File.Exists(GamePath(BackupName(sharedFile)).Full).Should().BeFalse();
+    }
+
+    [Fact]
     public void Install_GameSupportedModsNeverRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([

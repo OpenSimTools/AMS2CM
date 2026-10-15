@@ -1,18 +1,19 @@
 ﻿namespace Core.Utils;
 
-public record RootedPath
+public sealed record RootedPath(string Root, string Relative = "")
 {
-    public string Root { get; }
-    public string Relative { get; }
-    public string Full { get; }
-
-    public RootedPath(string rootPath, string relativePath = "")
-    {
-        Root = rootPath;
-        Relative = relativePath;
-        Full = Path.Combine(rootPath, relativePath);
-    }
+    public string Full { get; } = Path.Combine(Root, Relative);
 
     public RootedPath SubPath(string subPath) =>
         new(Root, Path.Combine(Relative, subPath));
+
+    /// <summary>
+    /// Compares full paths without case sensitivity or additional path normalization.
+    /// </summary>
+    public bool Equals(RootedPath? other) =>
+        other is not null &&
+        StringComparer.OrdinalIgnoreCase.Equals(Full, other.Full);
+
+    public override int GetHashCode() =>
+        StringComparer.OrdinalIgnoreCase.GetHashCode(Full);
 }
