@@ -185,6 +185,24 @@ public class ModInstallerTest
         modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
     }
 
+    [Fact]
+    public void DeletedFilesAreNotConfigured()
+    {
+        string[] filesToDelete =
+        [
+            Path.Combine(GameDirAtRoot, "File.crd"),
+            Path.Combine(GameDirAtRoot, "File.trd")
+        ];
+
+        ToDestPath(filesToDelete).ForEach(fs.AddEmptyFile);
+
+        InstallWithModInstaller(InstallerOf("A", 1,
+            filesToDelete.Select(f => f + BaseInstaller.RemoveFileSuffix)
+        ));
+
+        fs.AllFiles.Should().BeEmpty();
+    }
+
     #region Utility Methods
 
     private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
@@ -199,17 +217,17 @@ public class ModInstallerTest
         return modInstaller;
     }
 
-    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IEnumerable<string> files) =>
         InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
-    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
-        new StaticFilesInstaller(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
+    private StaticFilesInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
+        new(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
-    private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
-        relativePaths.Select(f => Path.Combine(destDir, f)).ToHashSet();
+    private List<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
+        [.. relativePaths.Select(f => Path.Combine(destDir, f))];
 
-    private IReadOnlySet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
-        relativePaths.Select(f => new RootedPath(destDir, f)).ToHashSet();
+    private HashSet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
+        [.. relativePaths.Select(f => new RootedPath(destDir, f))];
 
     private void VerifyCallbackCalledWith(IReadOnlyCollection<string> relativePaths)
     {

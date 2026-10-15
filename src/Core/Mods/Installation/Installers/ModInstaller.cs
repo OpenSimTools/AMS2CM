@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -101,6 +101,7 @@ public class ModInstaller : BaseModInstaller
 
     private IEnumerable<string> FileEntriesToConfigure() =>
         InstalledFiles
+            .Where(rp => FileSystem.File.Exists(rp.Full))
             .Select(rp => rp.Relative)
             .Where(p => filesToConfigureMatcher.Match(p).HasMatches);
 
