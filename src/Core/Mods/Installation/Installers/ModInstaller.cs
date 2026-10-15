@@ -90,17 +90,18 @@ public class ModInstaller : BaseModInstaller
 
     private List<string> FindCrdFileEntries() =>
         FileEntriesToConfigure()
-            .Where(p => p.EndsWith(".crd"))
+            .Where(p => p.EndsWith(".crd", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
     private List<string> FindTrdFileEntries() =>
         FileEntriesToConfigure()
-            .Where(p => p.EndsWith(".trd"))
+            .Where(p => p.EndsWith(".trd", StringComparison.OrdinalIgnoreCase))
             .Select(fp => $"{Path.GetDirectoryName(fp)}{Path.DirectorySeparatorChar}@{Path.GetFileName(fp)}")
             .ToList();
 
     private IEnumerable<string> FileEntriesToConfigure() =>
         InstalledFiles
+            .Where(rp => FileSystem.File.Exists(rp.Full))
             .Select(rp => rp.Relative)
             .Where(p => filesToConfigureMatcher.Match(p).HasMatches);
 

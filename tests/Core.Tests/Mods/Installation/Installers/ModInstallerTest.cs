@@ -148,15 +148,15 @@ public class ModInstallerTest
     [Fact]
     public void AutomaticModConfigurationNotPossibleForTracks()
     {
-        string[] packageFiles =
-        [
+        string[] packageFiles = [
             Path.Combine(GameDirAtRoot, "File.trd")
         ];
 
         var modInstaller = InstallWithModInstaller(InstallerOf("Bee Cee", null, packageFiles));
 
+        var trackListFile = Path.Combine(GameSupportedModDirectory, "BeeCee_0", TrackListFile);
         var expectedFiles = packageFiles.Concat([
-            Path.Combine(GameSupportedModDirectory, "BeeCee_0", TrackListFile)
+            trackListFile
             // No mod xml
         ]).ToArray();
 
@@ -166,23 +166,61 @@ public class ModInstallerTest
         VerifyCallbackCalledWith(expectedFiles);
 
         fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
+
+        fs.GetFile(Path.Combine(destDir, trackListFile))
+            .TextContents.Should().Be(Path.Combine(GameDirAtRoot, "@File.trd"));
     }
 
     [Fact]
     public void TracksAndCarsAreConfiguredOnlyWhenInstalled()
     {
+        var modFile = Path.Combine(GameDirAtRoot, "Foo");
         string[] packageFiles =
         [
-            Path.Combine("Subdir", GameDirAtRoot, "Foo"),
+            Path.Combine("Subdir", modFile),
             Path.Combine("Outside.trd"),
             Path.Combine("Outside.crd"),
         ];
 
         var modInstaller = InstallWithModInstaller(InstallerOf("M", null, packageFiles));
 
-        string[] expectedFiles = [Path.Combine(GameDirAtRoot, "Foo")];
+        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath([modFile]));
+    }
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
+    [Fact]
+    public void DeletedFilesAreNotConfigured()
+    {
+        string[] filesToDelete =
+        [
+            Path.Combine(GameDirAtRoot, "File.crd"),
+            Path.Combine(GameDirAtRoot, "File.trd")
+        ];
+
+        ToDestPath(filesToDelete).ForEach(fs.AddEmptyFile);
+
+        InstallWithModInstaller(InstallerOf("A", 1,
+            filesToDelete.Select(f => f + BaseInstaller.RemoveFileSuffix)
+        ));
+
+        fs.AllFiles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ConfiguredFilesExtensionsAreCaseInsensitive()
+    {
+        string[] files =
+        [
+            Path.Combine(GameDirAtRoot, "File.CRD"),
+            Path.Combine(GameDirAtRoot, "File.TRD")
+        ];
+
+        InstallWithModInstaller(InstallerOf("A", 1, files));
+
+        fs.AllFiles.Should().BeEquivalentTo(ToDestPath([
+            .. files,
+            Path.Combine(GameSupportedModDirectory, "A_1", VehicleListFile),
+            Path.Combine(GameSupportedModDirectory, "A_1", TrackListFile),
+        ]));
     }
 
     #region Utility Methods
@@ -199,17 +237,17 @@ public class ModInstallerTest
         return modInstaller;
     }
 
-    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
+    private IPackageInstaller InstallerOf(string name, int? versionHash, IEnumerable<string> files) =>
         InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
-    private IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
-        new StaticFilesInstaller(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
+    private StaticFilesInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
+        new(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
-    private IReadOnlySet<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
-        relativePaths.Select(f => Path.Combine(destDir, f)).ToHashSet();
+    private List<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
+        [.. relativePaths.Select(f => Path.Combine(destDir, f))];
 
-    private IReadOnlySet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
-        relativePaths.Select(f => new RootedPath(destDir, f)).ToHashSet();
+    private HashSet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
+        [.. relativePaths.Select(f => new RootedPath(destDir, f))];
 
     private void VerifyCallbackCalledWith(IReadOnlyCollection<string> relativePaths)
     {
