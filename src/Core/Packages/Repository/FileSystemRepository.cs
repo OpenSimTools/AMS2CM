@@ -1,5 +1,6 @@
 ﻿using System.IO.Abstractions;
 using Core.Packages.Installation.Installers;
+using Core.Utils;
 
 namespace Core.Packages.Repository;
 
@@ -8,7 +9,7 @@ public class FileSystemRepository : IPackageRepository
     private class FilePackage(IFileInfo fileInfo) : IPackage
     {
         public string Name { get; } = fileInfo.Name;
-        public int? VersionHash { get; } = unchecked((int)(fileInfo.LastWriteTimeUtc.Ticks ^ fileInfo.Length));
+        public int? VersionHash { get; } = FileSystemHash.Hash32(fileInfo);
         public string Location { get; } = fileInfo.FullName;
         public IPackageInstaller CreateInstaller() => new ArchiveInstaller(Name, VersionHash, Location);
     }
