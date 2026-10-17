@@ -959,7 +959,7 @@ public class ModManagerTest : AbstractFilesystemTest
         package.SetupGet(m => m.Name).Returns(packageName);
         package.SetupGet(m => m.Location).Returns(modContentsDir);
         package.SetupGet(m => m.VersionHash).Returns(versionHash);
-        package.SetupGet(m => m.Installer).Returns(() =>
+        package.Setup(m => m.CreateInstaller()).Returns(() =>
             new DirectoryInstaller(packageName, versionHash, modContentsDir));
         return package.Object;
     }
