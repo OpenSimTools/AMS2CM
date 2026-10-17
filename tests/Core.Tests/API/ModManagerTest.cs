@@ -9,7 +9,6 @@ using Core.State;
 using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
-using static Core.Packages.Repository.FileSystemRepository;
 
 namespace Core.Tests.API;
 
@@ -87,11 +86,11 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: "E", Location: "e/path", VersionHash: 102)
+            Package(Name: "E", Location: "e/path", VersionHash: 102)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: "D", Location: "d/path", VersionHash: 103)
+            Package(Name: "D", Location: "d/path", VersionHash: 103)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
@@ -125,13 +124,13 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: "A", Location: "a/path", VersionHash: 101),
-            new Package(Name: "B", Location: "b/path", VersionHash: 102)
+            Package(Name: "A", Location: "a/path", VersionHash: 101),
+            Package(Name: "B", Location: "b/path", VersionHash: 102)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: "C", Location: "c/path", VersionHash: 103),
-            new Package(Name: "D", Location: "d/path", VersionHash: 104)
+            Package(Name: "C", Location: "c/path", VersionHash: 103),
+            Package(Name: "D", Location: "d/path", VersionHash: 104)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
@@ -230,13 +229,13 @@ public class ModManagerTest : AbstractFilesystemTest
         });
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns(
         [
-            new Package(Name: $"{BootfilesPrefix}_IE", Location: "ie/path", VersionHash: null),
-            new Package(Name: $"{BootfilesPrefix}_UE", Location: "ue/path", VersionHash: null)
+            Package(Name: $"{BootfilesPrefix}_IE", Location: "ie/path", VersionHash: null),
+            Package(Name: $"{BootfilesPrefix}_UE", Location: "ue/path", VersionHash: null)
         ]);
         modRepositoryMock.Setup(m => m.ListDisabled()).Returns(
         [
-            new Package(Name: $"{BootfilesPrefix}_ID", Location: "id/path", VersionHash: null),
-            new Package(Name: $"{BootfilesPrefix}_UD", Location: "ud/path", VersionHash: null)
+            Package(Name: $"{BootfilesPrefix}_ID", Location: "id/path", VersionHash: null),
+            Package(Name: $"{BootfilesPrefix}_UD", Location: "ud/path", VersionHash: null)
         ]);
 
         modManager.FetchState().Should().BeEquivalentTo(
@@ -453,7 +452,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_InstallsContentFromRootDirectories()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine("Foo", DirAtRoot, "A"),
                 Path.Combine("Bar", DirAtRoot, "B"),
                 Path.Combine("Bar", "C"),
@@ -489,7 +488,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void InstallmSkipsBlacklistedFiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine("A", FileExcludedFromInstall),
                 Path.Combine(DirAtRoot, "B"),
             ])
@@ -518,7 +517,7 @@ public class ModManagerTest : AbstractFilesystemTest
         var modFile = Path.Combine(DirAtRoot, "A");
 
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [DeletionName(modFile)]),
+            CreateModPackage(101, [DeletionName(modFile)]),
         ]);
         CreateFile(GamePath(modFile), "Orig");
 
@@ -532,11 +531,11 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_GivesPriorityToFilesLaterInTheModList()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine(DirAtRoot, "A"),
                 Path.Combine(DirAtRoot, "B")
             ]),
-            CreateModArchive(102, [
+            CreateModPackage(102, [
                 Path.Combine("X", DirAtRoot, "a")
             ]),
         ]);
@@ -567,7 +566,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_DuplicatesAreCaseInsensitive()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine("X", DirAtRoot, "A"),
                 Path.Combine("Y", DirAtRoot, "a")
             ])
@@ -591,15 +590,15 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_StopsAfterAnyError()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine(DirAtRoot, "A")
             ]),
-            CreateModArchive(102, [
+            CreateModPackage(102, [
                 Path.Combine(DirAtRoot, "B1"),
                 Path.Combine(DirAtRoot, "B2"),
                 Path.Combine(DirAtRoot, "B3")
             ]),
-            CreateModArchive(103, [
+            CreateModPackage(103, [
                 Path.Combine(DirAtRoot, "C"),
             ]),
         ]);
@@ -640,7 +639,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_TwiceRestoresGeneratedModFiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [Path.Combine(DirAtRoot, "A")])
+            CreateModPackage(101, [Path.Combine(DirAtRoot, "A")])
         ]);
 
         modManager.InstallEnabledMods(eventHandlerMock.Object);
@@ -655,7 +654,7 @@ public class ModManagerTest : AbstractFilesystemTest
         var now = DateTimeOffset.Now;
         var future = now.AddMinutes(1);
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                     Path.Combine(DirAtRoot, "A")
                 ], extractedDir =>
                     File.SetCreationTime(Path.Combine(extractedDir, DirAtRoot, "A"), future.LocalDateTime)
@@ -674,7 +673,7 @@ public class ModManagerTest : AbstractFilesystemTest
         var toBeDeleted = "B";
 
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [modFile, DeletionName(toBeDeleted)]),
+            CreateModPackage(101, [modFile, DeletionName(toBeDeleted)]),
         ]);
         CreateFile(GamePath(modFile), "OrigA");
         CreateFile(GamePath(toBeDeleted), "OrigB");
@@ -689,8 +688,8 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_DoesNotBackUpFilesFromPreviouslyInstalledMods()
     {
         var sharedFile = Path.Combine(DirAtRoot, "Shared");
-        var modA = CreateModArchive(101, [sharedFile]);
-        var modB = CreateModArchive(102, [sharedFile]);
+        var modA = CreateModPackage(101, [sharedFile]);
+        var modB = CreateModPackage(102, [sharedFile]);
 
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
@@ -716,8 +715,8 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_ShadowingPreservesOriginalBackupThroughUninstall()
     {
         var sharedFile = Path.Combine(DirAtRoot, "Shared");
-        var modA = CreateModArchive(101, [sharedFile]);
-        var modB = CreateModArchive(102, [sharedFile]);
+        var modA = CreateModPackage(101, [sharedFile]);
+        var modB = CreateModPackage(102, [sharedFile]);
 
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
@@ -740,8 +739,8 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_DeletingModAddedFileDoesNotBackUpOrRestoreIt()
     {
         var sharedFile = Path.Combine(DirAtRoot, "Shared");
-        var modA = CreateModArchive(101, [DeletionName(sharedFile)]);
-        var modB = CreateModArchive(102, [sharedFile]);
+        var modA = CreateModPackage(101, [DeletionName(sharedFile)]);
+        var modB = CreateModPackage(102, [sharedFile]);
 
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
@@ -763,8 +762,8 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_BacksUpRestoredOriginalWhenReplacingRemovedPackage()
     {
         var sharedFile = Path.Combine(DirAtRoot, "Shared");
-        var modA = CreateModArchive(101, [sharedFile]);
-        var modB = CreateModArchive(102, [sharedFile]);
+        var modA = CreateModPackage(101, [sharedFile]);
+        var modB = CreateModPackage(102, [sharedFile]);
 
         persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
         {
@@ -791,7 +790,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_GameSupportedModsNeverRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine(DirAtRoot, "Vehicle.crd"),
                 Path.Combine(DirAtRoot, "Track.trd"), // Tracks do not currently work in game
                 Path.Combine(GameSupportedModDirectory, "Anything")
@@ -810,7 +809,7 @@ public class ModManagerTest : AbstractFilesystemTest
     {
         var drivelineRecord = $"RECORD foo";
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                     Path.Combine("Foo", DirAtRoot, "Vehicle.crd")
                 ], extractedDir =>
                     File.WriteAllText(Path.Combine(extractedDir, "README.txt"), drivelineRecord)
@@ -836,7 +835,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_TrackModsAlwaysRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine(DirAtRoot, "Track.trd"),
                 // Vehicles are not upgraded to game-supported mods if tracks are present
                 Path.Combine(DirAtRoot, "Vehicle.crd")
@@ -862,7 +861,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_RemovesBootfilesWhenNotNeeded()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [
+            CreateModPackage(101, [
                 Path.Combine(DirAtRoot, "Track.trd")
             ]),
             CreateCustomBootfiles(900),
@@ -885,7 +884,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_ExtractsBootfilesFromGameByDefault()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [Path.Combine(DirAtRoot, "Foo.trd")])
+            CreateModPackage(101, [Path.Combine(DirAtRoot, "Foo.trd")])
         ]);
 
         // Unfortunately, there is no easy way to create pak files!
@@ -903,7 +902,7 @@ public class ModManagerTest : AbstractFilesystemTest
     public void Install_ChoosesLastOfMultipleCustomBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
-            CreateModArchive(101, [Path.Combine(DirAtRoot, "Foo.trd")]),
+            CreateModPackage(101, [Path.Combine(DirAtRoot, "Foo.trd")]),
             CreateCustomBootfiles(900),
             CreateCustomBootfiles(901)
         ]);
@@ -915,10 +914,19 @@ public class ModManagerTest : AbstractFilesystemTest
 
     #region Utility methods
 
-    private IPackage CreateModArchive(int versionHash, IEnumerable<string> relativePaths) =>
-        CreateModArchive(versionHash, relativePaths, _ => { });
+    private static IPackage Package(string Name, string Location, int? VersionHash)
+    {
+        var mock = new Mock<IPackage>();
+        mock.SetupGet(p => p.Name).Returns(Name);
+        mock.SetupGet(p => p.Location).Returns(Location);
+        mock.SetupGet(p => p.VersionHash).Returns(VersionHash);
+        return mock.Object;
+    }
 
-    private IPackage CreateModArchive(int versionHash, IEnumerable<string> relativePaths, Action<string> callback) =>
+    private IPackage CreateModPackage(int versionHash, IEnumerable<string> relativePaths) =>
+        CreateModPackage(versionHash, relativePaths, _ => { });
+
+    private IPackage CreateModPackage(int versionHash, IEnumerable<string> relativePaths, Action<string> callback) =>
         CreateModPackage("Package", versionHash, relativePaths, callback);
 
     private IPackage CreateCustomBootfiles(int versionHash) =>
@@ -932,8 +940,6 @@ public class ModManagerTest : AbstractFilesystemTest
                     Path.Combine(extractedDir, DrivelineRelativePath),
                     $"{Environment.NewLine}END")
         );
-
-    private string PackageName(string packagePrefix, int versionHash) => $"{packagePrefix}{versionHash}";
 
     private IPackage CreateModPackage(string packagePrefix, int versionHash, IEnumerable<string> relativePaths,
         Action<string> callback)
@@ -953,10 +959,12 @@ public class ModManagerTest : AbstractFilesystemTest
         package.SetupGet(m => m.Name).Returns(packageName);
         package.SetupGet(m => m.Location).Returns(modContentsDir);
         package.SetupGet(m => m.VersionHash).Returns(versionHash);
-        package.SetupGet(m => m.Installer).Returns(() =>
+        package.Setup(m => m.CreateInstaller()).Returns(() =>
             new DirectoryInstaller(packageName, versionHash, modContentsDir));
         return package.Object;
     }
+
+    private string PackageName(string packagePrefix, int versionHash) => $"{packagePrefix}{versionHash}";
 
     // This can be removed once we introduce backup strategies
     private static string BackupName(string relativePath) =>

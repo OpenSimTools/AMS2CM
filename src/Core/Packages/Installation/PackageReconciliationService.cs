@@ -19,7 +19,7 @@ public class PackageReconciliationService<TEventHandler>(
         CancellationToken cancellationToken)
     {
         var currentState = new Dictionary<string, PackageInstallationState>(previousState);
-        var installers = packages.Select(p => p.Installer).ToArray();
+        var installers = packages.Select(p => p.CreateInstaller()).ToArray();
         try
         {
             Execute(

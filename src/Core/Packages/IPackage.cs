@@ -7,5 +7,5 @@ public interface IPackage
     string Name { get; }
     int? VersionHash { get; }
     string? Location { get; }
-    IPackageInstaller Installer { get; }
+    IPackageInstaller CreateInstaller();
 }

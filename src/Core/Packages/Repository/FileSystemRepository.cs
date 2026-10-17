@@ -1,44 +1,55 @@
-﻿using Core.Packages.Installation.Installers;
+﻿using System.IO.Abstractions;
+using Core.Packages.Installation.Installers;
+using Core.Utils;
 
 namespace Core.Packages.Repository;
 
 public class FileSystemRepository : IPackageRepository
 {
-    internal record Package
-    (
-        string Name,
-        int ? VersionHash,
-        string Location
-    ) : IPackage
+    private class FilePackage(IFileInfo fileInfo) : IPackage
     {
-        public IPackageInstaller Installer =>
-            Directory.Exists(Location)
-                ? new DirectoryInstaller(Name, VersionHash, Location)
-                : new ArchiveInstaller(Name, VersionHash, Location);
+        public string Name { get; } = fileInfo.Name;
+        public int? VersionHash { get; } = FileSystemHash.Hash32(fileInfo);
+        public string Location { get; } = fileInfo.FullName;
+        public IPackageInstaller CreateInstaller() => new ArchiveInstaller(Name, VersionHash, Location);
     }
 
-    private const string EnabledSubdir = "Enabled";
-    private const string DisabledSubdir = "Disabled";
+    private class DirectoryPackage(IDirectoryInfo directoryInfo) : IPackage
+    {
+        public string Name { get; } = $"{directoryInfo.Name}{directoryInfo.FileSystem.Path.DirectorySeparatorChar}";
+        public int? VersionHash => null;
+        public string Location { get; } = directoryInfo.FullName;
+        public IPackageInstaller CreateInstaller() => new DirectoryInstaller(Name, VersionHash, Location);
+    }
+
+    internal const string EnabledSubdir = "Enabled";
+    internal const string DisabledSubdir = "Disabled";
 
     private readonly string enabledDirPath;
     private readonly string disabledDirPath;
+    private readonly IFileSystem fs;
 
-    internal FileSystemRepository(string repositoryDir)
+    internal FileSystemRepository(string repositoryDir) : this(new FileSystem(), repositoryDir)
     {
-        enabledDirPath = Path.Combine(repositoryDir, EnabledSubdir);
-        disabledDirPath = Path.Combine(repositoryDir, DisabledSubdir);
+    }
+
+    internal FileSystemRepository(IFileSystem fs, string repositoryDir)
+    {
+        this.fs = fs;
+        enabledDirPath = fs.Path.Combine(repositoryDir, EnabledSubdir);
+        disabledDirPath = fs.Path.Combine(repositoryDir, DisabledSubdir);
     }
 
     public void Upload(string sourceFilePath)
     {
-        var fileName = Path.GetFileName(sourceFilePath);
+        var fileName = fs.Path.GetFileName(sourceFilePath);
 
-        var isDisabled = ListDisabled().Any(_ => _.Name == fileName);
+        var isDisabled = ListDisabled().Any(f => f.Name == fileName);
         var destinationDirPath = isDisabled ? disabledDirPath : enabledDirPath;
-        var destinationFilePath = Path.Combine(destinationDirPath, fileName);
+        var destinationFilePath = fs.Path.Combine(destinationDirPath, fileName);
 
         ExistingDirectoryOrCreate(destinationDirPath);
-        File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
+        fs.File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
     }
 
     public string Enable(string packagePath)
@@ -51,17 +62,17 @@ public class FileSystemRepository : IPackageRepository
         return MovePackage(packagePath, disabledDirPath);
     }
 
-    private static string MovePackage(string sourceFilePath, string destinationParentPath)
+    private string MovePackage(string sourceFilePath, string destinationParentPath)
     {
         ExistingDirectoryOrCreate(destinationParentPath);
-        var destinationPackagePath = Path.Combine(destinationParentPath, Path.GetFileName(sourceFilePath));
-        if (Directory.Exists(sourceFilePath))
+        var destinationPackagePath = fs.Path.Combine(destinationParentPath, fs.Path.GetFileName(sourceFilePath));
+        if (fs.Directory.Exists(sourceFilePath))
         {
-            Directory.Move(sourceFilePath, destinationPackagePath);
+            fs.Directory.Move(sourceFilePath, destinationPackagePath);
         }
         else
         {
-            File.Move(sourceFilePath, destinationPackagePath);
+            fs.File.Move(sourceFilePath, destinationPackagePath);
         }
         return destinationPackagePath;
     }
@@ -70,58 +81,27 @@ public class FileSystemRepository : IPackageRepository
 
     public IReadOnlyCollection<IPackage> ListDisabled() => ListPackages(disabledDirPath);
 
-    private IReadOnlyCollection<Package> ListPackages(string rootPath)
+    private IReadOnlyCollection<IPackage> ListPackages(string rootPath)
     {
-        var directoryInfo = new DirectoryInfo(rootPath);
+        var directoryInfo = fs.DirectoryInfo.New(rootPath);
         if (!directoryInfo.Exists)
         {
-            return Array.Empty<Package>();
+            return Array.Empty<IPackage>();
         }
 
-        var options = new EnumerationOptions()
-        {
-            MatchType = MatchType.Win32,
-            IgnoreInaccessible = false,
-            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-            RecurseSubdirectories = false,
-        };
-        return directoryInfo.GetFiles("*", options).Select(fileInfo => FilePackage(fileInfo))
-            .Concat(directoryInfo.GetDirectories("*", options).Select(fileInfo => DirectoryPackage(fileInfo)))
+        return directoryInfo.GetFiles().Where(IsVisible).Select(IPackage (fi) => new FilePackage(fi))
+            .Concat(directoryInfo.GetDirectories().Where(IsVisible).Select(IPackage (di) => new DirectoryPackage(di)))
             .ToList();
     }
 
-    private Package FilePackage(FileInfo fileInfo) =>
-        new(
-            Name: fileInfo.Name,
-            VersionHash: FsHash(fileInfo),
-            Location: fileInfo.FullName
-        );
+    private static bool IsVisible(IFileSystemInfo fsInfo) =>
+        (fsInfo.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0;
 
-    private Package DirectoryPackage(DirectoryInfo directoryInfo) =>
-        new(
-            Name: $"{directoryInfo.Name}{Path.DirectorySeparatorChar}",
-            VersionHash: null,
-            Location: directoryInfo.FullName
-        );
-
-    private bool IsEnabledPath(FileSystemInfo fileSystemInfo) =>
-        Directory.GetParent(fileSystemInfo.FullName)?.FullName == enabledDirPath;
-
-    /// <summary>
-    /// Just a very simple has function to detect if the file might have changed.
-    /// </summary>
-    /// <param name="fileInfo"></param>
-    /// <returns></returns>
-    private static int FsHash(FileInfo fileInfo)
+    private void ExistingDirectoryOrCreate(string directoryPath)
     {
-        return unchecked((int)(fileInfo.LastWriteTimeUtc.Ticks ^ fileInfo.Length));
-    }
-
-    private static void ExistingDirectoryOrCreate(string directoryPath)
-    {
-        if (!Directory.Exists(directoryPath))
+        if (!fs.Directory.Exists(directoryPath))
         {
-            Directory.CreateDirectory(directoryPath);
+            fs.Directory.CreateDirectory(directoryPath);
         }
     }
 }
