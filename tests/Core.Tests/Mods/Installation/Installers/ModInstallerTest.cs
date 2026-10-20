@@ -87,18 +87,21 @@ public class ModInstallerTest
     public void AutomaticModConfigurationForVehicles()
     {
         var crdFile = Path.Combine(GameDirAtRoot, "File.crd");
+        var notInGameSupportedDir = Path.Combine(GameSupportedModDirectory + "Suffix", "File");
         var drivelineRecord = $"RECORD Something{Environment.NewLine}";
 
         var packageFiles = new Dictionary<string, string>
         {
             [Path.Combine("SubDir", crdFile)] = "Anything",
-            ["FileAtRoot.txt"] = drivelineRecord
+            [Path.Combine("SubDir", notInGameSupportedDir)] = "Anything",
+            ["FileAtRoot.txt"] = drivelineRecord,
         };
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", 0xbadcafe, packageFiles));
 
         string[] expectedFiles = {
             crdFile,
+            notInGameSupportedDir,
             Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile),
             Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile),
             Path.Combine(GameSupportedModDirectory, "A_badcafe", "A_badcafe.xml")
