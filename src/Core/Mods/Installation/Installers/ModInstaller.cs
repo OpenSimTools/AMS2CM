@@ -65,7 +65,7 @@ public class ModInstaller : BaseModInstaller
         innerInstall();
 
         var gameSupportedMod = FileEntriesToConfigure()
-            .Any(p => p.StartsWith(GameSupportedModRelativeDir));
+            .Any(p => p.StartsWith(GameSupportedModRelativeDir, StringComparison.OrdinalIgnoreCase));
         var modConfig = gameSupportedMod
             ? ConfigEntries.Empty
             : new ConfigEntries(FindCrdFileEntries(), FindTrdFileEntries(), FindDrivelineRecords());
