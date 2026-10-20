@@ -53,17 +53,11 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
             {
                 continue;
             }
-            var normalizedPath = NormalizePathSeparator(entry.Name);
+            var normalizedPath = Paths.NormalizeDirectorySeparators(entry.Name);
             body(normalizedPath, entry.Stream);
         }
     }
 
-    /// <summary>
-    /// Make sure that paths never end with a directory separator and always
-    /// use the standard separator, and not the alternative.
-    /// </summary>
-    private static string NormalizePathSeparator(string path) =>
-        Path.TrimEndingDirectorySeparator(path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar));
 
     protected override void InstallFile(RootedPath? destinationPath, Stream stream)
     {

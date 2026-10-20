@@ -40,7 +40,7 @@ public abstract class BaseModInstaller : IPackageInstaller
         FileSystem = fileSystem;
         Inner = inner;
         StagingFullPath = Path.GetFullPath(Path.Combine(tempDir, inner.PackageName));
-        GameSupportedModRelativeDir = config.GameSupportedModDir;
+        GameSupportedModRelativeDir = Paths.NormalizeDirectorySeparators(config.GameSupportedModDir) + Path.DirectorySeparatorChar;
         VehicleListFileName = config.VehicleListFileName;
         TrackListFileName = config.TrackListFileName;
         DrivelineFileName = config.DrivelineFileName;

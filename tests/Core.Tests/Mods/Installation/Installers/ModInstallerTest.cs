@@ -3,6 +3,7 @@ using Core.Mods.Installation.Installers;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
+using Core.Tests.Utils;
 using Core.Utils;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
@@ -32,8 +33,9 @@ public class ModInstallerTest
 
     public ModInstallerTest()
     {
-        configMock.Setup(c => c.DirsAtRoot).Returns([GameDirAtRoot, GameSupportedModDirectory]);
-        configMock.Setup(c => c.GameSupportedModDir).Returns(GameSupportedModDirectory);
+        var gsmd = InvertCasing(GameSupportedModDirectory);
+        configMock.Setup(c => c.DirsAtRoot).Returns([InvertCasing(GameDirAtRoot), gsmd]);
+        configMock.Setup(c => c.GameSupportedModDir).Returns(gsmd);
         configMock.Setup(c => c.GenerateModDetails).Returns(true);
         configMock.Setup(c => c.VehicleListFileName).Returns(VehicleListFile);
         configMock.Setup(c => c.TrackListFileName).Returns(TrackListFile);
@@ -55,12 +57,12 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", null, packageFiles));
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(packageFiles));
+        modInstaller.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath(packageFiles));
         modInstaller.PackageDependencies.Should().BeEmpty();
 
         VerifyCallbackCalledWith(packageFiles);
 
-        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(packageFiles));
+        fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(packageFiles));
     }
 
     [Fact]
@@ -75,41 +77,44 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", null, packageFiles));
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(packageFiles));
+        modInstaller.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath(packageFiles));
         modInstaller.PackageDependencies.Should().BeEmpty();
 
         VerifyCallbackCalledWith(packageFiles);
 
-        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(packageFiles));
+        fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(packageFiles));
     }
 
     [Fact]
     public void AutomaticModConfigurationForVehicles()
     {
         var crdFile = Path.Combine(GameDirAtRoot, "File.crd");
+        var notInGameSupportedDir = Path.Combine(GameSupportedModDirectory + "Suffix", "File");
         var drivelineRecord = $"RECORD Something{Environment.NewLine}";
 
         var packageFiles = new Dictionary<string, string>
         {
             [Path.Combine("SubDir", crdFile)] = "Anything",
-            ["FileAtRoot.txt"] = drivelineRecord
+            [Path.Combine("SubDir", notInGameSupportedDir)] = "Anything",
+            ["FileAtRoot.txt"] = drivelineRecord,
         };
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", 0xbadcafe, packageFiles));
 
         string[] expectedFiles = {
             crdFile,
+            notInGameSupportedDir,
             Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile),
             Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile),
             Path.Combine(GameSupportedModDirectory, "A_badcafe", "A_badcafe.xml")
         };
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
+        modInstaller.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath(expectedFiles));
         modInstaller.PackageDependencies.Should().BeEmpty();
 
         VerifyCallbackCalledWith(expectedFiles);
 
-        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
+        fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
         backupStrategyMock.Verify(m => m.AfterInstall(
@@ -137,12 +142,12 @@ public class ModInstallerTest
             // No mod xml
         ]).ToArray();
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
+        modInstaller.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath(expectedFiles));
         modInstaller.PackageDependencies.Should().ContainSingle(BootfilesPackageName);
 
         VerifyCallbackCalledWith(expectedFiles);
 
-        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
+        fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
     }
 
     [Fact]
@@ -160,12 +165,12 @@ public class ModInstallerTest
             // No mod xml
         ]).ToArray();
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath(expectedFiles));
+        modInstaller.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath(expectedFiles));
         modInstaller.PackageDependencies.Should().ContainSingle(BootfilesPackageName);
 
         VerifyCallbackCalledWith(expectedFiles);
 
-        fs.AllFiles.Should().BeEquivalentTo(ToDestPath(expectedFiles));
+        fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
 
         fs.GetFile(Path.Combine(destDir, trackListFile))
             .TextContents.Should().Be(Path.Combine(GameDirAtRoot, "@File.trd"));
@@ -184,7 +189,7 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("M", null, packageFiles));
 
-        modInstaller.InstalledFiles.Should().BeEquivalentTo(ToDestRootedPath([modFile]));
+        modInstaller.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath([modFile]));
     }
 
     [Fact]
@@ -216,7 +221,7 @@ public class ModInstallerTest
 
         InstallWithModInstaller(InstallerOf("A", 1, files));
 
-        fs.AllFiles.Should().BeEquivalentTo(ToDestPath([
+        fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath([
             .. files,
             Path.Combine(GameSupportedModDirectory, "A_1", VehicleListFile),
             Path.Combine(GameSupportedModDirectory, "A_1", TrackListFile),
@@ -256,6 +261,15 @@ public class ModInstallerTest
             callbackMock.Verify(a => a(rp), Times.Once);
         }
         callbackMock.VerifyNoOtherCalls();
+    }
+
+    private static string InvertCasing(string path) =>
+        new(path.Select(InvertCasing).ToArray());
+
+    private static char InvertCasing(char c)
+    {
+        return char.IsAsciiLetterUpper(c) ? char.ToLowerInvariant(c) :
+            char.IsAsciiLetterLower(c) ? char.ToUpperInvariant(c) : c;
     }
 
     #endregion
