@@ -1,4 +1,6 @@
-﻿using Core.Utils;
+using System.Collections.Immutable;
+using System.IO.Abstractions;
+using Core.Utils;
 using LibArchive.Net;
 
 namespace Core.Packages.Installation.Installers;
@@ -8,10 +10,11 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
     private const uint BlockSize = 1 << 23;
     private const int CopyBufferSize = 1 << 27;
 
-    private readonly string archivePath;
+    private readonly IFileInfo archivePath;
 
-    public ArchiveInstaller(string packageName, int? packageVersionHash,  string archivePath) :
-        base(packageName, packageVersionHash)
+    public ArchiveInstaller(string packageName, int? packageVersionHash, IFileInfo archivePath) :
+        base(archivePath.FileSystem, TimeProvider.System, packageName, packageVersionHash,
+            ImmutableHashSet<string>.Empty)
     {
         this.archivePath = archivePath;
     }
@@ -24,7 +27,8 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
     {
         get
         {
-            using var reader = new LibArchiveReader(archivePath, BlockSize);
+            using var archiveStream = archivePath.OpenRead();
+            using var reader = new LibArchiveReader(archiveStream, blockSize: BlockSize);
             var ret = new HashSet<string>();
             foreach (var entry in reader.Entries())
             {
@@ -34,27 +38,32 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
                 {
                     continue;
                 }
+
                 var normalizedPath = Path.GetDirectoryName(entry.Name);
                 if (normalizedPath is not null)
                 {
                     ret.Add(normalizedPath);
                 }
             }
+
             return ret;
         }
     }
 
     protected override void InstallAllFiles(InstallBody body)
     {
-        using var reader = new LibArchiveReader(archivePath, BlockSize);
+        using var archiveStream = archivePath.OpenRead();
+        using var reader = new LibArchiveReader(archiveStream, blockSize: BlockSize);
         foreach (var entry in reader.Entries())
         {
             if (!entry.IsRegularFile)
             {
                 continue;
             }
+
             var normalizedPath = Paths.NormalizeDirectorySeparators(entry.Name);
-            body(normalizedPath, entry.Stream);
+            using var entryStream = entry.Stream;
+            body(normalizedPath, entryStream);
         }
     }
 
@@ -66,8 +75,8 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
             return;
         }
 
-        Directory.GetParent(destinationPath.Full)?.Create();
-        using var destinationStream = new FileStream(destinationPath.Full, FileMode.Create);
+        FileSystem.Directory.GetParent(destinationPath.Full)?.Create();
+        using var destinationStream = FileSystem.FileStream.New(destinationPath.Full, FileMode.Create);
         stream.CopyTo(destinationStream, CopyBufferSize);
     }
 }

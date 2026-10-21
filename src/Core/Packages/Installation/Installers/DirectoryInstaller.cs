@@ -1,22 +1,17 @@
-﻿using Core.Utils;
+using System.IO.Abstractions;
+using Core.Utils;
 
 namespace Core.Packages.Installation.Installers;
 
 internal class DirectoryInstaller : BaseDirectoryInstaller
 {
-    public DirectoryInstaller(string packageName, int? packageVersionHash, string sourcePath) :
-        base(packageName, packageVersionHash)
+    public DirectoryInstaller(string packageName, int? packageVersionHash, IDirectoryInfo sourcePath) :
+        base(sourcePath, packageName, packageVersionHash)
     {
-        Source = new DirectoryInfo(sourcePath);
     }
 
-    protected override DirectoryInfo Source
+    protected override void InstallFile(RootedPath destinationPath, IFileInfo fileInfo)
     {
-        get;
-    }
-
-    protected override void InstallFile(RootedPath destinationPath, FileInfo fileInfo)
-    {
-        File.Copy(fileInfo.FullName, destinationPath.Full, overwrite: true);
+        fileInfo.CopyTo(destinationPath.Full, overwrite: true);
     }
 }

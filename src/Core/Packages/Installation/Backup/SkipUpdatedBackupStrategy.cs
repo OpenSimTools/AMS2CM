@@ -11,34 +11,28 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
     internal class Provider<TEventHandler> : IBackupStrategyProvider<DateTimeOffset, TEventHandler>
         where TEventHandler : IBackupEventHandler
     {
+        private readonly IFile file;
         private readonly IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider;
 
-        public Provider(IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
+        public Provider(IFile file, IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
         {
+            this.file = file;
             this.baseProvider = baseProvider;
         }
 
-        public IBackupStrategy BackupStrategy(DateTimeOffset backupTime, TEventHandler? eventHandler) {
+        public IBackupStrategy BackupStrategy(DateTimeOffset backupTime, TEventHandler? eventHandler)
+        {
             var baseStrategy = baseProvider.BackupStrategy(backupTime, eventHandler);
-            return new SkipUpdatedBackupStrategy(baseStrategy, backupTime, eventHandler);
+            return new SkipUpdatedBackupStrategy(file, baseStrategy, backupTime, eventHandler);
         }
     }
 
-    private readonly IFileSystem fs;
+    private readonly IFile fs;
     private readonly IBackupStrategy inner;
     private readonly DateTimeOffset backupTime;
     private readonly IBackupEventHandler? eventHandler;
 
-    private SkipUpdatedBackupStrategy(
-        IBackupStrategy backupStrategy,
-        DateTimeOffset backupTime,
-        IBackupEventHandler? eventHandler) :
-        this(new FileSystem(), backupStrategy, backupTime, eventHandler)
-    {
-    }
-
-    internal SkipUpdatedBackupStrategy(
-        IFileSystem fs,
+    internal SkipUpdatedBackupStrategy(IFile fs,
         IBackupStrategy backupStrategy,
         DateTimeOffset backupTime,
         IBackupEventHandler? eventHandler)
@@ -63,6 +57,7 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
             eventHandler?.RestoreSkipped(path);
             return;
         }
+
         inner.RestoreBackup(path);
     }
 
@@ -72,11 +67,11 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
 
         if (CreationAfterBackupTime(path))
         {
-            fs.File.SetCreationTimeUtc(path.Full, backupTime.UtcDateTime);
+            fs.SetCreationTimeUtc(path.Full, backupTime.UtcDateTime);
         }
     }
 
     private bool CreationAfterBackupTime(RootedPath path) =>
-        fs.File.Exists(path.Full) &&
-        fs.File.GetCreationTimeUtc(path.Full) > backupTime.UtcDateTime;
+        fs.Exists(path.Full) &&
+        fs.GetCreationTimeUtc(path.Full) > backupTime.UtcDateTime;
 }

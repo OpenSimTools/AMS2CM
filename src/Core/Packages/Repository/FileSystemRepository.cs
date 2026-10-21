@@ -1,4 +1,4 @@
-﻿using System.IO.Abstractions;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -11,7 +11,7 @@ public class FileSystemRepository : IPackageRepository
         public string Name { get; } = fileInfo.Name;
         public int? VersionHash { get; } = FileSystemHash.Hash32(fileInfo);
         public string Location { get; } = fileInfo.FullName;
-        public IPackageInstaller CreateInstaller() => new ArchiveInstaller(Name, VersionHash, Location);
+        public IPackageInstaller CreateInstaller() => new ArchiveInstaller(Name, VersionHash, fileInfo);
     }
 
     private class DirectoryPackage(IDirectoryInfo directoryInfo) : IPackage
@@ -19,7 +19,7 @@ public class FileSystemRepository : IPackageRepository
         public string Name { get; } = $"{directoryInfo.Name}{directoryInfo.FileSystem.Path.DirectorySeparatorChar}";
         public int? VersionHash => null;
         public string Location { get; } = directoryInfo.FullName;
-        public IPackageInstaller CreateInstaller() => new DirectoryInstaller(Name, VersionHash, Location);
+        public IPackageInstaller CreateInstaller() => new DirectoryInstaller(Name, VersionHash, directoryInfo);
     }
 
     internal const string EnabledSubdir = "Enabled";
@@ -29,15 +29,11 @@ public class FileSystemRepository : IPackageRepository
     private readonly string disabledDirPath;
     private readonly IFileSystem fs;
 
-    internal FileSystemRepository(string repositoryDir) : this(new FileSystem(), repositoryDir)
+    internal FileSystemRepository(IDirectoryInfo repositoryDir)
     {
-    }
-
-    internal FileSystemRepository(IFileSystem fs, string repositoryDir)
-    {
-        this.fs = fs;
-        enabledDirPath = fs.Path.Combine(repositoryDir, EnabledSubdir);
-        disabledDirPath = fs.Path.Combine(repositoryDir, DisabledSubdir);
+        fs = repositoryDir.FileSystem;
+        enabledDirPath = fs.Path.Combine(repositoryDir.FullName, EnabledSubdir);
+        disabledDirPath = fs.Path.Combine(repositoryDir.FullName, DisabledSubdir);
     }
 
     public void Upload(string sourceFilePath)
@@ -74,6 +70,7 @@ public class FileSystemRepository : IPackageRepository
         {
             fs.File.Move(sourceFilePath, destinationPackagePath);
         }
+
         return destinationPackagePath;
     }
 

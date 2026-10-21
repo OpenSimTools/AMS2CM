@@ -12,7 +12,8 @@ using Microsoft.Extensions.Time.Testing;
 namespace Core.Tests.Packages.Installation;
 
 [IntegrationTest]
-public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>
+public class
+    PackageReconciliationServiceTest : ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>
 {
     #region Setup
 
@@ -44,7 +45,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
             ["U1"] =
-                new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
+                new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: FilesNotUsed,
+                    ShadowedBy: []),
             // 20%
             ["U2"] = new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files: FilesNotUsed,
                 ShadowedBy: [])
@@ -67,14 +69,16 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
     public void Apply_InstallsSelectedPackages()
     {
         Apply([
-            InstallerOf("A", versionHash: 42, files: [
+            InstallerOf("A", versionHash: 42, files:
+            [
                 "AF"
             ])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: [], Files:
+            [
                 "AF"
             ], ShadowedBy: [])
         });
@@ -143,10 +147,12 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: currentVersionHash, Partial: false, Dependencies: [], Files: [
-                "AF",
-                "AF2"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: currentVersionHash, Partial: false,
+                Dependencies: [], Files:
+                [
+                    "AF",
+                    "AF2"
+                ], ShadowedBy: [])
         });
 
         BackupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
@@ -176,7 +182,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
+            [
                 "AF1",
                 "AF2"
             ], ShadowedBy: [])
@@ -191,14 +198,16 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
     public void Apply_PreservesPackageDependencies()
     {
         Apply([
-            InstallerOf("A", versionHash: 42, files: [
+            InstallerOf("A", versionHash: 42, files:
+            [
                 "AF"
             ], dependencies: ["X"])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: ["X"], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: ["X"], Files:
+            [
                 "AF"
             ], ShadowedBy: [])
         });
@@ -208,26 +217,32 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
     public void Apply_FirstInstalledFilesTakePrecedence()
     {
         Apply([
-            InstallerOf("A", versionHash: 1, files: [
+            InstallerOf("A", versionHash: 1, files:
+            [
                 "AF1", "AF2"
             ]),
-            InstallerOf("B", versionHash: 2, files: [
+            InstallerOf("B", versionHash: 2, files:
+            [
                 "BF"
             ]),
-            InstallerOf("C", versionHash: 3, files: [
+            InstallerOf("C", versionHash: 3, files:
+            [
                 "AF1", "BF", "CF"
             ])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
+            [
                 "AF1", "AF2"
             ], ShadowedBy: []),
-            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [], Files: [
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [], Files:
+            [
                 "BF"
             ], ShadowedBy: []),
-            ["C"] = new(Time: TestInstallationTimeUtc, VersionHash: 3, Partial: false, Dependencies: [], Files: [
+            ["C"] = new(Time: TestInstallationTimeUtc, VersionHash: 3, Partial: false, Dependencies: [], Files:
+            [
                 "CF"
             ], ShadowedBy: ["A", "B"])
         });
@@ -258,7 +273,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
+            [
                 "SF",
                 "AF1"
             ], ShadowedBy: [])
@@ -293,14 +309,16 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
         BackupStrategyMock.Setup(m => m.PerformBackup(DestinationPath("Fail"))).Throws<TestException>();
 
         this.Invoking(m => m.Apply([
-            InstallerOf("A", versionHash: 42, files: [
+            InstallerOf("A", versionHash: 42, files:
+            [
                 "AF1", "Fail", "AF2"
             ])
         ])).Should().Throw<TestException>();
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: true, Dependencies: [], Files:
+            [
                 "AF1",
                 "Fail" // We don't know where it failed, so we add it
             ], ShadowedBy: [])
@@ -326,7 +344,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: true, Dependencies: [], Files:
+            [
                 "Fail", // We don't know where it failed, so we leave it
                 "AF2"
             ], ShadowedBy: [])
@@ -351,7 +370,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files:
+            [
                 "Fail"
             ], ShadowedBy: [])
         });
@@ -374,7 +394,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files:
+            [
                 "Fail"
             ], ShadowedBy: [])
         });
@@ -385,7 +406,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
     public void Apply_UninstallRemovesEmptyDirectories()
     {
         var subDir = Path.Combine("D1", "D2");
-        Directory.CreateDirectory(DestinationPath(subDir).Full);
+        TestFileSystem.Directory.CreateDirectory(DestinationPath(subDir).Full);
 
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
@@ -399,7 +420,7 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEmpty();
 
-        Directory.Exists(DestinationPath("D1").Full).Should().BeFalse();
+        TestFileSystem.Directory.Exists(DestinationPath("D1").Full).Should().BeFalse();
     }
 
     [Fact]
@@ -438,10 +459,12 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
+            [
                 "AF"
             ], ShadowedBy: ["B"]),
-            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files: [
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files:
+            [
                 "BF",
                 "Shared"
             ], ShadowedBy: []),
@@ -474,7 +497,8 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files: [
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
+            [
                 "A1",
             ], ShadowedBy: []),
         });
@@ -521,7 +545,9 @@ public class PackageReconciliationServiceTest : ReconciliationServiceTestBase<Pa
 public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventHandler : class
 {
     // Randomness ensures that at least some test runs will fail if it's used
-    protected readonly DateTimeOffset ValueNotUsed = Random.Shared.Next() > 0 ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
+    protected readonly DateTimeOffset ValueNotUsed =
+        Random.Shared.Next() > 0 ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
+
     protected readonly IReadOnlyCollection<string> FilesNotUsed = [Guid.NewGuid().ToString()];
 
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
@@ -529,9 +555,10 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
 
     protected readonly DateTimeOffset TestInstallationTimeUtc;
     private readonly FakeTimeProvider TestTimeProvider;
-    private readonly MockFileSystem TestFileSystem = new();
+    protected readonly MockFileSystem TestFileSystem = new();
 
     protected IReadOnlyDictionary<string, PackageInstallationState>? InstallationState;
+
     protected IEnumerable<string> InstalledPackages =>
         InstallationState?.Keys ?? Enumerable.Empty<string>();
 
@@ -544,7 +571,8 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
         TestTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.ToOffset(fakeLocalTimeOffset));
     }
 
-    protected RootedPath DestinationPath(string relativePath) => new(destinationDir, relativePath);
+    protected RootedPath DestinationPath(string relativePath) =>
+        new(TestFileSystem.Path.GetFullPath(destinationDir), relativePath);
 
     protected abstract IReconciliationService<TEventHandler> NewService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
@@ -567,17 +595,15 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
         service.Reconcile(
             InstallationState ?? ReadOnlyDictionary<string, PackageInstallationState>.Empty,
             packages,
-            destinationDir,
+            TestFileSystem.DirectoryInfo.New(destinationDir),
             newState => InstallationState = newState,
             eventHandler ?? EventHandlerMock.Object,
             CancellationToken.None);
     }
 
     protected IPackageInstaller InstallerOf(string name, int? versionHash = null) =>
-        new StaticFilesInstaller(TestFileSystem, TestTimeProvider, name, versionHash, new Dictionary<string, string>
-        {
-            [name] = "Contents"
-        }, []);
+        new StaticFilesInstaller(TestFileSystem, TestTimeProvider, name, versionHash,
+            new Dictionary<string, string> { [name] = "Contents" }, []);
 
     protected IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
         InstallerOf(name, versionHash, files, Array.Empty<string>());

@@ -1,4 +1,5 @@
-﻿using Core.Games;
+using System.IO.Abstractions;
+using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.Mods.Installation;
@@ -17,8 +18,9 @@ public static class Init
 
     public static IModManager CreateModManager(Config config)
     {
-        var game = new Game(config.Game);
-        var modsDir = Path.Combine(game.InstallationDirectory, ModsDirName);
+        var fs = new FileSystem();
+        var game = new Game(fs, config.Game);
+        var modsDir = fs.DirectoryInfo.New(Path.Combine(game.InstallationDirectory.FullName, ModsDirName));
         var modRepository = new FileSystemRepository(modsDir);
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var safeFileDelete = new WindowsRecyclingBin();
@@ -34,8 +36,10 @@ public static class Init
         ITempDir tempDir,
         ModInstallConfig modInstallConfig)
     {
+        var file = game.InstallationDirectory.FileSystem.File;
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider<IEventHandler>(
-            new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>());
+            file,
+            new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>(file));
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
         var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
             modInstallConfig);

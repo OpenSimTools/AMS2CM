@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation.Backup;
@@ -101,7 +102,8 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", 0xbadcafe, packageFiles));
 
-        string[] expectedFiles = {
+        string[] expectedFiles =
+        {
             crdFile,
             notInGameSupportedDir,
             Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile),
@@ -153,7 +155,8 @@ public class ModInstallerTest
     [Fact]
     public void AutomaticModConfigurationNotPossibleForTracks()
     {
-        string[] packageFiles = [
+        string[] packageFiles =
+        [
             Path.Combine(GameDirAtRoot, "File.trd")
         ];
 
@@ -232,12 +235,10 @@ public class ModInstallerTest
 
     private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
     {
-        var modInstaller = new ModInstaller(fs, inner, tempDir, configMock.Object, destDir, BootfilesPackageName);
+        var modInstaller = new ModInstaller(inner, fs.DirectoryInfo.New(tempDir), configMock.Object,
+            fs.DirectoryInfo.New(destDir), BootfilesPackageName);
         modInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
-            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>
-            {
-                Before = callbackMock.Object
-            });
+            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
         fs.Directory.Delete(tempDir, recursive: true);
         return modInstaller;
     }
@@ -245,7 +246,8 @@ public class ModInstallerTest
     private IPackageInstaller InstallerOf(string name, int? versionHash, IEnumerable<string> files) =>
         InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
-    private StaticFilesInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
+    private StaticFilesInstaller InstallerOf(string name, int? versionHash,
+        IReadOnlyDictionary<string, string> fileContents) =>
         new(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
     private List<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
@@ -260,6 +262,7 @@ public class ModInstallerTest
         {
             callbackMock.Verify(a => a(rp), Times.Once);
         }
+
         callbackMock.VerifyNoOtherCalls();
     }
 

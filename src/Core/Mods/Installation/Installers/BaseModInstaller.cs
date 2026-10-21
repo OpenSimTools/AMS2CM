@@ -35,18 +35,18 @@ public abstract class BaseModInstaller : IPackageInstaller
 
     private readonly HashSet<RootedPath> localInstalledFiles = new();
 
-    protected BaseModInstaller(IFileSystem fileSystem, IPackageInstaller inner, string tempDir, IConfig config)
+    protected BaseModInstaller(IPackageInstaller inner, IDirectoryInfo tempDir, IConfig config)
     {
-        FileSystem = fileSystem;
+        FileSystem = tempDir.FileSystem;
         Inner = inner;
-        StagingFullPath = Path.GetFullPath(Path.Combine(tempDir, inner.PackageName));
-        GameSupportedModRelativeDir = Paths.NormalizeDirectorySeparators(config.GameSupportedModDir) + Path.DirectorySeparatorChar;
+        StagingFullPath = FileSystem.Path.GetFullPath(Path.Combine(tempDir.FullName, inner.PackageName));
+        GameSupportedModRelativeDir = Paths.NormalizeDirectorySeparators(config.GameSupportedModDir) +
+                                      Path.DirectorySeparatorChar;
         VehicleListFileName = config.VehicleListFileName;
         TrackListFileName = config.TrackListFileName;
         DrivelineFileName = config.DrivelineFileName;
         var rootFinder = new ContainedDirsRootFinder(config.DirsAtRoot);
-        rootPaths = new Lazy<IRootFinder.RootPaths>(
-            () => rootFinder.FromDirectoryList(Inner.RelativeDirectoryPaths));
+        rootPaths = new Lazy<IRootFinder.RootPaths>(() => rootFinder.FromDirectoryList(Inner.RelativeDirectoryPaths));
         filesToInstallMatcher = Matchers.ExcludingPatterns(config.ExcludedFromInstall);
         postProcessingDone = false;
     }
@@ -176,9 +176,11 @@ public abstract class BaseModInstaller : IPackageInstaller
             {
                 continue;
             }
+
             seen.Add(key);
             deduped.Add(rb);
         }
+
         return deduped.Reverse<string>();
     }
 
@@ -195,6 +197,7 @@ public abstract class BaseModInstaller : IPackageInstaller
         {
             throw new Exception("Could not find insertion point in driveline file");
         }
+
         return contents.Insert(endIndex, recordsTextBlock);
     }
 
@@ -209,6 +212,7 @@ public abstract class BaseModInstaller : IPackageInstaller
         {
             return;
         }
+
         var contents = WrapConfigBlock(entriesBlock);
 
         SafeAppendAllText(filePath, contents, backupStrategy, callbacks);
@@ -236,6 +240,7 @@ public abstract class BaseModInstaller : IPackageInstaller
             {
                 FileSystem.Directory.CreateDirectory(dirPath);
             }
+
             fileOperation(fullFilePath, contents);
             backupStrategy.AfterInstall(filePath);
             localInstalledFiles.Add(filePath);

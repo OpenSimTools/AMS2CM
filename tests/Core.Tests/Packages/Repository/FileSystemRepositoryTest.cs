@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Core.Packages.Repository;
 using System.IO.Abstractions.TestingHelpers;
 using FluentAssertions;
@@ -14,7 +15,7 @@ public class FileSystemRepositoryTest
 
     public FileSystemRepositoryTest()
     {
-        fileSystemRepository = new FileSystemRepository(fs, RepositoryDir);
+        fileSystemRepository = new FileSystemRepository(fs.DirectoryInfo.New(RepositoryDir));
     }
 
     [Fact]
@@ -33,15 +34,15 @@ public class FileSystemRepositoryTest
         AddDisabled("File4.Ext");
 
         fileSystemRepository.ListEnabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new[] {
-                ("File1.Ext", EnabledPath("File1.Ext")),
-                ("File2.Ext", EnabledPath("File2.Ext"))
+            .Should().BeEquivalentTo(new[]
+            {
+                ("File1.Ext", EnabledPath("File1.Ext")), ("File2.Ext", EnabledPath("File2.Ext"))
             });
 
         fileSystemRepository.ListDisabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new[] {
-                ("File3.Ext", DisabledPath("File3.Ext")),
-                ("File4.Ext", DisabledPath("File4.Ext"))
+            .Should().BeEquivalentTo(new[]
+            {
+                ("File3.Ext", DisabledPath("File3.Ext")), ("File4.Ext", DisabledPath("File4.Ext"))
             });
     }
 
@@ -54,15 +55,9 @@ public class FileSystemRepositoryTest
         AddDisabledDir(@"Dir4\SubDir");
 
         fileSystemRepository.ListEnabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new [] {
-                (@"Dir1\", EnabledPath("Dir1")),
-                (@"Dir2\", EnabledPath("Dir2"))
-            });
+            .Should().BeEquivalentTo(new[] { (@"Dir1\", EnabledPath("Dir1")), (@"Dir2\", EnabledPath("Dir2")) });
         fileSystemRepository.ListDisabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new [] {
-                (@"Dir3\", DisabledPath("Dir3")),
-                (@"Dir4\", DisabledPath("Dir4"))
-            });
+            .Should().BeEquivalentTo(new[] { (@"Dir3\", DisabledPath("Dir3")), (@"Dir4\", DisabledPath("Dir4")) });
     }
 
     [Fact]
@@ -136,8 +131,7 @@ public class FileSystemRepositoryTest
         fs.AllFiles.Where(f => f.StartsWith(RepositoryDir)).Select(path => (path, fs.File.ReadAllText(path)))
             .Should().BeEquivalentTo(new[]
             {
-                (EnabledPath("Enabled"), updatedContent),
-                (DisabledPath("Disabled"), updatedContent),
+                (EnabledPath("Enabled"), updatedContent), (DisabledPath("Disabled"), updatedContent),
                 (EnabledPath("NotPresent"), updatedContent)
             });
     }
@@ -168,5 +162,6 @@ public class FileSystemRepositoryTest
 
     private static string EnabledPath(string relativePath) => Path.Combine(RepositoryDir, EnabledSubdir, relativePath);
 
-    private static string DisabledPath(string relativePath) => Path.Combine(RepositoryDir, DisabledSubdir, relativePath);
+    private static string DisabledPath(string relativePath) =>
+        Path.Combine(RepositoryDir, DisabledSubdir, relativePath);
 }

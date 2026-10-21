@@ -27,15 +27,9 @@ public class ModInstaller : BaseModInstaller
     private RootedPath modConfigPath;
     private string modName;
 
-    internal ModInstaller(IPackageInstaller inner, string tempDir, IConfig config,
-        string gameInstallationDir, string bootfilesPackageName) :
-        this(new FileSystem(), inner, tempDir, config, gameInstallationDir, bootfilesPackageName)
-    {
-    }
-
-    internal ModInstaller(IFileSystem fileSystem, IPackageInstaller inner, string tempDir, IConfig config,
-        string gameInstallationDir, string bootfilesPackageName) :
-        base(fileSystem, inner, tempDir, config)
+    internal ModInstaller(IPackageInstaller inner, IDirectoryInfo tempDir, IConfig config,
+        IDirectoryInfo gameInstallationDir, string bootfilesPackageName) :
+        base(inner, tempDir, config)
     {
         this.bootfilesPackageName = bootfilesPackageName;
         filesToConfigureMatcher = Matchers.ExcludingPatterns(config.ExcludedFromConfig);
@@ -47,7 +41,8 @@ public class ModInstaller : BaseModInstaller
         var hexVersionHash = (inner.PackageVersionHash ?? 0).ToString("x");
         modName = $"{normalisedName}_{hexVersionHash}";
 
-        modConfigPath = new RootedPath(gameInstallationDir, Path.Combine(GameSupportedModRelativeDir, modName));
+        modConfigPath =
+            new RootedPath(gameInstallationDir.FullName, Path.Combine(GameSupportedModRelativeDir, modName));
     }
 
     public override IReadOnlySet<string> PackageDependencies =>
@@ -124,6 +119,7 @@ public class ModInstaller : BaseModInstaller
                 {
                     recordIndent = line.IndexOf("RECORD", StringComparison.Ordinal);
                 }
+
                 if (recordIndent < 0)
                 {
                     continue;

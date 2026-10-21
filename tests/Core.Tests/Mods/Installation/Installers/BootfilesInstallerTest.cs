@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.Mods;
 using Core.Mods.Installation.Installers;
@@ -180,17 +181,11 @@ public class BootfilesInstallerTest
     private BootfilesInstaller InstallBootfiles()
     {
         var emptyPackage = new StaticFilesInstaller(fs, fakeTimeProvider, BootfilesPackageName, 42,
-            new Dictionary<string, string>
-            {
-                [FileInBootfilesPackage] = ""
-            }, Array.Empty<string>());
-        var bootfilesInstaller = new BootfilesInstaller(fs, emptyPackage, tempDir, configMock.Object,
-            destDir, bootfilesNamingMock.Object, eventHandlerMock.Object);
+            new Dictionary<string, string> { [FileInBootfilesPackage] = "" }, Array.Empty<string>());
+        var bootfilesInstaller = new BootfilesInstaller(emptyPackage, fs.DirectoryInfo.New(tempDir), configMock.Object,
+            fs.DirectoryInfo.New(destDir), bootfilesNamingMock.Object, eventHandlerMock.Object);
         bootfilesInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
-            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>
-            {
-                Before = callbackMock.Object
-            });
+            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
         fs.Directory.Delete(tempDir, recursive: true);
         return bootfilesInstaller;
     }
@@ -221,6 +216,7 @@ public class BootfilesInstallerTest
         {
             callbackMock.Verify(a => a(rp), Times.Once);
         }
+
         callbackMock.VerifyNoOtherCalls();
     }
 

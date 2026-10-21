@@ -9,7 +9,6 @@ namespace Core.Tests.Packages.Installation.Installers;
 [IntegrationTest]
 public class DirectoryInstallerTest : AbstractFilesystemTest
 {
-
     #region Setup
 
     const string fileName = "File";
@@ -32,13 +31,13 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
         var destinationFile = destinationRoot.SubPath(fileName);
         CreateFile(destinationFile, "Old");
 
-        var installer = new DirectoryInstaller("Package", 1, sourceRoot.Full);
+        var installer = new DirectoryInstaller("Package", 1, FileSystem.DirectoryInfo.New(sourceRoot.Full));
         CreateFile(sourceRoot.SubPath(fileName), "New");
 
         installer.Install(path => destinationRoot.SubPath(path),
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
-        File.ReadAllText(destinationFile.Full).Should().Be("New");
+        FileSystem.File.ReadAllText(destinationFile.Full).Should().Be("New");
     }
 
     [Fact]
@@ -47,12 +46,12 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
         var destinationFile = destinationRoot.SubPath(fileName);
         CreateFile(destinationFile, "Old");
 
-        var installer = new DirectoryInstaller("Package", 1, sourceRoot.Full);
+        var installer = new DirectoryInstaller("Package", 1, FileSystem.DirectoryInfo.New(sourceRoot.Full));
         CreateFile(sourceRoot.SubPath(fileName + BaseInstaller.RemoveFileSuffix));
 
         installer.Install(path => destinationRoot.SubPath(path),
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
-        File.Exists(destinationFile.Full).Should().BeFalse();
+        FileSystem.File.Exists(destinationFile.Full).Should().BeFalse();
     }
 }

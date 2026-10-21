@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
@@ -10,10 +11,9 @@ public class PackageReconciliationService<TEventHandler>(
     : IReconciliationService<TEventHandler>
     where TEventHandler : PackageReconciliationService.IEventHandler
 {
-    public void Reconcile(
-        IReadOnlyDictionary<string, PackageInstallationState> previousState,
+    public void Reconcile(IReadOnlyDictionary<string, PackageInstallationState> previousState,
         IEnumerable<IPackage> packages,
-        string installDir,
+        IDirectoryInfo installDir,
         Action<IReadOnlyDictionary<string, PackageInstallationState>> afterInstall,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
@@ -44,7 +44,9 @@ public class PackageReconciliationService<TEventHandler>(
         }
     }
 
-    protected virtual IReadOnlyCollection<IReconciliationAction> ReconciliationActions(IReadOnlyDictionary<string, PackageInstallationState> previousState, IEnumerable<IPackageInstaller> installers, string installDir,
+    protected virtual IReadOnlyCollection<IReconciliationAction> ReconciliationActions(
+        IReadOnlyDictionary<string, PackageInstallationState> previousState, IEnumerable<IPackageInstaller> installers,
+        IDirectoryInfo installDir,
         TEventHandler eventHandler)
     {
         var installersCollection = installers.ToArray();
@@ -69,7 +71,7 @@ public class PackageReconciliationService<TEventHandler>(
         var toUninstall = new HashSet<string>();
         var processed = new HashSet<string>();
         var previouslyInstalledPaths = previousState.Values
-            .SelectMany(state => state.Files).Select(path => new RootedPath(installDir, path));
+            .SelectMany(state => state.Files).Select(path => new RootedPath(installDir.FullName, path));
         var trackingBackupProvider = new SkipInstalledBackupStrategy.Provider<TEventHandler>(
             backupStrategyProvider, previouslyInstalledPaths);
         var raf = new ReconciliationAction<TEventHandler>.Factory(installDir, trackingBackupProvider, eventHandler);
@@ -94,6 +96,7 @@ public class PackageReconciliationService<TEventHandler>(
             {
                 continue;
             }
+
             if (state is null || toUninstall.Contains(packageName))
             {
                 installOrKeepActions.Add(raf.Install(installer));
@@ -135,10 +138,12 @@ public class PackageReconciliationService<TEventHandler>(
                     {
                         return true;
                     }
+
                     if (shadowingPackageName != action.PackageName)
                     {
                         shadowedBy.Add(shadowingPackageName);
                     }
+
                     return false;
                 },
                 Before = gamePath => installedFiles.Add(gamePath, action.PackageName)
@@ -160,8 +165,9 @@ public class PackageReconciliationService<TEventHandler>(
                             Dependencies: action.PackageDependencies,
                             ShadowedBy: shadowedBy,
                             Files: files
-                    ));
+                        ));
             }
+
             eventHandler.ProgressUpdate(progress.IncrementDone());
         }
 

@@ -1,4 +1,4 @@
-﻿using System.IO.Abstractions.TestingHelpers;
+using System.IO.Abstractions.TestingHelpers;
 using Core.Packages.Installation.Backup;
 using Core.Utils;
 using FluentAssertions;
@@ -27,11 +27,8 @@ public class MoveFileBackupStrategyTest
     [Fact]
     public void PerformBackup_MovesOriginalToBackup()
     {
-        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
-        {
-            { OriginalFile, OriginalContents },
-        });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData> { { OriginalFile, OriginalContents }, });
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.PerformBackup(OriginalPath);
 
@@ -46,7 +43,7 @@ public class MoveFileBackupStrategyTest
     {
         var fs = new MockFileSystem();
         backupFileNamingMock.Setup(_ => _.IsBackup(OriginalFile)).Returns(true);
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.Invoking(_ => _.PerformBackup(OriginalPath))
             .Should().Throw<InvalidOperationException>();
@@ -60,7 +57,7 @@ public class MoveFileBackupStrategyTest
     public void PerformBackup_SkipsBackupIfFileNotPresent()
     {
         var fs = new MockFileSystem();
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.PerformBackup(OriginalPath);
 
@@ -75,10 +72,9 @@ public class MoveFileBackupStrategyTest
         var oldBackupContents = "old backup";
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
-            { OriginalFile, OriginalContents },
-            { BackupFile, oldBackupContents },
+            { OriginalFile, OriginalContents }, { BackupFile, oldBackupContents },
         });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.PerformBackup(OriginalPath);
 
@@ -92,11 +88,8 @@ public class MoveFileBackupStrategyTest
     [Fact]
     public void RestoreBackup_MovesBackupToOriginal()
     {
-        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
-        {
-            { BackupFile, OriginalContents},
-        });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData> { { BackupFile, OriginalContents }, });
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(OriginalPath);
 
@@ -111,10 +104,9 @@ public class MoveFileBackupStrategyTest
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
-            { OriginalFile, "other contents" },
-            { BackupFile, OriginalContents},
+            { OriginalFile, "other contents" }, { BackupFile, OriginalContents },
         });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(OriginalPath);
 
@@ -127,11 +119,8 @@ public class MoveFileBackupStrategyTest
     [Fact]
     public void RestoreBackup_WhenNoOriginalFile()
     {
-        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
-        {
-            { BackupFile, OriginalContents},
-        });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData> { { BackupFile, OriginalContents }, });
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(OriginalPath);
 
@@ -144,11 +133,8 @@ public class MoveFileBackupStrategyTest
     [Fact]
     public void RestoreBackup_DeletesOriginalFileIfNoBackup()
     {
-        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
-        {
-            { OriginalFile, "other contents" },
-        });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData> { { OriginalFile, "other contents" }, });
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(OriginalPath);
 
@@ -160,11 +146,8 @@ public class MoveFileBackupStrategyTest
     [Fact]
     public void DeleteBackup_RemovesBackupIfItExists()
     {
-        var fs = new MockFileSystem(new Dictionary<string, MockFileData>
-        {
-            { BackupFile, OriginalContents},
-        });
-        var mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
+        var fs = new MockFileSystem(new Dictionary<string, MockFileData> { { BackupFile, OriginalContents }, });
+        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.DeleteBackup(OriginalPath);
 

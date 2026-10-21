@@ -1,14 +1,17 @@
 ﻿using Core.Utils;
+using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 
 namespace Core.Tests.Base;
 
 public abstract class AbstractFilesystemTest : IDisposable
 {
-    protected readonly DirectoryInfo TestDir;
+    protected readonly MockFileSystem FileSystem = new();
+    protected readonly IDirectoryInfo TestDir;
 
     protected AbstractFilesystemTest()
     {
-        TestDir = Directory.CreateTempSubdirectory(GetType().Name);
+        TestDir = FileSystem.Directory.CreateDirectory(GetType().Name);
     }
 
     public void Dispose()
@@ -24,19 +27,20 @@ public abstract class AbstractFilesystemTest : IDisposable
         }
     }
 
-    protected FileInfo CreateTestFile(string relativePath, string content = "") =>
+    protected IFileInfo CreateTestFile(string relativePath, string content = "") =>
         CreateFile(TestPath(relativePath), content);
 
     protected RootedPath TestPath(string relativePath) => new(TestDir.FullName, relativePath);
 
-    protected static FileInfo CreateFile(RootedPath path, string content = "")
+    protected IFileInfo CreateFile(RootedPath path, string content = "")
     {
         var parentDirFullPath = Path.GetDirectoryName(path.Full);
         if (parentDirFullPath is not null)
         {
-            Directory.CreateDirectory(parentDirFullPath);
+            FileSystem.Directory.CreateDirectory(parentDirFullPath);
         }
-        File.WriteAllText(path.Full, content);
-        return new FileInfo(path.Full);
+
+        FileSystem.File.WriteAllText(path.Full, content);
+        return FileSystem.FileInfo.New(path.Full);
     }
 }

@@ -45,7 +45,7 @@ public class JsonFileStatePersistenceTest
                     """)
             }
         });
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
+        var sp = new JsonFileStatePersistence(fs, StateV2File, "NotUsed");
 
         var state = sp.ReadState();
         state.Installation.Keys.Should().Contain("M");
@@ -78,7 +78,7 @@ public class JsonFileStatePersistenceTest
                 """) { LastWriteTime = fileWriteTime }
             }
         });
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
+        var sp = new JsonFileStatePersistence(fs, StateV2File, "NotUsed");
 
         var state = sp.ReadState();
         state.Installation.Keys.Should().Contain("M");
@@ -111,7 +111,7 @@ public class JsonFileStatePersistenceTest
                 """
             }
         });
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
+        var sp = new JsonFileStatePersistence(fs, StateV2File, "NotUsed");
 
         var state = sp.ReadState();
         state.Installation.Keys.Should().Contain("M");
@@ -134,7 +134,7 @@ public class JsonFileStatePersistenceTest
                 """) { LastWriteTime = fileWriteTime }
             }
         });
-        var sp = new JsonFileStatePersistence(fs, "NotUsed", fs.Path.GetFullPath(StateV1File));
+        var sp = new JsonFileStatePersistence(fs, "NotUsed", StateV1File);
 
         var state = sp.ReadState();
         state.Installation.Keys.Should().Contain("M");
@@ -172,7 +172,7 @@ public class JsonFileStatePersistenceTest
                 """
             }
         });
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), fs.Path.GetFullPath(StateV1File));
+        var sp = new JsonFileStatePersistence(fs, StateV2File, StateV1File);
 
         var state = sp.ReadState();
 
@@ -219,7 +219,7 @@ public class JsonFileStatePersistenceTest
     public void WriteState_V2WritesUtc()
     {
         var fs = new MockFileSystem();
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
+        var sp = new JsonFileStatePersistence(fs, StateV2File, "NotUsed");
 
         var localTime = DateTimeOffset.UnixEpoch.ToOffset(TimeSpan.FromHours(4));
 
@@ -244,9 +244,9 @@ public class JsonFileStatePersistenceTest
     {
         var fs = new MockFileSystem(new Dictionary<string, MockFileData>
         {
-            { StateV1File, "NotUsed" }
+            { StateV1File, "ToBeDeleted" }
         });
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), fs.Path.GetFullPath(StateV1File));
+        var sp = new JsonFileStatePersistence(fs, StateV2File, StateV1File);
 
         sp.WriteState(SavedState.Empty());
 
@@ -260,7 +260,7 @@ public class JsonFileStatePersistenceTest
         {
             { Path.Combine(StateV2File, "File"), "NotUsed" }
         });
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), fs.Path.GetFullPath(StateV1File));
+        var sp = new JsonFileStatePersistence(fs, StateV2File, StateV1File);
 
         Action write = () => sp.WriteState(SavedState.Empty());
         write.Should().Throw<Exception>()
@@ -271,7 +271,7 @@ public class JsonFileStatePersistenceTest
     public void WriteReadLoop()
     {
         var fs = new MockFileSystem();
-        var sp = new JsonFileStatePersistence(fs, fs.Path.GetFullPath(StateV2File), "NotUsed");
+        var sp = new JsonFileStatePersistence(fs, StateV2File, "NotUsed");
 
         var writtenState = new SavedState(
             Installation: new Dictionary<string, PackageInstallationState>

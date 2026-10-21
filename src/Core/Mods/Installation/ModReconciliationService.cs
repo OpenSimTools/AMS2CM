@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.IO.Abstractions;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
@@ -16,7 +17,7 @@ public class ModReconciliationService<TEventHandler>(
 {
     protected override IReadOnlyCollection<IReconciliationAction> ReconciliationActions(
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
-        IEnumerable<IPackageInstaller> installers, string installDir, TEventHandler eventHandler)
+        IEnumerable<IPackageInstaller> installers, IDirectoryInfo installDir, TEventHandler eventHandler)
     {
         var (bootfiles, notBootfiles) = installers.ToImmutableArray()
             .Partition(p => bootfilesNaming.IsBootfiles(p.PackageName));
@@ -37,7 +38,8 @@ public class ModReconciliationService<TEventHandler>(
         return base.ReconciliationActions(stateWithBootfilesDepsReplaced, modInstallers, installDir, eventHandler);
     }
 
-    private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers, TEventHandler eventHandler)
+    private IPackageInstaller CreateBootfilesInstaller(IEnumerable<IPackageInstaller> bootfilesPackageInstallers,
+        TEventHandler eventHandler)
     {
         var installer = bootfilesPackageInstallers.FirstOrDefault();
         return modInstallerFactory.BootfilesInstaller(installer, eventHandler);
