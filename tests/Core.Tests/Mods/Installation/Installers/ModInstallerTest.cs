@@ -1,4 +1,3 @@
-using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation.Backup;
@@ -32,6 +31,8 @@ public class ModInstallerTest
     private readonly string destDir;
     private readonly string tempDir;
 
+    private readonly RootPath destRoot;
+
     public ModInstallerTest()
     {
         var gsmd = InvertCasing(GameSupportedModDirectory);
@@ -44,6 +45,8 @@ public class ModInstallerTest
 
         destDir = fs.Directory.CreateDirectory("Dest").FullName;
         tempDir = fs.Directory.CreateDirectory("Temp").FullName;
+
+        destRoot = new RootPath(destDir);
     }
 
     #endregion
@@ -120,11 +123,11 @@ public class ModInstallerTest
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
         backupStrategyMock.Verify(m => m.AfterInstall(
-            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile))));
+            destRoot.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile)));
         fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
             .TextContents.Should().Be(drivelineRecord.Trim());
         backupStrategyMock.Verify(m => m.AfterInstall(
-            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile))));
+            destRoot.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile)));
     }
 
     [Fact]
@@ -237,7 +240,7 @@ public class ModInstallerTest
     {
         var modInstaller = new ModInstaller(inner, fs.DirectoryInfo.New(tempDir), configMock.Object,
             fs.DirectoryInfo.New(destDir), BootfilesPackageName);
-        modInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
+        modInstaller.Install(destRoot.Combine,
             backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
         fs.Directory.Delete(tempDir, recursive: true);
         return modInstaller;
@@ -254,7 +257,7 @@ public class ModInstallerTest
         [.. relativePaths.Select(f => Path.Combine(destDir, f))];
 
     private HashSet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
-        [.. relativePaths.Select(f => new RootedPath(destDir, f))];
+        [.. relativePaths.Select(destRoot.Combine)];
 
     private void VerifyCallbackCalledWith(IReadOnlyCollection<string> relativePaths)
     {

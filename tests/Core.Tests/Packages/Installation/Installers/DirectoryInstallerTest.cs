@@ -13,14 +13,14 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
 
     const string fileName = "File";
 
-    private readonly RootedPath sourceRoot;
-    private readonly RootedPath destinationRoot;
+    private readonly RootPath sourceRoot;
+    private readonly RootPath destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
 
     public DirectoryInstallerTest()
     {
-        sourceRoot = new RootedPath(TestDir.CreateSubdirectory("PackageDir").FullName);
-        destinationRoot = new RootedPath(TestDir.CreateSubdirectory("Destination").FullName);
+        sourceRoot = new RootPath(TestDir.CreateSubdirectory("PackageDir").FullName);
+        destinationRoot = new RootPath(TestDir.CreateSubdirectory("Destination").FullName);
     }
 
     #endregion
@@ -28,13 +28,13 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
     [Fact]
     public void Install_ReplacesDestination()
     {
-        var destinationFile = destinationRoot.SubPath(fileName);
+        var destinationFile = destinationRoot.Combine(fileName);
         CreateFile(destinationFile, "Old");
 
         var installer = new DirectoryInstaller("Package", 1, FileSystem.DirectoryInfo.New(sourceRoot.Full));
-        CreateFile(sourceRoot.SubPath(fileName), "New");
+        CreateFile(sourceRoot.Combine(fileName), "New");
 
-        installer.Install(path => destinationRoot.SubPath(path),
+        installer.Install(path => destinationRoot.Combine(path),
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
         FileSystem.File.ReadAllText(destinationFile.Full).Should().Be("New");
@@ -43,13 +43,13 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
     [Fact]
     public void Install_FileRemovalDeletesDestination()
     {
-        var destinationFile = destinationRoot.SubPath(fileName);
+        var destinationFile = destinationRoot.Combine(fileName);
         CreateFile(destinationFile, "Old");
 
         var installer = new DirectoryInstaller("Package", 1, FileSystem.DirectoryInfo.New(sourceRoot.Full));
-        CreateFile(sourceRoot.SubPath(fileName + BaseInstaller.RemoveFileSuffix));
+        CreateFile(sourceRoot.Combine(fileName + BaseInstaller.RemoveFileSuffix));
 
-        installer.Install(path => destinationRoot.SubPath(path),
+        installer.Install(path => destinationRoot.Combine(path),
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
         FileSystem.File.Exists(destinationFile.Full).Should().BeFalse();

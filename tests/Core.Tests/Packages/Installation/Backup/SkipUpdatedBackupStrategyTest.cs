@@ -8,7 +8,7 @@ namespace Core.Tests.Packages.Installation.Backup;
 [IntegrationTest]
 public class SkipUpdatedBackupStrategyTest
 {
-    private readonly RootedPath originalFile = new("root", "original");
+    private readonly RootedPath originalFile = new RootPath("root").Combine("original");
     private readonly DateTimeOffset Unused = DateTimeOffset.MinValue;
 
     private readonly Mock<IBackupStrategy> innerStrategyMock = new();

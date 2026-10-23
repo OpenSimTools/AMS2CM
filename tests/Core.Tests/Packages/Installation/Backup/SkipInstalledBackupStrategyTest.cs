@@ -9,7 +9,7 @@ public class SkipInstalledBackupStrategyTest
 {
     #region Setup
 
-    private readonly RootedPath path = new("Original", "File");
+    private readonly RootedPath path = new RootPath("Original").Combine("File");
     private readonly DateTimeOffset backupTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(1));
     private readonly Mock<IBackupStrategy> inner = new();
     private readonly Mock<IBackupStrategyProvider<DateTimeOffset, IBackupEventHandler>> baseProvider = new();

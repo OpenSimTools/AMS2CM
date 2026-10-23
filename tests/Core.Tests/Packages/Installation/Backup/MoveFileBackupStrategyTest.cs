@@ -5,13 +5,13 @@ using FluentAssertions;
 
 namespace Core.Tests.Packages.Installation.Backup;
 
-[IntegrationTest]
+[UnitTest]
 public class MoveFileBackupStrategyTest
 {
     private const string OriginalFile = "original";
     private const string OriginalContents = "something";
 
-    private static readonly RootedPath OriginalPath = new("", OriginalFile);
+    private static readonly RootedPath OriginalPath = new RootPath(Path.DirectorySeparatorChar.ToString()).Combine(OriginalFile);
 
     private readonly Mock<MoveFileBackupStrategy.IBackupFileNaming> backupFileNamingMock = new();
     private readonly Mock<IBackupEventHandler> eventHandlerMock = new();
@@ -21,7 +21,7 @@ public class MoveFileBackupStrategyTest
 
     public MoveFileBackupStrategyTest()
     {
-        backupFileNamingMock.Setup(_ => _.ToBackup(It.IsAny<string>())).Returns<string>(_ => $"b{_}");
+        backupFileNamingMock.Setup(m => m.ToBackup(It.IsAny<string>())).Returns<string>(f => $"{f}.backup");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class MoveFileBackupStrategyTest
     public void PerformBackup_ErrorsIfNameIsBackupName()
     {
         var fs = new MockFileSystem();
-        backupFileNamingMock.Setup(_ => _.IsBackup(OriginalFile)).Returns(true);
+        backupFileNamingMock.Setup(_ => _.IsBackup(OriginalPath.Full)).Returns(true);
         var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.Invoking(_ => _.PerformBackup(OriginalPath))

@@ -96,7 +96,7 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
         var (relativePath, remove) = destPath.Relative.EndsWith(BaseInstaller.RemoveFileSuffix)
             ? (destPath.Relative.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true)
             : (destPath.Relative, false);
-        return (new RootedPath(destPath.Root, relativePath), remove);
+        return (destPath.Root.Combine(relativePath), remove);
     }
 }
 

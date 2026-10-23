@@ -30,7 +30,7 @@ public abstract class AbstractFilesystemTest : IDisposable
     protected IFileInfo CreateTestFile(string relativePath, string content = "") =>
         CreateFile(TestPath(relativePath), content);
 
-    protected RootedPath TestPath(string relativePath) => new(TestDir.FullName, relativePath);
+    protected RootedPath TestPath(string relativePath) => new RootPath(TestDir.FullName).Combine(relativePath);
 
     protected IFileInfo CreateFile(RootedPath path, string content = "")
     {

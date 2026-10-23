@@ -42,7 +42,7 @@ public class ModInstaller : BaseModInstaller
         modName = $"{normalisedName}_{hexVersionHash}";
 
         modConfigPath =
-            new RootedPath(gameInstallationDir.FullName, Path.Combine(GameSupportedModRelativeDir, modName));
+            new RootPath(gameInstallationDir.FullName).Combine(GameSupportedModRelativeDir, modName);
     }
 
     public override IReadOnlySet<string> PackageDependencies =>
@@ -75,7 +75,7 @@ public class ModInstaller : BaseModInstaller
         InsertDrivelineRecords(modConfig.DrivelineRecords, backupStrategy, callbacks);
         if (generateModDetails && !modConfig.TrdFileEntries.Any())
         {
-            SafeWriteAllText(modConfigPath.SubPath($"{modName}.xml"), ModManifest, backupStrategy, callbacks);
+            SafeWriteAllText(modConfigPath.Combine($"{modName}.xml"), ModManifest, backupStrategy, callbacks);
         }
         else
         {
@@ -103,12 +103,12 @@ public class ModInstaller : BaseModInstaller
     private List<string> FindDrivelineRecords()
     {
         var recordBlocks = new List<string>();
-        if (!FileSystem.Directory.Exists(StagingFullPath))
+        if (!FileSystem.Directory.Exists(StagingRoot.Full))
         {
             return recordBlocks;
         }
 
-        foreach (var configFile in FileSystem.Directory.EnumerateFiles(StagingFullPath))
+        foreach (var configFile in FileSystem.Directory.EnumerateFiles(StagingRoot.Full))
         {
             var recordIndent = -1;
             var recordLines = new List<string>();

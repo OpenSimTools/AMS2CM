@@ -26,7 +26,7 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
-    private readonly RootedPath gameInstallationPath;
+    private readonly RootPath gameRoot;
     private readonly IBootfilesNaming bootfilesNaming;
     private readonly IEventHandler eventHandler;
 
@@ -36,10 +36,10 @@ public class BootfilesInstaller : BaseModInstaller
         base(PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir, bootfilesNaming),
             tempDir, config)
     {
-        gameInstallationPath = new RootedPath(gameInstallationDir.FullName);
-        VehicleListDir = gameInstallationPath.SubPath(config.BootfilesVehicleListDir);
-        TrackListDir = gameInstallationPath.SubPath(config.BootfilesTrackListDir);
-        DrivelineDir = gameInstallationPath.SubPath(config.BootfilesDrivelineDir);
+        gameRoot = new RootPath(gameInstallationDir.FullName);
+        VehicleListDir = gameRoot.Combine(config.BootfilesVehicleListDir);
+        TrackListDir = gameRoot.Combine(config.BootfilesTrackListDir);
+        DrivelineDir = gameRoot.Combine(config.BootfilesDrivelineDir);
         this.bootfilesNaming = bootfilesNaming;
         this.eventHandler = eventHandler;
     }
@@ -103,7 +103,7 @@ public class BootfilesInstaller : BaseModInstaller
 
     private ConfigEntries CollectModConfig()
     {
-        var modsGamePath = gameInstallationPath.SubPath(GameSupportedModRelativeDir);
+        var modsGamePath = gameRoot.Combine(GameSupportedModRelativeDir);
         var directoryInfo = FileSystem.DirectoryInfo.New(modsGamePath.Full);
         if (!directoryInfo.Exists)
             return ConfigEntries.Empty;

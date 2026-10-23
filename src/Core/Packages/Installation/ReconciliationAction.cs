@@ -27,6 +27,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         TEventHandler eventHandler)
     {
         internal IDirectoryInfo InstallDir { get; } = installDir;
+        internal RootPath InstallRoot { get; } = new(installDir.FullName);
 
         internal IBackupStrategyProvider<DateTimeOffset, TEventHandler> BackupStrategyProvider { get; } =
             backupStrategyProvider;
@@ -53,13 +54,10 @@ internal abstract class ReconciliationAction<TEventHandler>
             this.installer = installer;
         }
 
-        private static IInstaller.Destination InstallTo(IDirectoryInfo destDir) =>
-            relativePath => new RootedPath(destDir.FullName, relativePath);
-
         public void Execute(ProcessingCallbacks<RootedPath> callbacks)
         {
             EventHandler.InstallingPackage(PackageName);
-            installer.Install(InstallTo(InstallDir), BackupStrategy, callbacks);
+            installer.Install(InstallRoot.Combine, BackupStrategy, callbacks);
         }
 
         public string PackageName => installer.PackageName;
@@ -69,7 +67,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         public IInstallation.State InstallState => installer.Installed;
 
         public IReadOnlySet<string> InstalledFiles => installer.InstalledFiles
-            .Where(rp => rp.Root == InstallDir.FullName)
+            .Where(rp => rp.Root == InstallRoot)
             .Select(rp => rp.Relative)
             .ToImmutableHashSet();
     }
@@ -88,7 +86,7 @@ internal abstract class ReconciliationAction<TEventHandler>
             EventHandler.UninstallingPackage(PackageName);
             CurrentInstallState = IInstallation.State.PartiallyInstalled;
             var filesToUninstall = CurrentInstalledFiles
-                .Select(relativePath => new RootedPath(InstallDir.FullName, relativePath)).ToImmutableList();
+                .Select(InstallRoot.Combine).ToImmutableList();
             foreach (var gamePath in filesToUninstall)
             {
                 BackupStrategy.RestoreBackup(gamePath);
@@ -102,7 +100,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         private void DeleteEmptyDirectories(IReadOnlyCollection<RootedPath> filePaths)
         {
             var dirs = filePaths
-                .SelectMany(file => AncestorsUpTo(file.Root, file.Full))
+                .SelectMany(AncestorsUpToRoot)
                 .Distinct()
                 .OrderByDescending(name => name.Length);
             foreach (var dir in dirs)
@@ -116,16 +114,13 @@ internal abstract class ReconciliationAction<TEventHandler>
             }
         }
 
-        private List<string> AncestorsUpTo(string root, string path)
+        private List<string> AncestorsUpToRoot(RootedPath rp)
         {
             var ancestors = new List<string>();
-            for (var dir = InstallDir.FileSystem.Directory.GetParent(path);
-                 dir is not null && !StringComparer.OrdinalIgnoreCase.Equals(dir.FullName, root);
-                 dir = dir.Parent)
+            for (var dir = rp.Parent(); dir?.Parent() is not null; dir = dir.Parent())
             {
-                ancestors.Add(dir.FullName);
+                ancestors.Add(dir.Full);
             }
-
             return ancestors;
         }
     }
@@ -146,7 +141,7 @@ internal abstract class ReconciliationAction<TEventHandler>
             var callbacksAndRemoveShadowed = callbacks.AndNotAccepted(rp => CurrentInstalledFiles.Remove(rp.Relative));
             foreach (var relativePath in CurrentInstalledFiles.ToImmutableList())
             {
-                callbacksAndRemoveShadowed.Wrap(() => { }, new RootedPath(InstallDir.FullName, relativePath));
+                callbacksAndRemoveShadowed.Wrap(() => { }, InstallRoot.Combine(relativePath));
             }
 
             CurrentInstallState = IInstallation.State.Installed;
@@ -166,7 +161,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         {
             PackageName = packageName;
             originalState = state;
-            CurrentInstalledFiles = [.. state.Files];
+            CurrentInstalledFiles = [.. state.Files.Select(path => InstallRoot.Combine(path).Relative)];
             CurrentInstallState =
                 state.Partial ? IInstallation.State.PartiallyInstalled : IInstallation.State.Installed;
         }
@@ -184,12 +179,14 @@ internal abstract class ReconciliationAction<TEventHandler>
         Factory factory)
     {
         InstallDir = factory.InstallDir;
+        InstallRoot = factory.InstallRoot;
         EventHandler = factory.EventHandler;
         BackupStrategy = factory.BackupStrategyProvider.BackupStrategy(installTime, EventHandler);
         InstallTime = installTime;
     }
 
     protected readonly IDirectoryInfo InstallDir;
+    protected readonly RootPath InstallRoot;
     protected readonly TEventHandler EventHandler;
     protected readonly IBackupStrategy BackupStrategy;
 

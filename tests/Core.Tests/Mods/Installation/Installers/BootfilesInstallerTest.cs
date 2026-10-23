@@ -39,6 +39,8 @@ public class BootfilesInstallerTest
     private readonly string destDir;
     private readonly string tempDir;
 
+    private readonly RootPath destRoot;
+
     public BootfilesInstallerTest()
     {
         configMock.Setup(c => c.DirsAtRoot).Returns([GameDirAtRoot, GameSupportedModDirectory]);
@@ -52,6 +54,8 @@ public class BootfilesInstallerTest
 
         destDir = fs.Directory.CreateDirectory("Dest").FullName;
         tempDir = fs.Directory.CreateDirectory("Temp").FullName;
+
+        destRoot = new RootPath(destDir);
     }
 
     #endregion
@@ -184,7 +188,7 @@ public class BootfilesInstallerTest
             new Dictionary<string, string> { [FileInBootfilesPackage] = "" }, Array.Empty<string>());
         var bootfilesInstaller = new BootfilesInstaller(emptyPackage, fs.DirectoryInfo.New(tempDir), configMock.Object,
             fs.DirectoryInfo.New(destDir), bootfilesNamingMock.Object, eventHandlerMock.Object);
-        bootfilesInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
+        bootfilesInstaller.Install(packagePath => destRoot.Combine(packagePath),
             backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
         fs.Directory.Delete(tempDir, recursive: true);
         return bootfilesInstaller;
@@ -208,7 +212,7 @@ public class BootfilesInstallerTest
                 .Where(line => !string.IsNullOrEmpty(line)));
 
     private IReadOnlySet<RootedPath> DestRootedPaths(params string[] relativePaths) =>
-        relativePaths.Select(f => new RootedPath(destDir, f)).ToHashSet();
+        relativePaths.Select(f => destRoot.Combine(f)).ToHashSet();
 
     private void VerifyCallbackCalledWith(IReadOnlySet<RootedPath> relativePaths)
     {

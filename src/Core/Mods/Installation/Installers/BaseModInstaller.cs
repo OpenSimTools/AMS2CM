@@ -25,7 +25,7 @@ public abstract class BaseModInstaller : IPackageInstaller
 
     protected readonly IFileSystem FileSystem;
     protected readonly IPackageInstaller Inner;
-    protected readonly string StagingFullPath;
+    protected readonly RootPath StagingRoot;
     protected readonly string GameSupportedModRelativeDir;
 
     private readonly Lazy<IRootFinder.RootPaths> rootPaths;
@@ -39,7 +39,7 @@ public abstract class BaseModInstaller : IPackageInstaller
     {
         FileSystem = tempDir.FileSystem;
         Inner = inner;
-        StagingFullPath = FileSystem.Path.GetFullPath(Path.Combine(tempDir.FullName, inner.PackageName));
+        StagingRoot = new RootPath(Path.Combine(tempDir.FullName, inner.PackageName));
         GameSupportedModRelativeDir = Paths.NormalizeDirectorySeparators(config.GameSupportedModDir) +
                                       Path.DirectorySeparatorChar;
         VehicleListFileName = config.VehicleListFileName;
@@ -93,7 +93,7 @@ public abstract class BaseModInstaller : IPackageInstaller
         {
             var relativePathFromRoot = rootPaths.Value.GetPathFromRoot(pathInPackage);
             return relativePathFromRoot is null
-                ? new RootedPath(StagingFullPath, pathInPackage)
+                ? StagingRoot.Combine(pathInPackage)
                 // If part of a game root, return the destination relative to that root
                 : destination(relativePathFromRoot);
         };
@@ -122,22 +122,22 @@ public abstract class BaseModInstaller : IPackageInstaller
     };
 
     private bool RootIsNotStagingDir(RootedPath rp) =>
-        rp.Root != StagingFullPath;
+        rp.Root != StagingRoot;
 
     private bool RootIsStagingDir(RootedPath rp) =>
-        rp.Root == StagingFullPath;
+        rp.Root == StagingRoot;
 
     protected void AppendCrdFileEntries(IEnumerable<string> crdFileEntries,
         IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks) =>
-        AppendEntryList(VehicleListDir.SubPath(VehicleListFileName), crdFileEntries, backupStrategy, callbacks);
+        AppendEntryList(VehicleListDir.Combine(VehicleListFileName), crdFileEntries, backupStrategy, callbacks);
 
     protected abstract RootedPath VehicleListDir { get; }
 
     protected void AppendTrdFileEntries(IEnumerable<string> trdFileEntries,
         IBackupStrategy backupStrategy,
         ProcessingCallbacks<RootedPath> callbacks) =>
-        AppendEntryList(TrackListDir.SubPath(TrackListFileName), trdFileEntries, backupStrategy, callbacks);
+        AppendEntryList(TrackListDir.Combine(TrackListFileName), trdFileEntries, backupStrategy, callbacks);
 
     protected abstract RootedPath TrackListDir { get; }
 
@@ -151,7 +151,7 @@ public abstract class BaseModInstaller : IPackageInstaller
             return;
         }
 
-        var driveLineFilePath = DrivelineDir.SubPath(DrivelineFileName);
+        var driveLineFilePath = DrivelineDir.Combine(DrivelineFileName);
         var newContents = DrivelineFileContents(driveLineFilePath, WrapConfigBlock(recordsTextBlock));
 
         SafeWriteAllText(driveLineFilePath, newContents, backupStrategy, callbacks);

@@ -421,6 +421,7 @@ public class
         InstallationState.Should().BeEmpty();
 
         TestFileSystem.Directory.Exists(DestinationPath("D1").Full).Should().BeFalse();
+        TestFileSystem.Directory.Exists(DestinationPath("").Full).Should().BeTrue();
     }
 
     [Fact]
@@ -572,7 +573,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
     }
 
     protected RootedPath DestinationPath(string relativePath) =>
-        new(TestFileSystem.Path.GetFullPath(destinationDir), relativePath);
+        new RootPath(TestFileSystem.Path.GetFullPath(destinationDir)).Combine(relativePath);
 
     protected abstract IReconciliationService<TEventHandler> NewService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
