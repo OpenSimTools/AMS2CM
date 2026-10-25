@@ -15,33 +15,31 @@ public class Game : IGame
     }
 
     private readonly IConfig config;
-    private readonly IFileSystem fileSystem;
 
-    public Game(IFileSystem fileSystem, IConfig config)
+    public Game(IFileSystem fs, IConfig config)
     {
-        this.fileSystem = fileSystem;
         var insallationDirectory = FindInstallationDirectory(config);
-        if (!insallationDirectory.Exists)
+        if (!Directory.Exists(insallationDirectory))
         {
             throw new Exception("The game directory does not exist");
         }
 
         this.config = config;
-        InstallationDirectory = insallationDirectory;
+        InstallationDirectory = fs.DirectoryInfo.New(insallationDirectory);
     }
 
     public IDirectoryInfo InstallationDirectory { get; init; }
 
-    public bool IsRunning => Process.GetProcesses().Any(_ => _.ProcessName == config.ProcessName);
+    public bool IsRunning => Process.GetProcesses().Any(p => p.ProcessName == config.ProcessName);
 
-    private IDirectoryInfo FindInstallationDirectory(IConfig config)
+    private static string FindInstallationDirectory(IConfig config)
     {
         if (Path.IsPathFullyQualified(config.Path))
         {
-            return fileSystem.DirectoryInfo.New(config.Path);
+            return config.Path;
         }
 
-        var steamLibraryPath = Steam.AppLibraryPath(fileSystem, config.SteamId);
-        return fileSystem.DirectoryInfo.New(Path.Combine(steamLibraryPath.FullName, config.Path));
+        var steamLibraryPath = Steam.AppLibraryPath(config.SteamId);
+        return Path.Combine(steamLibraryPath, config.Path);
     }
 }
