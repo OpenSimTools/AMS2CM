@@ -11,28 +11,28 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
     internal class Provider<TEventHandler> : IBackupStrategyProvider<DateTimeOffset, TEventHandler>
         where TEventHandler : IBackupEventHandler
     {
-        private readonly IFile file;
+        private readonly IFileSystem fs;
         private readonly IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider;
 
-        public Provider(IFile file, IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
+        public Provider(IFileSystem fs, IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
         {
-            this.file = file;
+            this.fs = fs;
             this.baseProvider = baseProvider;
         }
 
         public IBackupStrategy BackupStrategy(DateTimeOffset backupTime, TEventHandler? eventHandler)
         {
             var baseStrategy = baseProvider.BackupStrategy(backupTime, eventHandler);
-            return new SkipUpdatedBackupStrategy(file, baseStrategy, backupTime, eventHandler);
+            return new SkipUpdatedBackupStrategy(fs, baseStrategy, backupTime, eventHandler);
         }
     }
 
-    private readonly IFile fs;
+    private readonly IFileSystem fs;
     private readonly IBackupStrategy inner;
     private readonly DateTimeOffset backupTime;
     private readonly IBackupEventHandler? eventHandler;
 
-    internal SkipUpdatedBackupStrategy(IFile fs,
+    internal SkipUpdatedBackupStrategy(IFileSystem fs,
         IBackupStrategy backupStrategy,
         DateTimeOffset backupTime,
         IBackupEventHandler? eventHandler)
@@ -67,11 +67,11 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
 
         if (CreationAfterBackupTime(path))
         {
-            fs.SetCreationTimeUtc(path.Full, backupTime.UtcDateTime);
+            fs.File.SetCreationTimeUtc(path.Full, backupTime.UtcDateTime);
         }
     }
 
     private bool CreationAfterBackupTime(RootedPath path) =>
-        fs.Exists(path.Full) &&
-        fs.GetCreationTimeUtc(path.Full) > backupTime.UtcDateTime;
+        fs.File.Exists(path.Full) &&
+        fs.File.GetCreationTimeUtc(path.Full) > backupTime.UtcDateTime;
 }

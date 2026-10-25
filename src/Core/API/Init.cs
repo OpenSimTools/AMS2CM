@@ -25,21 +25,19 @@ public static class Init
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var safeFileDelete = new WindowsRecyclingBin();
         var tempDir = new SubdirectoryTempDir(modsDir);
-        return CreateModManager(game, modRepository, statePersistence, safeFileDelete, tempDir, config.ModInstall);
+        return CreateModManager(fs, game, modRepository, statePersistence, safeFileDelete, tempDir, config.ModInstall);
     }
 
-    public static IModManager CreateModManager(
-        IGame game,
+    public static IModManager CreateModManager(IFileSystem fs, IGame game,
         IPackageRepository modRepository,
         IStatePersistence statePersistence,
         ISafeFileDelete safeFileDelete,
         ITempDir tempDir,
         ModInstallConfig modInstallConfig)
     {
-        var file = game.InstallationDirectory.FileSystem.File;
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider<IEventHandler>(
-            file,
-            new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>(file));
+            fs,
+            new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>(fs));
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
         var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
             modInstallConfig);

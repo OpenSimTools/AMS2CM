@@ -70,8 +70,7 @@ public class ModManagerTest : IDisposable
             GameSupportedModDir = GameSupportedModDirectory
         };
 
-        modManager = Init.CreateModManager(
-            gameMock.Object,
+        modManager = Init.CreateModManager(fs, gameMock.Object,
             modRepositoryMock.Object,
             persistedState,
             safeFileDeleteMock.Object,

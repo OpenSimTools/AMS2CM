@@ -11,11 +11,11 @@ public class MoveFileBackupStrategy : IBackupStrategy
         public bool IsBackup(string fullPath);
     }
 
-    private readonly IFile fs;
+    private readonly IFileSystem fs;
     private readonly IBackupFileNaming backupFileNaming;
     private readonly IBackupEventHandler? eventHandler;
 
-    public MoveFileBackupStrategy(IFile fs, IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler)
+    public MoveFileBackupStrategy(IFileSystem fs, IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler)
     {
         this.fs = fs;
         this.backupFileNaming = backupFileNaming;
@@ -29,43 +29,43 @@ public class MoveFileBackupStrategy : IBackupStrategy
             throw new InvalidOperationException("Installing a backup file is forbidden");
         }
 
-        if (!fs.Exists(path.Full))
+        if (!fs.File.Exists(path.Full))
         {
             return;
         }
 
         var backupFilePath = backupFileNaming.ToBackup(path.Full);
 
-        if (fs.Exists(backupFilePath))
+        if (fs.File.Exists(backupFilePath))
         {
-            fs.Delete(path.Full);
+            fs.File.Delete(path.Full);
             eventHandler?.BackupSkipped(path);
             return;
         }
 
-        fs.Move(path.Full, backupFilePath);
+        fs.File.Move(path.Full, backupFilePath);
     }
 
     public void RestoreBackup(RootedPath path)
     {
-        if (fs.Exists(path.Full))
+        if (fs.File.Exists(path.Full))
         {
-            fs.Delete(path.Full);
+            fs.File.Delete(path.Full);
         }
 
         var backupFilePath = backupFileNaming.ToBackup(path.Full);
-        if (fs.Exists(backupFilePath))
+        if (fs.File.Exists(backupFilePath))
         {
-            fs.Move(backupFilePath, path.Full);
+            fs.File.Move(backupFilePath, path.Full);
         }
     }
 
     public void DeleteBackup(RootedPath path)
     {
         var backupFilePath = backupFileNaming.ToBackup(path.Full);
-        if (fs.Exists(backupFilePath))
+        if (fs.File.Exists(backupFilePath))
         {
-            fs.Delete(backupFilePath);
+            fs.File.Delete(backupFilePath);
         }
     }
 

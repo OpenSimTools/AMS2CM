@@ -104,21 +104,11 @@ internal class ModManager : IModManager
         return installedVersionHash != modPackage.VersionHash;
     }
 
-    public void AddNewMod(string packageFullPath)
-    {
-        if (IsDirectory(packageFullPath))
-        {
-            throw new Exception($"{packageFullPath} is a directory");
-        }
-
+    public void AddNewMod(string packageFullPath) =>
         packageRepository.Upload(packageFullPath);
-    }
 
     public void DeleteMod(string packagePath) =>
         safeFileDelete.SafeDelete(packagePath);
-
-    private bool IsDirectory(string path) =>
-        game.InstallationDirectory.FileSystem.File.GetAttributes(path).HasFlag(FileAttributes.Directory);
 
     public string EnableMod(string packagePath)
     {

@@ -20,11 +20,13 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     public GeneratedBootfilesInstaller(string packageName, IDirectoryInfo gameInstallationDirectory,
         IDirectoryInfo tempDir) :
-        base(tempDir.FileSystem.Directory.CreateDirectory(
-            Path.Combine(tempDir.FullName, Guid.NewGuid().ToString())), packageName, null)
+        base(CreateExtractionDirectory(tempDir), packageName, null)
     {
         pakPath = Path.Combine(gameInstallationDirectory.FullName, PakfilesDirectory);
     }
+
+    private static IDirectoryInfo CreateExtractionDirectory(IDirectoryInfo tempDir) =>
+        tempDir.CreateSubdirectory(Guid.NewGuid().ToString());
 
     protected override void InstallAllFiles(InstallBody body)
     {
@@ -60,7 +62,7 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
     private void CreateEmptyFile(string path)
     {
         CreateParentDirectory(path);
-        using var stream = FileSystem.File.Create(path);
+        FileSystem.File.WriteAllBytes(path, Array.Empty<byte>());
     }
 
     private void CreateParentDirectory(string path)

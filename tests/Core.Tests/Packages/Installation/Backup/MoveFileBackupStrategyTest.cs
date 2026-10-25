@@ -20,17 +20,19 @@ public class MoveFileBackupStrategyTest
     private MoveFileBackupStrategy.IBackupFileNaming BackupFileNaming => backupFileNamingMock.Object;
     private string BackupFile => BackupFileNaming.ToBackup(OriginalFile);
 
+    private MoveFileBackupStrategy mfbs;
+
     public MoveFileBackupStrategyTest()
     {
         originalPath = new RootPath(fs.Directory.GetCurrentDirectory()).Combine(OriginalFile);
         backupFileNamingMock.Setup(m => m.ToBackup(It.IsAny<string>())).Returns<string>(f => $"{f}.backup");
+        mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
     }
 
     [Fact]
     public void PerformBackup_MovesOriginalToBackup()
     {
         fs.AddFile(OriginalFile, OriginalContents);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.PerformBackup(originalPath);
 
@@ -44,7 +46,6 @@ public class MoveFileBackupStrategyTest
     public void PerformBackup_ErrorsIfNameIsBackupName()
     {
         backupFileNamingMock.Setup(_ => _.IsBackup(originalPath.Full)).Returns(true);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.Invoking(_ => _.PerformBackup(originalPath))
             .Should().Throw<InvalidOperationException>();
@@ -57,7 +58,6 @@ public class MoveFileBackupStrategyTest
     [Fact]
     public void PerformBackup_SkipsBackupIfFileNotPresent()
     {
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.PerformBackup(originalPath);
 
@@ -72,7 +72,6 @@ public class MoveFileBackupStrategyTest
         var oldBackupContents = "old backup";
         fs.AddFile(OriginalFile, OriginalContents);
         fs.AddFile(BackupFile, oldBackupContents);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.PerformBackup(originalPath);
 
@@ -87,7 +86,6 @@ public class MoveFileBackupStrategyTest
     public void RestoreBackup_MovesBackupToOriginal()
     {
         fs.AddFile(BackupFile, OriginalContents);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(originalPath);
 
@@ -102,7 +100,6 @@ public class MoveFileBackupStrategyTest
     {
         fs.AddFile(OriginalFile, "other contents");
         fs.AddFile(BackupFile, OriginalContents);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(originalPath);
 
@@ -116,7 +113,6 @@ public class MoveFileBackupStrategyTest
     public void RestoreBackup_WhenNoOriginalFile()
     {
         fs.AddFile(BackupFile, OriginalContents);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(originalPath);
 
@@ -130,7 +126,6 @@ public class MoveFileBackupStrategyTest
     public void RestoreBackup_DeletesOriginalFileIfNoBackup()
     {
         fs.AddFile(OriginalFile, "other contents");
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.RestoreBackup(originalPath);
 
@@ -143,7 +138,6 @@ public class MoveFileBackupStrategyTest
     public void DeleteBackup_RemovesBackupIfItExists()
     {
         fs.AddFile(BackupFile, OriginalContents);
-        var mfbs = new MoveFileBackupStrategy(fs.File, BackupFileNaming, eventHandlerMock.Object);
 
         mfbs.DeleteBackup(originalPath);
 

@@ -38,6 +38,11 @@ public class FileSystemRepository : IPackageRepository
 
     public void Upload(string sourceFilePath)
     {
+        if (IsDirectory(sourceFilePath))
+        {
+            throw new Exception($"{sourceFilePath} is a directory");
+        }
+
         var fileName = fs.Path.GetFileName(sourceFilePath);
 
         var isDisabled = ListDisabled().Any(f => f.Name == fileName);
@@ -77,6 +82,9 @@ public class FileSystemRepository : IPackageRepository
     public IReadOnlyCollection<IPackage> ListEnabled() => ListPackages(enabledDirPath);
 
     public IReadOnlyCollection<IPackage> ListDisabled() => ListPackages(disabledDirPath);
+
+    private bool IsDirectory(string path) =>
+        fs.File.GetAttributes(path).HasFlag(FileAttributes.Directory);
 
     private IReadOnlyCollection<IPackage> ListPackages(string rootPath)
     {
