@@ -14,35 +14,23 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<IFileInfo>
     protected IDirectoryInfo Source { get; }
 
     public override IEnumerable<string> RelativeDirectoryPaths =>
-        EnumerateDirectories().Skip(1)
+        Source.EnumerateDirectories("*", RecursiveEnumeration)
             .Select(_ => Path.GetRelativePath(Source.FullName, _.FullName));
 
     protected override void InstallAllFiles(InstallBody body)
     {
-        foreach (var directory in EnumerateDirectories())
+        foreach (var fileInfo in Source.EnumerateFiles("*", RecursiveEnumeration))
         {
-            foreach (var fileInfo in directory.EnumerateFiles("*", SearchOption.TopDirectoryOnly).Where(IsVisible))
-            {
-                var relativePath = Path.GetRelativePath(Source.FullName, fileInfo.FullName);
-                body(relativePath, fileInfo);
-            }
+            var relativePath = Path.GetRelativePath(Source.FullName, fileInfo.FullName);
+            body(relativePath, fileInfo);
         }
     }
 
-    private IEnumerable<IDirectoryInfo> EnumerateDirectories()
+    private static readonly EnumerationOptions RecursiveEnumeration = new()
     {
-        var pending = new Queue<IDirectoryInfo>();
-        pending.Enqueue(Source);
-        while (pending.TryDequeue(out var directory))
-        {
-            yield return directory;
-            foreach (var child in directory.EnumerateDirectories("*", SearchOption.TopDirectoryOnly).Where(IsVisible))
-            {
-                pending.Enqueue(child);
-            }
-        }
-    }
-
-    private static bool IsVisible(IFileSystemInfo entry) =>
-        (entry.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0;
+        // Not supported by the MockFileSystem
+        // IgnoreInaccessible = true,
+        AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+        RecurseSubdirectories = true,
+    };
 }
