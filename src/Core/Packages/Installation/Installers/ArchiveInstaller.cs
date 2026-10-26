@@ -22,13 +22,18 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
     // LibArchive.Net is a mere wrapper around libarchive. It's better to avoid using
     // LINQ expressions as they can lead to <see cref="LibArchiveReader.Entries"/> or
     // <see cref="LibArchiveReader.Entry.Stream"/> being called out of order.
+    //
+    // This would allow us to read from the MockFileSystem but LibArchive.Net 0.3.1's
+    // Stream reader has a bug: https://github.com/jas88/libarchive.net/pull/293
+    //
+    // using var archiveStream = archivePath.OpenRead();
+    // using var reader = new LibArchiveReader(archiveStream, blockSize: BlockSize);
 
     public override IEnumerable<string> RelativeDirectoryPaths
     {
         get
         {
-            using var archiveStream = archivePath.OpenRead();
-            using var reader = new LibArchiveReader(archiveStream, blockSize: BlockSize);
+            using var reader = new LibArchiveReader(archivePath.FullName, BlockSize);
             var ret = new HashSet<string>();
             foreach (var entry in reader.Entries())
             {
@@ -52,8 +57,7 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
 
     protected override void InstallAllFiles(InstallBody body)
     {
-        using var archiveStream = archivePath.OpenRead();
-        using var reader = new LibArchiveReader(archiveStream, blockSize: BlockSize);
+        using var reader = new LibArchiveReader(archivePath.FullName, BlockSize);
         foreach (var entry in reader.Entries())
         {
             if (!entry.IsRegularFile)
