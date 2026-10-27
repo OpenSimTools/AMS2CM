@@ -120,7 +120,7 @@ public class FileSystemRepositoryTest
     {
         const string sourcePath = @"C:\Downloads\Mod";
         fs.AddDirectory(sourcePath);
-        fs.AddFile(fs.Path.Combine(sourcePath, "Contents.txt"), "Contents");
+        fs.AddFile(Path.Combine(sourcePath, "Contents.txt"), "Contents");
         var directoriesBefore = fs.AllDirectories.ToArray();
         var filesBefore = fs.AllFiles.ToArray();
 
@@ -129,7 +129,7 @@ public class FileSystemRepositoryTest
         upload.Should().ThrowExactly<Exception>().WithMessage($"{sourcePath} is a directory");
         fs.AllDirectories.Should().BeEquivalentTo(directoriesBefore);
         fs.AllFiles.Should().BeEquivalentTo(filesBefore);
-        fs.File.ReadAllText(fs.Path.Combine(sourcePath, "Contents.txt")).Should().Be("Contents");
+        fs.File.ReadAllText(Path.Combine(sourcePath, "Contents.txt")).Should().Be("Contents");
     }
 
     [Fact]

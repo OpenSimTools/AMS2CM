@@ -36,7 +36,7 @@ public class BootfilesInstaller : BaseModInstaller
         base(PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir, bootfilesNaming),
             tempDir, config)
     {
-        gameRoot = new RootPath(gameInstallationDir.FullName);
+        gameRoot = new RootPath(gameInstallationDir);
         VehicleListDir = gameRoot.Combine(config.BootfilesVehicleListDir);
         TrackListDir = gameRoot.Combine(config.BootfilesTrackListDir);
         DrivelineDir = gameRoot.Combine(config.BootfilesDrivelineDir);

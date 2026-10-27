@@ -39,7 +39,7 @@ public abstract class BaseModInstaller : IPackageInstaller
     {
         FileSystem = tempDir.FileSystem;
         Inner = inner;
-        StagingRoot = new RootPath(Path.Combine(tempDir.FullName, inner.PackageName));
+        StagingRoot = new RootPath(tempDir, inner.PackageName);
         GameSupportedModRelativeDir = Paths.NormalizeDirectorySeparators(config.GameSupportedModDir) +
                                       Path.DirectorySeparatorChar;
         VehicleListFileName = config.VehicleListFileName;

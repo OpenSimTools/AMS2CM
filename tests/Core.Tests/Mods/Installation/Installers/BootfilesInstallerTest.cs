@@ -1,10 +1,10 @@
-using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.Mods;
 using Core.Mods.Installation.Installers;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
+using Core.Tests.Utils;
 using Core.Utils;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
@@ -36,10 +36,8 @@ public class BootfilesInstallerTest
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
     private readonly Mock<Action<RootedPath>> callbackMock = new();
 
-    private readonly string destDir;
-    private readonly string tempDir;
-
-    private readonly RootPath destRoot;
+    private readonly string destinationPath;
+    private readonly RootPath destinationRoot;
 
     public BootfilesInstallerTest()
     {
@@ -52,10 +50,9 @@ public class BootfilesInstallerTest
         configMock.Setup(c => c.BootfilesDrivelineDir).Returns(BootfilesDrivelineDir);
         configMock.Setup(c => c.DrivelineFileName).Returns(DrivelineFileName);
 
-        destDir = fs.Directory.CreateDirectory("Dest").FullName;
-        tempDir = fs.Directory.CreateDirectory("Temp").FullName;
-
-        destRoot = new RootPath(destDir);
+        var destDir = fs.Directory.CreateDirectory("Dest");
+        destinationPath = destDir.FullName;
+        destinationRoot = new RootPath(destDir);
     }
 
     #endregion
@@ -77,10 +74,10 @@ public class BootfilesInstallerTest
     {
         var contents = MultiLineContents();
 
-        fs.AddEmptyFile(Path.Combine(destDir, GameSupportedModDirectory, "ModName", "ModName.xml"));
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "ModName", VehicleListFileName), contents);
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "ModName", TrackListFileName), contents);
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "ModName", DrivelineFileName), contents);
+        fs.AddEmptyFile(Path.Combine(destinationPath, GameSupportedModDirectory, "ModName", "ModName.xml"));
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "ModName", VehicleListFileName), contents);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "ModName", TrackListFileName), contents);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "ModName", DrivelineFileName), contents);
 
         InstallBootfiles().InstalledFiles.Should().BeEmpty();
 
@@ -88,9 +85,9 @@ public class BootfilesInstallerTest
 
         callbackMock.VerifyNoOtherCalls();
 
-        fs.File.Exists(Path.Combine(destDir, BootfilesVehicleListDir, VehicleListFileName)).Should().BeFalse();
-        fs.File.Exists(Path.Combine(destDir, BootfilesTrackListDir, TrackListFileName)).Should().BeFalse();
-        fs.File.Exists(Path.Combine(destDir, BootfilesDrivelineDir, DrivelineFileName)).Should().BeFalse();
+        fs.File.Exists(Path.Combine(destinationPath, BootfilesVehicleListDir, VehicleListFileName)).Should().BeFalse();
+        fs.File.Exists(Path.Combine(destinationPath, BootfilesTrackListDir, TrackListFileName)).Should().BeFalse();
+        fs.File.Exists(Path.Combine(destinationPath, BootfilesDrivelineDir, DrivelineFileName)).Should().BeFalse();
     }
 
     [Fact]
@@ -99,8 +96,8 @@ public class BootfilesInstallerTest
         var mod1Config = MultiLineContents();
         var mod2Config = MultiLineContents();
 
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod1", VehicleListFileName), mod1Config);
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod2", VehicleListFileName), mod2Config);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "Mod1", VehicleListFileName), mod1Config);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "Mod2", VehicleListFileName), mod2Config);
 
         var expected = DestRootedPaths(
             FileInBootfilesPackage,
@@ -108,7 +105,7 @@ public class BootfilesInstallerTest
         );
 
         var bootfiles = InstallBootfiles();
-        bootfiles.InstalledFiles.Should().BeEquivalentTo(expected);
+        bootfiles.InstalledFiles.Should().BeEquivalentPathTo(expected);
         bootfiles.PackageVersionHash.Should().BeNull();
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
@@ -119,7 +116,7 @@ public class BootfilesInstallerTest
 
         VerifyCallbackCalledWith(expected);
 
-        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesVehicleListDir, VehicleListFileName)))
+        TrimConfig(fs.File.ReadAllText(Path.Combine(destinationPath, BootfilesVehicleListDir, VehicleListFileName)))
             .Should().Be(mod1Config + Environment.NewLine + mod2Config);
     }
 
@@ -129,15 +126,15 @@ public class BootfilesInstallerTest
         var mod1Config = MultiLineContents();
         var mod2Config = MultiLineContents();
 
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod1", TrackListFileName), mod1Config);
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod2", TrackListFileName), mod2Config);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "Mod1", TrackListFileName), mod1Config);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "Mod2", TrackListFileName), mod2Config);
 
         var expected = DestRootedPaths(
             FileInBootfilesPackage,
             Path.Combine(BootfilesTrackListDir, TrackListFileName)
         );
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentPathTo(expected);
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
@@ -147,7 +144,7 @@ public class BootfilesInstallerTest
 
         VerifyCallbackCalledWith(expected);
 
-        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesTrackListDir, TrackListFileName)))
+        TrimConfig(fs.File.ReadAllText(Path.Combine(destinationPath, BootfilesTrackListDir, TrackListFileName)))
             .Should().Be(mod1Config + Environment.NewLine + mod2Config);
     }
 
@@ -157,15 +154,15 @@ public class BootfilesInstallerTest
         var mod1Config = MultiLineContents();
         var mod2Config = MultiLineContents();
 
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod1", DrivelineFileName), mod1Config);
-        fs.AddFile(Path.Combine(destDir, GameSupportedModDirectory, "Mod2", DrivelineFileName), mod2Config);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "Mod1", DrivelineFileName), mod1Config);
+        fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "Mod2", DrivelineFileName), mod2Config);
 
         var expected = DestRootedPaths(
             FileInBootfilesPackage,
             Path.Combine(BootfilesDrivelineDir, DrivelineFileName)
         );
 
-        InstallBootfiles().InstalledFiles.Should().BeEquivalentTo(expected);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentPathTo(expected);
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
@@ -175,7 +172,7 @@ public class BootfilesInstallerTest
 
         VerifyCallbackCalledWith(expected);
 
-        TrimConfig(fs.File.ReadAllText(Path.Combine(destDir, BootfilesDrivelineDir, DrivelineFileName)))
+        TrimConfig(fs.File.ReadAllText(Path.Combine(destinationPath, BootfilesDrivelineDir, DrivelineFileName)))
             .Should().Be(mod1Config + Environment.NewLine + mod2Config);
     }
 
@@ -184,13 +181,14 @@ public class BootfilesInstallerTest
 
     private BootfilesInstaller InstallBootfiles()
     {
+        var tempDir = fs.Directory.CreateDirectory("Temp");
         var emptyPackage = new StaticFilesInstaller(fs, fakeTimeProvider, BootfilesPackageName, 42,
             new Dictionary<string, string> { [FileInBootfilesPackage] = "" }, Array.Empty<string>());
-        var bootfilesInstaller = new BootfilesInstaller(emptyPackage, fs.DirectoryInfo.New(tempDir), configMock.Object,
-            fs.DirectoryInfo.New(destDir), bootfilesNamingMock.Object, eventHandlerMock.Object);
-        bootfilesInstaller.Install(packagePath => destRoot.Combine(packagePath),
+        var bootfilesInstaller = new BootfilesInstaller(emptyPackage, tempDir, configMock.Object,
+            fs.DirectoryInfo.New(destinationPath), bootfilesNamingMock.Object, eventHandlerMock.Object);
+        bootfilesInstaller.Install(destinationRoot.Combine,
             backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
-        fs.Directory.Delete(tempDir, recursive: true);
+        tempDir.Delete(recursive: true);
         return bootfilesInstaller;
     }
 
@@ -212,7 +210,7 @@ public class BootfilesInstallerTest
                 .Where(line => !string.IsNullOrEmpty(line)));
 
     private IReadOnlySet<RootedPath> DestRootedPaths(params string[] relativePaths) =>
-        relativePaths.Select(f => destRoot.Combine(f)).ToHashSet();
+        relativePaths.Select(destinationRoot.Combine).ToHashSet();
 
     private void VerifyCallbackCalledWith(IReadOnlySet<RootedPath> relativePaths)
     {

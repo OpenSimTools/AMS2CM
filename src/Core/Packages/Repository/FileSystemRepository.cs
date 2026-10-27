@@ -16,7 +16,7 @@ public class FileSystemRepository : IPackageRepository
 
     private class DirectoryPackage(IDirectoryInfo directoryInfo) : IPackage
     {
-        public string Name { get; } = $"{directoryInfo.Name}{directoryInfo.FileSystem.Path.DirectorySeparatorChar}";
+        public string Name { get; } = $"{directoryInfo.Name}{Path.DirectorySeparatorChar}";
         public int? VersionHash => null;
         public string Location { get; } = directoryInfo.FullName;
         public IPackageInstaller CreateInstaller() => new DirectoryInstaller(Name, VersionHash, directoryInfo);
@@ -32,8 +32,8 @@ public class FileSystemRepository : IPackageRepository
     internal FileSystemRepository(IDirectoryInfo repositoryDir)
     {
         fs = repositoryDir.FileSystem;
-        enabledDirPath = fs.Path.Combine(repositoryDir.FullName, EnabledSubdir);
-        disabledDirPath = fs.Path.Combine(repositoryDir.FullName, DisabledSubdir);
+        enabledDirPath = Path.Combine(repositoryDir.FullName, EnabledSubdir);
+        disabledDirPath = Path.Combine(repositoryDir.FullName, DisabledSubdir);
     }
 
     public void Upload(string sourceFilePath)
@@ -43,11 +43,11 @@ public class FileSystemRepository : IPackageRepository
             throw new Exception($"{sourceFilePath} is a directory");
         }
 
-        var fileName = fs.Path.GetFileName(sourceFilePath);
+        var fileName = Path.GetFileName(sourceFilePath);
 
         var isDisabled = ListDisabled().Any(f => f.Name == fileName);
         var destinationDirPath = isDisabled ? disabledDirPath : enabledDirPath;
-        var destinationFilePath = fs.Path.Combine(destinationDirPath, fileName);
+        var destinationFilePath = Path.Combine(destinationDirPath, fileName);
 
         ExistingDirectoryOrCreate(destinationDirPath);
         fs.File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
@@ -66,7 +66,7 @@ public class FileSystemRepository : IPackageRepository
     private string MovePackage(string sourceFilePath, string destinationParentPath)
     {
         ExistingDirectoryOrCreate(destinationParentPath);
-        var destinationPackagePath = fs.Path.Combine(destinationParentPath, fs.Path.GetFileName(sourceFilePath));
+        var destinationPackagePath = Path.Combine(destinationParentPath, fs.Path.GetFileName(sourceFilePath));
         if (fs.Directory.Exists(sourceFilePath))
         {
             fs.Directory.Move(sourceFilePath, destinationPackagePath);

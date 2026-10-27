@@ -14,10 +14,11 @@ public sealed record RootedPath
     {
     }
 
-    private RootedPath(RootPath root, string basePath, string subPath)
+    private RootedPath(RootPath root, string basePath, string relative)
     {
         Root = root;
-        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(subPath, basePath));
+        var fs = root.FileSystem;
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(relative, basePath));
         var relativePath = Path.GetRelativePath(Root.Full, fullPath);
         if (Path.IsPathRooted(relativePath) || relativePath == ".." ||
             relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))

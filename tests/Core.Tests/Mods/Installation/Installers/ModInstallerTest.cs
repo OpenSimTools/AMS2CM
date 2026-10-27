@@ -28,10 +28,8 @@ public class ModInstallerTest
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
     private readonly Mock<Action<RootedPath>> callbackMock = new();
 
-    private readonly string destDir;
-    private readonly string tempDir;
-
-    private readonly RootPath destRoot;
+    private readonly string destinationPath;
+    private readonly RootPath destinationRoot;
 
     public ModInstallerTest()
     {
@@ -43,10 +41,9 @@ public class ModInstallerTest
         configMock.Setup(c => c.TrackListFileName).Returns(TrackListFile);
         configMock.Setup(c => c.DrivelineFileName).Returns(DrivelineFile);
 
-        destDir = fs.Directory.CreateDirectory("Dest").FullName;
-        tempDir = fs.Directory.CreateDirectory("Temp").FullName;
-
-        destRoot = new RootPath(destDir);
+        var destDir = fs.Directory.CreateDirectory("Dest");
+        destinationPath = destDir.FullName;
+        destinationRoot = new RootPath(destDir);
     }
 
     #endregion
@@ -120,14 +117,14 @@ public class ModInstallerTest
         VerifyCallbackCalledWith(expectedFiles);
 
         fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
-        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
+        fs.GetFile(Path.Combine(destinationPath, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
         backupStrategyMock.Verify(m => m.AfterInstall(
-            destRoot.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile)));
-        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
+            destinationRoot.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile)));
+        fs.GetFile(Path.Combine(destinationPath, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
             .TextContents.Should().Be(drivelineRecord.Trim());
         backupStrategyMock.Verify(m => m.AfterInstall(
-            destRoot.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile)));
+            destinationRoot.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile)));
     }
 
     [Fact]
@@ -178,7 +175,7 @@ public class ModInstallerTest
 
         fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
 
-        fs.GetFile(Path.Combine(destDir, trackListFile))
+        fs.GetFile(Path.Combine(destinationPath, trackListFile))
             .TextContents.Should().Be(Path.Combine(GameDirAtRoot, "@File.trd"));
     }
 
@@ -238,11 +235,12 @@ public class ModInstallerTest
 
     private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
     {
-        var modInstaller = new ModInstaller(inner, fs.DirectoryInfo.New(tempDir), configMock.Object,
-            fs.DirectoryInfo.New(destDir), BootfilesPackageName);
-        modInstaller.Install(destRoot.Combine,
+        var tempDir = fs.Directory.CreateDirectory("Temp");
+        var modInstaller = new ModInstaller(inner, fs.DirectoryInfo.New(tempDir.FullName), configMock.Object,
+            destinationRoot.Directory, BootfilesPackageName);
+        modInstaller.Install(destinationRoot.Combine,
             backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
-        fs.Directory.Delete(tempDir, recursive: true);
+        tempDir.Delete(recursive: true);
         return modInstaller;
     }
 
@@ -254,10 +252,10 @@ public class ModInstallerTest
         new(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
     private List<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
-        [.. relativePaths.Select(f => Path.Combine(destDir, f))];
+        [.. relativePaths.Select(f => Path.Combine(destinationPath, f))];
 
     private HashSet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
-        [.. relativePaths.Select(destRoot.Combine)];
+        [.. relativePaths.Select(destinationRoot.Combine)];
 
     private void VerifyCallbackCalledWith(IReadOnlyCollection<string> relativePaths)
     {

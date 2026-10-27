@@ -958,22 +958,22 @@ public class ModManagerTest : IDisposable
         Action<string> callback)
     {
         var modName = $"Mod{versionHash}";
-        var modContentsDir = testDir.CreateSubdirectory(modName).FullName;
+        var modContentsDir = testDir.CreateSubdirectory(modName);
         foreach (var relativePath in relativePaths)
         {
             CreateFile(new RootPath(modContentsDir).Combine(relativePath), $"{versionHash}");
         }
 
-        callback(modContentsDir);
+        callback(modContentsDir.FullName);
 
         var packageName = PackageName(packagePrefix, versionHash);
 
         var package = new Mock<IPackage>();
         package.SetupGet(m => m.Name).Returns(packageName);
-        package.SetupGet(m => m.Location).Returns(modContentsDir);
+        package.SetupGet(m => m.Location).Returns(modContentsDir.FullName);
         package.SetupGet(m => m.VersionHash).Returns(versionHash);
         package.Setup(m => m.CreateInstaller()).Returns(() =>
-            new DirectoryInstaller(packageName, versionHash, fs.DirectoryInfo.New(modContentsDir)));
+            new DirectoryInstaller(packageName, versionHash, modContentsDir));
         return package.Object;
     }
 
@@ -1000,7 +1000,7 @@ public class ModManagerTest : IDisposable
         $"{relativePath}{BaseInstaller.RemoveFileSuffix}";
 
     private RootedPath GamePath(params string[] segments) =>
-        new RootPath(gameDir.FullName).Combine(segments);
+        new RootPath(gameDir).Combine(segments);
 
     private class InMemoryStatePersistence : IStatePersistence
     {

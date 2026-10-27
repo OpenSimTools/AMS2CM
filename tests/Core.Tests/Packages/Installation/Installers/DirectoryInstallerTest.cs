@@ -15,14 +15,16 @@ public class DirectoryInstallerTest
     private const string TestFile = "File";
 
     private readonly MockFileSystem fs = new();
-    private readonly IDirectoryInfo sourceRoot;
-    private readonly IDirectoryInfo destinationRoot;
+    private readonly IDirectoryInfo sourceDir;
+    private readonly IDirectoryInfo destinationDir;
+    private readonly RootPath destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
 
     public DirectoryInstallerTest()
     {
-        sourceRoot = fs.Directory.CreateDirectory("PackageDir");
-        destinationRoot = fs.Directory.CreateDirectory("Destination");
+        sourceDir = fs.Directory.CreateDirectory("PackageDir");
+        destinationDir = fs.Directory.CreateDirectory("Destination");
+        destinationRoot = new RootPath(destinationDir);
     }
 
     #endregion
@@ -30,13 +32,13 @@ public class DirectoryInstallerTest
     [Fact]
     public void Install_ReplacesDestination()
     {
-        var destinationFile = Path.Combine(destinationRoot.FullName, TestFile);
+        var destinationFile = Path.Combine(destinationDir.FullName, TestFile);
         fs.AddFile(destinationFile, new MockFileData("Old"));
 
-        var installer = new DirectoryInstaller("Package", 1, sourceRoot);
-        fs.AddFile(Path.Combine(sourceRoot.FullName, TestFile), new MockFileData("New"));
+        var installer = new DirectoryInstaller("Package", 1, sourceDir);
+        fs.AddFile(Path.Combine(sourceDir.FullName, TestFile), new MockFileData("New"));
 
-        installer.Install(path => new RootPath(destinationRoot.FullName).Combine(path),
+        installer.Install(destinationRoot.Combine,
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
         fs.File.ReadAllText(destinationFile).Should().Be("New");
@@ -45,13 +47,13 @@ public class DirectoryInstallerTest
     [Fact]
     public void Install_FileRemovalDeletesDestination()
     {
-        var destinationFile = Path.Combine(destinationRoot.FullName, TestFile);
+        var destinationFile = Path.Combine(destinationDir.FullName, TestFile);
         fs.AddFile(destinationFile, new MockFileData("Old"));
 
-        var installer = new DirectoryInstaller("Package", 1, sourceRoot);
-        fs.AddFile(Path.Combine(sourceRoot.FullName, TestFile + BaseInstaller.RemoveFileSuffix), new MockFileData(""));
+        var installer = new DirectoryInstaller("Package", 1, sourceDir);
+        fs.AddFile(Path.Combine(sourceDir.FullName, TestFile + BaseInstaller.RemoveFileSuffix), new MockFileData(""));
 
-        installer.Install(path => new RootPath(destinationRoot.FullName).Combine(path),
+        installer.Install(destinationRoot.Combine,
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
         fs.File.Exists(destinationFile).Should().BeFalse();

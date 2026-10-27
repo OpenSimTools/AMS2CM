@@ -1,3 +1,4 @@
+using System.IO.Abstractions.TestingHelpers;
 using Core.Packages.Installation.Backup;
 using Core.Utils;
 using FluentAssertions;
@@ -9,13 +10,15 @@ public class SkipInstalledBackupStrategyTest
 {
     #region Setup
 
-    private readonly RootedPath path = new RootPath("Original").Combine("File");
+    private readonly RootedPath path;
     private readonly DateTimeOffset backupTime = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(1));
     private readonly Mock<IBackupStrategy> inner = new();
     private readonly Mock<IBackupStrategyProvider<DateTimeOffset, IBackupEventHandler>> baseProvider = new();
 
     public SkipInstalledBackupStrategyTest()
     {
+        var fs = new MockFileSystem();
+        path = new RootPath(fs.DirectoryInfo.New("Original")).Combine("File");
         baseProvider.Setup(m => m.BackupStrategy(It.IsAny<DateTimeOffset>(), It.IsAny<IBackupEventHandler>()))
             .Returns(inner.Object);
     }

@@ -14,14 +14,18 @@ public class ArchiveInstallerTest : IDisposable
 
     private readonly FileSystem fs = new();
     private readonly IDirectoryInfo testDirectory;
-    private readonly string destinationRoot;
+    private readonly string destinationPath;
+    private readonly RootPath destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
+    private static readonly ProcessingCallbacks<RootedPath> NoCallbacks = new();
 
     public ArchiveInstallerTest()
     {
         testDirectory = fs.Directory.CreateDirectory(
             Path.Combine(Path.GetTempPath(), $"{nameof(ArchiveInstallerTest)}-{Guid.NewGuid():N}"));
-        destinationRoot = testDirectory.CreateSubdirectory("Destination").FullName;
+        var destDir = testDirectory.CreateSubdirectory("Destination");
+        destinationPath = destDir.FullName;
+        destinationRoot = new RootPath(destDir);
     }
 
     public void Dispose()
@@ -66,25 +70,23 @@ public class ArchiveInstallerTest : IDisposable
 
         var installer = new ArchiveInstaller("Package", 1, archive);
 
-        installer.Install(path => new RootPath(destinationRoot).Combine(path),
-            backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
+        installer.Install(destinationRoot.Combine, backupStrategy.Object, NoCallbacks);
 
-        fs.File.ReadAllText(Path.Combine(destinationRoot, archiveFile)).Should().Be("New");
+        fs.File.ReadAllText(Path.Combine(destinationPath, archiveFile)).Should().Be("New");
         installer.InstalledFiles.Select(path => path.Relative).Should().BeEquivalentTo(Path.Combine(archiveFile));
     }
 
     [Fact]
     public void Install_ReplacesExistingDestination()
     {
-        var destinationFile = Path.Combine(destinationRoot, "existing");
+        var destinationFile = Path.Combine(destinationPath, "existing");
         fs.File.WriteAllText(destinationFile, "Old");
         var archive = CreateArchive(
             ("existing", "New"));
 
         var installer = new ArchiveInstaller("Package", 1, archive);
 
-        installer.Install(path => new RootPath(destinationRoot).Combine(path),
-            backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
+        installer.Install(destinationRoot.Combine, backupStrategy.Object, NoCallbacks);
 
         fs.File.ReadAllText(destinationFile).Should().Be("New");
         installer.InstalledFiles.Select(path => path.Relative).Should().BeEquivalentTo("existing");
@@ -97,10 +99,9 @@ public class ArchiveInstallerTest : IDisposable
             ("empty/", ""));
         var installer = new ArchiveInstaller("Package", 1, archive);
 
-        installer.Install(path => new RootPath(destinationRoot).Combine(path),
-            backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
+        installer.Install(destinationRoot.Combine, backupStrategy.Object, NoCallbacks);
 
-        fs.Directory.Exists(Path.Combine(destinationRoot, "empty")).Should().BeFalse();
+        fs.Directory.Exists(Path.Combine(destinationPath, "empty")).Should().BeFalse();
         installer.InstalledFiles.Should().BeEmpty();
     }
 
@@ -109,12 +110,11 @@ public class ArchiveInstallerTest : IDisposable
     {
         var archive = CreateArchive(
             ("to-remove" + BaseInstaller.RemoveFileSuffix, "Unused"));
-        var destinationFile = Path.Combine(destinationRoot, "to-remove");
+        var destinationFile = Path.Combine(destinationPath, "to-remove");
         fs.File.WriteAllText(destinationFile, "Old");
         var installer = new ArchiveInstaller("Package", 1, archive);
 
-        installer.Install(path => new RootPath(destinationRoot).Combine(path),
-            backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
+        installer.Install(destinationRoot.Combine, backupStrategy.Object, NoCallbacks);
 
         fs.File.Exists(destinationFile).Should().BeFalse();
         installer.InstalledFiles.Select(path => path.Relative).Should().BeEquivalentTo("to-remove");

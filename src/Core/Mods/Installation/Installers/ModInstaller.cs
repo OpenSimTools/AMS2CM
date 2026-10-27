@@ -24,8 +24,8 @@ public class ModInstaller : BaseModInstaller
     private IReadOnlyCollection<string> bootfilesDependency = Array.Empty<string>();
     private readonly string bootfilesPackageName;
 
-    private RootedPath modConfigPath;
-    private string modName;
+    private readonly RootedPath modConfigPath;
+    private readonly string modName;
 
     internal ModInstaller(IPackageInstaller inner, IDirectoryInfo tempDir, IConfig config,
         IDirectoryInfo gameInstallationDir, string bootfilesPackageName) :
@@ -42,7 +42,7 @@ public class ModInstaller : BaseModInstaller
         modName = $"{normalisedName}_{hexVersionHash}";
 
         modConfigPath =
-            new RootPath(gameInstallationDir.FullName).Combine(GameSupportedModRelativeDir, modName);
+            new RootPath(gameInstallationDir).Combine(GameSupportedModRelativeDir, modName);
     }
 
     public override IReadOnlySet<string> PackageDependencies =>
