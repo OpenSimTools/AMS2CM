@@ -407,7 +407,7 @@ public class
     public void Apply_UninstallRemovesEmptyDirectories()
     {
         var subDir = Path.Combine("D1", "D2");
-        FileSystem.Directory.CreateDirectory(DestinationPath(subDir).Full);
+        Directory.CreateDirectory(DestinationPath(subDir).Full);
 
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
@@ -421,8 +421,8 @@ public class
 
         InstallationState.Should().BeEmpty();
 
-        FileSystem.Directory.Exists(DestinationPath("D1").Full).Should().BeFalse();
-        FileSystem.Directory.Exists(DestinationPath("").Full).Should().BeTrue();
+        Directory.Exists(DestinationPath("D1").Full).Should().BeFalse();
+        Directory.Exists(DestinationPath("").Full).Should().BeTrue();
     }
 
     [Fact]
@@ -556,22 +556,25 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
     protected readonly Mock<TEventHandler> EventHandlerMock = new();
 
     protected readonly DateTimeOffset TestInstallationTimeUtc;
-    private readonly FakeTimeProvider TestTimeProvider;
-    protected readonly MockFileSystem FileSystem = new();
+    private readonly FakeTimeProvider testTimeProvider;
 
     protected IReadOnlyDictionary<string, PackageInstallationState>? InstallationState;
 
     protected IEnumerable<string> InstalledPackages =>
         InstallationState?.Keys ?? Enumerable.Empty<string>();
 
+    private readonly MockFileSystem fs;
     private readonly IDirectoryInfo destinationDir;
+    protected readonly IDirectory Directory;
 
     protected ReconciliationServiceTestBase()
     {
-        destinationDir = FileSystem.Directory.CreateTempSubdirectory();
+        fs = new MockFileSystem();
+        Directory = fs.Directory;
+        destinationDir = Directory.CreateTempSubdirectory();
         TestInstallationTimeUtc = DateTimeOffset.Now.AddDays(10).ToUniversalTime();
         var fakeLocalTimeOffset = TimeSpan.FromHours(3);
-        TestTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.ToOffset(fakeLocalTimeOffset));
+        testTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.ToOffset(fakeLocalTimeOffset));
     }
 
     protected RootedPath DestinationPath(string relativePath) =>
@@ -605,7 +608,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
     }
 
     protected IPackageInstaller InstallerOf(string name, int? versionHash = null) =>
-        new StaticFilesInstaller(FileSystem, TestTimeProvider, name, versionHash,
+        new StaticFilesInstaller(fs, testTimeProvider, name, versionHash,
             new Dictionary<string, string> { [name] = "Contents" }, []);
 
     protected IPackageInstaller InstallerOf(string name, int? versionHash, IReadOnlyCollection<string> files) =>
@@ -613,6 +616,6 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
 
     protected IPackageInstaller InstallerOf(string name, int? versionHash,
         IReadOnlyCollection<string> files, IReadOnlyCollection<string> dependencies) =>
-        new StaticFilesInstaller(FileSystem, TestTimeProvider,
+        new StaticFilesInstaller(fs, testTimeProvider,
             name, versionHash, files.ToDictionary(f => f, _ => ""), dependencies);
 }

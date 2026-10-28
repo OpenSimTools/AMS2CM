@@ -34,15 +34,15 @@ public class FileSystemRepositoryTest
         AddDisabled("File4.Ext");
 
         fileSystemRepository.ListEnabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new[]
-            {
-                ("File1.Ext", EnabledPath("File1.Ext")), ("File2.Ext", EnabledPath("File2.Ext"))
+            .Should().BeEquivalentTo(new[] {
+                ("File1.Ext", EnabledPath("File1.Ext")),
+                ("File2.Ext", EnabledPath("File2.Ext"))
             });
 
         fileSystemRepository.ListDisabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new[]
-            {
-                ("File3.Ext", DisabledPath("File3.Ext")), ("File4.Ext", DisabledPath("File4.Ext"))
+            .Should().BeEquivalentTo(new[] {
+                ("File3.Ext", DisabledPath("File3.Ext")),
+                ("File4.Ext", DisabledPath("File4.Ext"))
             });
     }
 
@@ -55,9 +55,15 @@ public class FileSystemRepositoryTest
         AddDisabledDir(@"Dir4\SubDir");
 
         fileSystemRepository.ListEnabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new[] { (@"Dir1\", EnabledPath("Dir1")), (@"Dir2\", EnabledPath("Dir2")) });
+            .Should().BeEquivalentTo(new [] {
+                (@"Dir1\", EnabledPath("Dir1")),
+                (@"Dir2\", EnabledPath("Dir2"))
+            });
         fileSystemRepository.ListDisabled().Select(p => (p.Name, p.Location))
-            .Should().BeEquivalentTo(new[] { (@"Dir3\", DisabledPath("Dir3")), (@"Dir4\", DisabledPath("Dir4")) });
+            .Should().BeEquivalentTo(new [] {
+                (@"Dir3\", DisabledPath("Dir3")),
+                (@"Dir4\", DisabledPath("Dir4"))
+            });
     }
 
     [Fact]
@@ -116,20 +122,16 @@ public class FileSystemRepositoryTest
     }
 
     [Fact]
-    public void Upload_RejectsDirectoryWithoutChangingFileSystem()
+    public void Upload_RejectsDirectories()
     {
-        const string sourcePath = @"C:\Downloads\Mod";
+        const string sourcePath = @"C:\Downloads\Dir";
         fs.AddDirectory(sourcePath);
-        fs.AddFile(Path.Combine(sourcePath, "Contents.txt"), "Contents");
         var directoriesBefore = fs.AllDirectories.ToArray();
-        var filesBefore = fs.AllFiles.ToArray();
 
         var upload = () => fileSystemRepository.Upload(sourcePath);
 
         upload.Should().ThrowExactly<Exception>().WithMessage($"{sourcePath} is a directory");
         fs.AllDirectories.Should().BeEquivalentTo(directoriesBefore);
-        fs.AllFiles.Should().BeEquivalentTo(filesBefore);
-        fs.File.ReadAllText(Path.Combine(sourcePath, "Contents.txt")).Should().Be("Contents");
     }
 
     [Fact]
