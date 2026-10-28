@@ -1,21 +1,17 @@
-﻿namespace Core.Packages.Installation.Installers;
+using System.Collections.Immutable;
+using System.IO.Abstractions;
 
-internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
+namespace Core.Packages.Installation.Installers;
+
+internal abstract class BaseDirectoryInstaller : BaseInstaller<IFileInfo>
 {
-    private static readonly EnumerationOptions RecursiveEnumeration = new()
+    protected BaseDirectoryInstaller(IDirectoryInfo source, string packageName, int? packageVersionHash) :
+        base(source.FileSystem, TimeProvider.System, packageName, packageVersionHash, ImmutableHashSet<string>.Empty)
     {
-        MatchType = MatchType.Win32,
-        IgnoreInaccessible = false,
-        AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-        RecurseSubdirectories = true,
-    };
-
-    protected BaseDirectoryInstaller(string packageName, int? packageVersionHash) :
-        base(packageName, packageVersionHash)
-    {
+        Source = source;
     }
 
-    protected abstract DirectoryInfo Source { get; }
+    protected IDirectoryInfo Source { get; }
 
     public override IEnumerable<string> RelativeDirectoryPaths =>
         Source.EnumerateDirectories("*", RecursiveEnumeration)
@@ -29,4 +25,12 @@ internal abstract class BaseDirectoryInstaller : BaseInstaller<FileInfo>
             body(relativePath, fileInfo);
         }
     }
+
+    private static readonly EnumerationOptions RecursiveEnumeration = new()
+    {
+        // Not supported by the MockFileSystem
+        // IgnoreInaccessible = true,
+        AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+        RecurseSubdirectories = true,
+    };
 }

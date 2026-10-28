@@ -1,4 +1,6 @@
-﻿using Core.Utils;
+using System.Collections.Immutable;
+using System.IO.Abstractions;
+using Core.Utils;
 using LibArchive.Net;
 
 namespace Core.Packages.Installation.Installers;
@@ -8,10 +10,11 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
     private const uint BlockSize = 1 << 23;
     private const int CopyBufferSize = 1 << 27;
 
-    private readonly string archivePath;
+    private readonly IFileInfo archivePath;
 
-    public ArchiveInstaller(string packageName, int? packageVersionHash,  string archivePath) :
-        base(packageName, packageVersionHash)
+    public ArchiveInstaller(string packageName, int? packageVersionHash, IFileInfo archivePath) :
+        base(archivePath.FileSystem, TimeProvider.System, packageName, packageVersionHash,
+            ImmutableHashSet<string>.Empty)
     {
         this.archivePath = archivePath;
     }
@@ -19,12 +22,18 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
     // LibArchive.Net is a mere wrapper around libarchive. It's better to avoid using
     // LINQ expressions as they can lead to <see cref="LibArchiveReader.Entries"/> or
     // <see cref="LibArchiveReader.Entry.Stream"/> being called out of order.
+    //
+    // This would allow us to read from the MockFileSystem but LibArchive.Net 0.3.1's
+    // Stream reader has a bug: https://github.com/jas88/libarchive.net/pull/293
+    //
+    // using var archiveStream = archivePath.OpenRead();
+    // using var reader = new LibArchiveReader(archiveStream, blockSize: BlockSize);
 
     public override IEnumerable<string> RelativeDirectoryPaths
     {
         get
         {
-            using var reader = new LibArchiveReader(archivePath, BlockSize);
+            using var reader = new LibArchiveReader(archivePath.FullName, BlockSize);
             var ret = new HashSet<string>();
             foreach (var entry in reader.Entries())
             {
@@ -34,27 +43,31 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
                 {
                     continue;
                 }
+
                 var normalizedPath = Path.GetDirectoryName(entry.Name);
                 if (normalizedPath is not null)
                 {
                     ret.Add(normalizedPath);
                 }
             }
+
             return ret;
         }
     }
 
     protected override void InstallAllFiles(InstallBody body)
     {
-        using var reader = new LibArchiveReader(archivePath, BlockSize);
+        using var reader = new LibArchiveReader(archivePath.FullName, BlockSize);
         foreach (var entry in reader.Entries())
         {
             if (!entry.IsRegularFile)
             {
                 continue;
             }
+
             var normalizedPath = Paths.NormalizeDirectorySeparators(entry.Name);
-            body(normalizedPath, entry.Stream);
+            using var entryStream = entry.Stream;
+            body(normalizedPath, entryStream);
         }
     }
 
@@ -66,8 +79,8 @@ internal class ArchiveInstaller : BaseInstaller<Stream>
             return;
         }
 
-        Directory.GetParent(destinationPath.Full)?.Create();
-        using var destinationStream = new FileStream(destinationPath.Full, FileMode.Create);
+        FileSystem.Directory.GetParent(destinationPath.Full)?.Create();
+        using var destinationStream = FileSystem.FileStream.New(destinationPath.Full, FileMode.Create);
         stream.CopyTo(destinationStream, CopyBufferSize);
     }
 }

@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Core.Packages.Repository;
 using System.IO.Abstractions.TestingHelpers;
 using FluentAssertions;
@@ -14,7 +15,7 @@ public class FileSystemRepositoryTest
 
     public FileSystemRepositoryTest()
     {
-        fileSystemRepository = new FileSystemRepository(fs, RepositoryDir);
+        fileSystemRepository = new FileSystemRepository(fs.DirectoryInfo.New(RepositoryDir));
     }
 
     [Fact]
@@ -121,6 +122,19 @@ public class FileSystemRepositoryTest
     }
 
     [Fact]
+    public void Upload_RejectsDirectories()
+    {
+        const string sourcePath = @"C:\Downloads\Dir";
+        fs.AddDirectory(sourcePath);
+        var directoriesBefore = fs.AllDirectories.ToArray();
+
+        var upload = () => fileSystemRepository.Upload(sourcePath);
+
+        upload.Should().ThrowExactly<Exception>().WithMessage($"{sourcePath} is a directory");
+        fs.AllDirectories.Should().BeEquivalentTo(directoriesBefore);
+    }
+
+    [Fact]
     public void Upload_PreservesEnabledState()
     {
         const string updatedContent = "Updated";
@@ -136,8 +150,7 @@ public class FileSystemRepositoryTest
         fs.AllFiles.Where(f => f.StartsWith(RepositoryDir)).Select(path => (path, fs.File.ReadAllText(path)))
             .Should().BeEquivalentTo(new[]
             {
-                (EnabledPath("Enabled"), updatedContent),
-                (DisabledPath("Disabled"), updatedContent),
+                (EnabledPath("Enabled"), updatedContent), (DisabledPath("Disabled"), updatedContent),
                 (EnabledPath("NotPresent"), updatedContent)
             });
     }
@@ -168,5 +181,6 @@ public class FileSystemRepositoryTest
 
     private static string EnabledPath(string relativePath) => Path.Combine(RepositoryDir, EnabledSubdir, relativePath);
 
-    private static string DisabledPath(string relativePath) => Path.Combine(RepositoryDir, DisabledSubdir, relativePath);
+    private static string DisabledPath(string relativePath) =>
+        Path.Combine(RepositoryDir, DisabledSubdir, relativePath);
 }

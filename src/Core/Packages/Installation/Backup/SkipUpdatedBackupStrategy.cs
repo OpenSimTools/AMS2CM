@@ -11,16 +11,19 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
     internal class Provider<TEventHandler> : IBackupStrategyProvider<DateTimeOffset, TEventHandler>
         where TEventHandler : IBackupEventHandler
     {
+        private readonly IFileSystem fs;
         private readonly IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider;
 
-        public Provider(IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
+        public Provider(IFileSystem fs, IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
         {
+            this.fs = fs;
             this.baseProvider = baseProvider;
         }
 
-        public IBackupStrategy BackupStrategy(DateTimeOffset backupTime, TEventHandler? eventHandler) {
+        public IBackupStrategy BackupStrategy(DateTimeOffset backupTime, TEventHandler? eventHandler)
+        {
             var baseStrategy = baseProvider.BackupStrategy(backupTime, eventHandler);
-            return new SkipUpdatedBackupStrategy(baseStrategy, backupTime, eventHandler);
+            return new SkipUpdatedBackupStrategy(fs, baseStrategy, backupTime, eventHandler);
         }
     }
 
@@ -29,16 +32,7 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
     private readonly DateTimeOffset backupTime;
     private readonly IBackupEventHandler? eventHandler;
 
-    private SkipUpdatedBackupStrategy(
-        IBackupStrategy backupStrategy,
-        DateTimeOffset backupTime,
-        IBackupEventHandler? eventHandler) :
-        this(new FileSystem(), backupStrategy, backupTime, eventHandler)
-    {
-    }
-
-    internal SkipUpdatedBackupStrategy(
-        IFileSystem fs,
+    internal SkipUpdatedBackupStrategy(IFileSystem fs,
         IBackupStrategy backupStrategy,
         DateTimeOffset backupTime,
         IBackupEventHandler? eventHandler)
@@ -63,6 +57,7 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
             eventHandler?.RestoreSkipped(path);
             return;
         }
+
         inner.RestoreBackup(path);
     }
 

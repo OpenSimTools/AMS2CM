@@ -1,12 +1,14 @@
-﻿namespace Core.Packages.Installation.Backup;
+using System.IO.Abstractions;
+
+namespace Core.Packages.Installation.Backup;
 
 public class SuffixBackupStrategy : MoveFileBackupStrategy
 {
-    internal class Provider<TState, TEventHandler> : IBackupStrategyProvider<TState, TEventHandler>
+    internal class Provider<TState, TEventHandler>(IFileSystem fs) : IBackupStrategyProvider<TState, TEventHandler>
         where TEventHandler : IBackupEventHandler
     {
         public IBackupStrategy BackupStrategy(TState? _, TEventHandler? eventHandler) =>
-            new SuffixBackupStrategy(eventHandler);
+            new SuffixBackupStrategy(fs, eventHandler);
     }
 
     private class BackupFileNaming : IBackupFileNaming
@@ -17,8 +19,8 @@ public class SuffixBackupStrategy : MoveFileBackupStrategy
         public bool IsBackup(string fullPath) => fullPath.EndsWith(BackupSuffix);
     }
 
-    public SuffixBackupStrategy(IBackupEventHandler? eventHandler) :
-        base(new BackupFileNaming(), eventHandler)
+    public SuffixBackupStrategy(IFileSystem fs, IBackupEventHandler? eventHandler) :
+        base(fs, new BackupFileNaming(), eventHandler)
     {
     }
 }

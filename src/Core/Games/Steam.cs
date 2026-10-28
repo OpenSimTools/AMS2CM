@@ -7,12 +7,12 @@ namespace Core.Games;
 
 public static class Steam
 {
-    private static readonly string[] RegistryPaths = {
-        @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Valve\Steam",
-        @"HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam"
-    };
+    private static readonly string[] RegistryPaths =
+    [
+        @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Valve\Steam", @"HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam"
+    ];
 
-    public static string MainInstallationPath()
+    private static string MainInstallationPath()
     {
         try
         {
@@ -46,12 +46,11 @@ public static class Steam
         var libraryFolders = File.ReadAllText(path);
         var vdfRoot = VdfConvert.Deserialize(libraryFolders);
         return vdfRoot.ToJson().Value
-            .SelectMany(_ => _)
-            .Select(_ => _.ToObject<LibraryFolder>()!);
+            .SelectMany(x => x)
+            .Select(o => o.ToObject<LibraryFolder>()!);
     }
 
-    private record LibraryFolder
-    (
+    private record LibraryFolder(
         string Path,
         Dictionary<string, string> Apps
     );

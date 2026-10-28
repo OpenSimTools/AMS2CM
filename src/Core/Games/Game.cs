@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.IO.Abstractions;
 
 namespace Core.Games;
 
@@ -6,25 +7,16 @@ public class Game : IGame
 {
     public interface IConfig
     {
-        string SteamId
-        {
-            get;
-        }
+        string SteamId { get; }
 
-        string Path
-        {
-            get;
-        }
+        string Path { get; }
 
-        string ProcessName
-        {
-            get;
-        }
+        string ProcessName { get; }
     }
 
     private readonly IConfig config;
 
-    public Game(IConfig config)
+    public Game(IFileSystem fs, IConfig config)
     {
         var insallationDirectory = FindInstallationDirectory(config);
         if (!Directory.Exists(insallationDirectory))
@@ -33,16 +25,12 @@ public class Game : IGame
         }
 
         this.config = config;
-        InstallationDirectory = insallationDirectory;
+        InstallationDirectory = fs.DirectoryInfo.New(insallationDirectory);
     }
 
-    public string InstallationDirectory
-    {
-        get;
-        init;
-    }
+    public IDirectoryInfo InstallationDirectory { get; init; }
 
-    public bool IsRunning => Process.GetProcesses().Any(_ => _.ProcessName == config.ProcessName);
+    public bool IsRunning => Process.GetProcesses().Any(p => p.ProcessName == config.ProcessName);
 
     private static string FindInstallationDirectory(IConfig config)
     {
@@ -50,6 +38,7 @@ public class Game : IGame
         {
             return config.Path;
         }
+
         var steamLibraryPath = Steam.AppLibraryPath(config.SteamId);
         return Path.Combine(steamLibraryPath, config.Path);
     }

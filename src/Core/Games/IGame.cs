@@ -1,14 +1,10 @@
-﻿namespace Core.Games;
+using System.IO.Abstractions;
+
+namespace Core.Games;
 
 public interface IGame
 {
-    string InstallationDirectory
-    {
-        get;
-    }
+    IDirectoryInfo InstallationDirectory { get; }
 
-    bool IsRunning
-    {
-        get;
-    }
+    bool IsRunning { get; }
 }

@@ -1,11 +1,10 @@
-﻿using Core.API;
+using Core.API;
 using Core.SoftwareUpdates;
 using Microsoft.UI.Xaml;
-using static Core.API.IModManager;
 
 namespace AMS2CM.GUI;
 
-public partial class App : Application
+public partial class App
 {
     private MainWindow? window;
 

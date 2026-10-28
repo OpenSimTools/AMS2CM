@@ -1,4 +1,4 @@
-﻿using AMS2CM.CLI;
+using AMS2CM.CLI;
 using Core.API;
 
 try

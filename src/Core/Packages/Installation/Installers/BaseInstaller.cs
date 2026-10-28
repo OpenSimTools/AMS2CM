@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Utils;
@@ -24,13 +24,9 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 
     private readonly HashSet<RootedPath> installedFiles = new();
 
-    protected BaseInstaller(string packageName, int? packageVersionHash) :
-        this(new FileSystem(), TimeProvider.System, packageName, packageVersionHash, ImmutableHashSet<string>.Empty)
-    {
-    }
-
     // A package cannot currently specify dependencies.
-    protected BaseInstaller(IFileSystem fs, TimeProvider timeProvider, string packageName, int? packageVersionHash, IReadOnlySet<string> packageDependencies)
+    protected BaseInstaller(IFileSystem fs, TimeProvider timeProvider, string packageName, int? packageVersionHash,
+        IReadOnlySet<string> packageDependencies)
     {
         FileSystem = fs;
         PackageName = packageName;
@@ -39,12 +35,14 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
         InstallTime = timeProvider.GetUtcNow();
     }
 
-    public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy, ProcessingCallbacks<RootedPath> callbacks)
+    public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
+        ProcessingCallbacks<RootedPath> callbacks)
     {
         if (Installed != IInstallation.State.NotInstalled)
         {
             throw new InvalidOperationException();
         }
+
         Installed = IInstallation.State.PartiallyInstalled;
 
         InstallAllFiles((pathInPackage, context) =>
@@ -70,6 +68,7 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
                 {
                     installedFiles.Add(destPath);
                 }
+
                 backupStrategy.AfterInstall(destPath);
             }, destPath);
         });
@@ -94,10 +93,10 @@ internal abstract class BaseInstaller<TPassthrough> : IPackageInstaller
 
     private static (RootedPath, bool) NeedsRemoving(RootedPath destPath)
     {
-        var (relativePath, remove) = destPath.Relative.EndsWith(BaseInstaller.RemoveFileSuffix) ?
-            (destPath.Relative.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true) :
-            (destPath.Relative, false);
-        return (new RootedPath(destPath.Root, relativePath), remove);
+        var (relativePath, remove) = destPath.Relative.EndsWith(BaseInstaller.RemoveFileSuffix)
+            ? (destPath.Relative.RemoveSuffix(BaseInstaller.RemoveFileSuffix).Trim(), true)
+            : (destPath.Relative, false);
+        return (destPath.Root.Combine(relativePath), remove);
     }
 }
 

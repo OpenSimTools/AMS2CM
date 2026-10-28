@@ -1,27 +1,30 @@
+using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
-using Core.Tests.Base;
 using Core.Utils;
 using FluentAssertions;
 
 namespace Core.Tests.Packages.Installation.Installers;
 
-[IntegrationTest]
-public class DirectoryInstallerTest : AbstractFilesystemTest
+[UnitTest]
+public class DirectoryInstallerTest
 {
-
     #region Setup
 
-    const string fileName = "File";
+    private const string TestFile = "File";
 
-    private readonly RootedPath sourceRoot;
-    private readonly RootedPath destinationRoot;
+    private readonly MockFileSystem fs = new();
+    private readonly IDirectoryInfo sourceDir;
+    private readonly IDirectoryInfo destinationDir;
+    private readonly PathRoot destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
 
     public DirectoryInstallerTest()
     {
-        sourceRoot = new RootedPath(TestDir.CreateSubdirectory("PackageDir").FullName);
-        destinationRoot = new RootedPath(TestDir.CreateSubdirectory("Destination").FullName);
+        sourceDir = fs.Directory.CreateDirectory("PackageDir");
+        destinationDir = fs.Directory.CreateDirectory("Destination");
+        destinationRoot = new PathRoot(destinationDir);
     }
 
     #endregion
@@ -29,30 +32,30 @@ public class DirectoryInstallerTest : AbstractFilesystemTest
     [Fact]
     public void Install_ReplacesDestination()
     {
-        var destinationFile = destinationRoot.SubPath(fileName);
-        CreateFile(destinationFile, "Old");
+        var destinationFile = Path.Combine(destinationDir.FullName, TestFile);
+        fs.AddFile(destinationFile, new MockFileData("Old"));
 
-        var installer = new DirectoryInstaller("Package", 1, sourceRoot.Full);
-        CreateFile(sourceRoot.SubPath(fileName), "New");
+        var installer = new DirectoryInstaller("Package", 1, sourceDir);
+        fs.AddFile(Path.Combine(sourceDir.FullName, TestFile), new MockFileData("New"));
 
-        installer.Install(path => destinationRoot.SubPath(path),
+        installer.Install(destinationRoot.Combine,
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
-        File.ReadAllText(destinationFile.Full).Should().Be("New");
+        fs.File.ReadAllText(destinationFile).Should().Be("New");
     }
 
     [Fact]
     public void Install_FileRemovalDeletesDestination()
     {
-        var destinationFile = destinationRoot.SubPath(fileName);
-        CreateFile(destinationFile, "Old");
+        var destinationFile = Path.Combine(destinationDir.FullName, TestFile);
+        fs.AddFile(destinationFile, new MockFileData("Old"));
 
-        var installer = new DirectoryInstaller("Package", 1, sourceRoot.Full);
-        CreateFile(sourceRoot.SubPath(fileName + BaseInstaller.RemoveFileSuffix));
+        var installer = new DirectoryInstaller("Package", 1, sourceDir);
+        fs.AddFile(Path.Combine(sourceDir.FullName, TestFile + BaseInstaller.RemoveFileSuffix), new MockFileData(""));
 
-        installer.Install(path => destinationRoot.SubPath(path),
+        installer.Install(destinationRoot.Combine,
             backupStrategy.Object, new ProcessingCallbacks<RootedPath>());
 
-        File.Exists(destinationFile.Full).Should().BeFalse();
+        fs.File.Exists(destinationFile).Should().BeFalse();
     }
 }

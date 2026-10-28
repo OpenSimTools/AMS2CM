@@ -1,24 +1,23 @@
-﻿namespace Core.Utils;
+﻿using System.IO.Abstractions;
+
+namespace Core.Utils;
 
 public class SubdirectoryTempDir : ITempDir
 {
     private const string TempDirName = "Temp";
 
-    public SubdirectoryTempDir(string parentPath)
+    public SubdirectoryTempDir(IDirectoryInfo parentPath)
     {
-        BasePath = Path.Combine(parentPath, TempDirName);
+        BaseDirectory = parentPath.FileSystem.DirectoryInfo.New(Path.Combine(parentPath.FullName, TempDirName));
     }
 
-    public string BasePath
-    {
-        get;
-    }
+    public IDirectoryInfo BaseDirectory { get; }
 
     public void Cleanup()
     {
-        if (Directory.Exists(BasePath))
+        if (BaseDirectory.FileSystem.Directory.Exists(BaseDirectory.FullName))
         {
-            Directory.Delete(BasePath, recursive: true);
+            BaseDirectory.FileSystem.Directory.Delete(BaseDirectory.FullName, recursive: true);
         }
     }
 }

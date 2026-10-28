@@ -1,4 +1,4 @@
-﻿using System.IO.Abstractions;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -11,15 +11,15 @@ public class FileSystemRepository : IPackageRepository
         public string Name { get; } = fileInfo.Name;
         public int? VersionHash { get; } = FileSystemHash.Hash32(fileInfo);
         public string Location { get; } = fileInfo.FullName;
-        public IPackageInstaller CreateInstaller() => new ArchiveInstaller(Name, VersionHash, Location);
+        public IPackageInstaller CreateInstaller() => new ArchiveInstaller(Name, VersionHash, fileInfo);
     }
 
     private class DirectoryPackage(IDirectoryInfo directoryInfo) : IPackage
     {
-        public string Name { get; } = $"{directoryInfo.Name}{directoryInfo.FileSystem.Path.DirectorySeparatorChar}";
+        public string Name { get; } = $"{directoryInfo.Name}{Path.DirectorySeparatorChar}";
         public int? VersionHash => null;
         public string Location { get; } = directoryInfo.FullName;
-        public IPackageInstaller CreateInstaller() => new DirectoryInstaller(Name, VersionHash, Location);
+        public IPackageInstaller CreateInstaller() => new DirectoryInstaller(Name, VersionHash, directoryInfo);
     }
 
     internal const string EnabledSubdir = "Enabled";
@@ -29,24 +29,25 @@ public class FileSystemRepository : IPackageRepository
     private readonly string disabledDirPath;
     private readonly IFileSystem fs;
 
-    internal FileSystemRepository(string repositoryDir) : this(new FileSystem(), repositoryDir)
+    internal FileSystemRepository(IDirectoryInfo repositoryDir)
     {
-    }
-
-    internal FileSystemRepository(IFileSystem fs, string repositoryDir)
-    {
-        this.fs = fs;
-        enabledDirPath = fs.Path.Combine(repositoryDir, EnabledSubdir);
-        disabledDirPath = fs.Path.Combine(repositoryDir, DisabledSubdir);
+        fs = repositoryDir.FileSystem;
+        enabledDirPath = Path.Combine(repositoryDir.FullName, EnabledSubdir);
+        disabledDirPath = Path.Combine(repositoryDir.FullName, DisabledSubdir);
     }
 
     public void Upload(string sourceFilePath)
     {
-        var fileName = fs.Path.GetFileName(sourceFilePath);
+        if (IsDirectory(sourceFilePath))
+        {
+            throw new Exception($"{sourceFilePath} is a directory");
+        }
+
+        var fileName = Path.GetFileName(sourceFilePath);
 
         var isDisabled = ListDisabled().Any(f => f.Name == fileName);
         var destinationDirPath = isDisabled ? disabledDirPath : enabledDirPath;
-        var destinationFilePath = fs.Path.Combine(destinationDirPath, fileName);
+        var destinationFilePath = Path.Combine(destinationDirPath, fileName);
 
         ExistingDirectoryOrCreate(destinationDirPath);
         fs.File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
@@ -65,7 +66,7 @@ public class FileSystemRepository : IPackageRepository
     private string MovePackage(string sourceFilePath, string destinationParentPath)
     {
         ExistingDirectoryOrCreate(destinationParentPath);
-        var destinationPackagePath = fs.Path.Combine(destinationParentPath, fs.Path.GetFileName(sourceFilePath));
+        var destinationPackagePath = Path.Combine(destinationParentPath, fs.Path.GetFileName(sourceFilePath));
         if (fs.Directory.Exists(sourceFilePath))
         {
             fs.Directory.Move(sourceFilePath, destinationPackagePath);
@@ -74,12 +75,16 @@ public class FileSystemRepository : IPackageRepository
         {
             fs.File.Move(sourceFilePath, destinationPackagePath);
         }
+
         return destinationPackagePath;
     }
 
     public IReadOnlyCollection<IPackage> ListEnabled() => ListPackages(enabledDirPath);
 
     public IReadOnlyCollection<IPackage> ListDisabled() => ListPackages(disabledDirPath);
+
+    private bool IsDirectory(string path) =>
+        fs.File.GetAttributes(path).HasFlag(FileAttributes.Directory);
 
     private IReadOnlyCollection<IPackage> ListPackages(string rootPath)
     {

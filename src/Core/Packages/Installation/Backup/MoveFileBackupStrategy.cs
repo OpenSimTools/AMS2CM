@@ -15,12 +15,7 @@ public class MoveFileBackupStrategy : IBackupStrategy
     private readonly IBackupFileNaming backupFileNaming;
     private readonly IBackupEventHandler? eventHandler;
 
-    public MoveFileBackupStrategy(IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler) :
-        this(new FileSystem(), backupFileNaming, eventHandler)
-    {
-    }
-
-    internal MoveFileBackupStrategy(IFileSystem fs, IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler)
+    public MoveFileBackupStrategy(IFileSystem fs, IBackupFileNaming backupFileNaming, IBackupEventHandler? eventHandler)
     {
         this.fs = fs;
         this.backupFileNaming = backupFileNaming;
@@ -33,6 +28,7 @@ public class MoveFileBackupStrategy : IBackupStrategy
         {
             throw new InvalidOperationException("Installing a backup file is forbidden");
         }
+
         if (!fs.File.Exists(path.Full))
         {
             return;
@@ -56,6 +52,7 @@ public class MoveFileBackupStrategy : IBackupStrategy
         {
             fs.File.Delete(path.Full);
         }
+
         var backupFilePath = backupFileNaming.ToBackup(path.Full);
         if (fs.File.Exists(backupFilePath))
         {

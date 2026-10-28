@@ -1,7 +1,9 @@
-﻿namespace Core.Utils;
+﻿using System.IO.Abstractions;
+
+namespace Core.Utils;
 
 public interface ITempDir
 {
-    string BasePath { get; }
+    IDirectoryInfo BaseDirectory { get; }
     void Cleanup();
 }

@@ -28,8 +28,8 @@ public class ModInstallerTest
     private readonly Mock<IBackupStrategy> backupStrategyMock = new();
     private readonly Mock<Action<RootedPath>> callbackMock = new();
 
-    private readonly string destDir;
-    private readonly string tempDir;
+    private readonly string destinationPath;
+    private readonly PathRoot destinationRoot;
 
     public ModInstallerTest()
     {
@@ -41,8 +41,9 @@ public class ModInstallerTest
         configMock.Setup(c => c.TrackListFileName).Returns(TrackListFile);
         configMock.Setup(c => c.DrivelineFileName).Returns(DrivelineFile);
 
-        destDir = fs.Directory.CreateDirectory("Dest").FullName;
-        tempDir = fs.Directory.CreateDirectory("Temp").FullName;
+        var destDir = fs.Directory.CreateDirectory("Dest");
+        destinationPath = destDir.FullName;
+        destinationRoot = new PathRoot(destDir);
     }
 
     #endregion
@@ -101,7 +102,8 @@ public class ModInstallerTest
 
         var modInstaller = InstallWithModInstaller(InstallerOf("A", 0xbadcafe, packageFiles));
 
-        string[] expectedFiles = {
+        string[] expectedFiles =
+        {
             crdFile,
             notInGameSupportedDir,
             Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile),
@@ -115,14 +117,14 @@ public class ModInstallerTest
         VerifyCallbackCalledWith(expectedFiles);
 
         fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
-        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
+        fs.GetFile(Path.Combine(destinationPath, GameSupportedModDirectory, "A_badcafe", VehicleListFile))
             .TextContents.Should().Be(crdFile);
         backupStrategyMock.Verify(m => m.AfterInstall(
-            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile))));
-        fs.GetFile(Path.Combine(destDir, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
+            destinationRoot.Combine(GameSupportedModDirectory, "A_badcafe", VehicleListFile)));
+        fs.GetFile(Path.Combine(destinationPath, GameSupportedModDirectory, "A_badcafe", DrivelineFile))
             .TextContents.Should().Be(drivelineRecord.Trim());
         backupStrategyMock.Verify(m => m.AfterInstall(
-            new RootedPath(destDir, Path.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile))));
+            destinationRoot.Combine(GameSupportedModDirectory, "A_badcafe", DrivelineFile)));
     }
 
     [Fact]
@@ -153,7 +155,8 @@ public class ModInstallerTest
     [Fact]
     public void AutomaticModConfigurationNotPossibleForTracks()
     {
-        string[] packageFiles = [
+        string[] packageFiles =
+        [
             Path.Combine(GameDirAtRoot, "File.trd")
         ];
 
@@ -172,7 +175,7 @@ public class ModInstallerTest
 
         fs.AllFiles.Should().BeEquivalentPathTo(ToDestPath(expectedFiles));
 
-        fs.GetFile(Path.Combine(destDir, trackListFile))
+        fs.GetFile(Path.Combine(destinationPath, trackListFile))
             .TextContents.Should().Be(Path.Combine(GameDirAtRoot, "@File.trd"));
     }
 
@@ -232,27 +235,27 @@ public class ModInstallerTest
 
     private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
     {
-        var modInstaller = new ModInstaller(fs, inner, tempDir, configMock.Object, destDir, BootfilesPackageName);
-        modInstaller.Install(packagePath => new RootedPath(destDir, packagePath),
-            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath>
-            {
-                Before = callbackMock.Object
-            });
-        fs.Directory.Delete(tempDir, recursive: true);
+        var tempDir = fs.Directory.CreateDirectory("Temp");
+        var modInstaller = new ModInstaller(inner, fs.DirectoryInfo.New(tempDir.FullName), configMock.Object,
+            destinationRoot.Directory, BootfilesPackageName);
+        modInstaller.Install(destinationRoot.Combine,
+            backupStrategyMock.Object, new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
+        tempDir.Delete(recursive: true);
         return modInstaller;
     }
 
     private IPackageInstaller InstallerOf(string name, int? versionHash, IEnumerable<string> files) =>
         InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
-    private StaticFilesInstaller InstallerOf(string name, int? versionHash, IReadOnlyDictionary<string, string> fileContents) =>
+    private StaticFilesInstaller InstallerOf(string name, int? versionHash,
+        IReadOnlyDictionary<string, string> fileContents) =>
         new(fs, fakeTimeProvider, name, versionHash, fileContents, Array.Empty<string>());
 
     private List<string> ToDestPath(IReadOnlyCollection<string> relativePaths) =>
-        [.. relativePaths.Select(f => Path.Combine(destDir, f))];
+        [.. relativePaths.Select(f => Path.Combine(destinationPath, f))];
 
     private HashSet<RootedPath> ToDestRootedPath(IReadOnlyCollection<string> relativePaths) =>
-        [.. relativePaths.Select(f => new RootedPath(destDir, f))];
+        [.. relativePaths.Select(destinationRoot.Combine)];
 
     private void VerifyCallbackCalledWith(IReadOnlyCollection<string> relativePaths)
     {
@@ -260,6 +263,7 @@ public class ModInstallerTest
         {
             callbackMock.Verify(a => a(rp), Times.Once);
         }
+
         callbackMock.VerifyNoOtherCalls();
     }
 
