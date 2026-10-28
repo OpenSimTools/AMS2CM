@@ -5,22 +5,22 @@ namespace Core.Utils;
 /// <summary>
 /// A canonical directory boundary, without resolving symbolic links or junctions.
 /// </summary>
-public sealed record RootPath
+public sealed record PathRoot
 {
     public string Full { get; }
     public IDirectoryInfo Directory { get; }
     public IFileSystem FileSystem { get; }
 
     /// <summary>
-    /// Creates a root path from a root directory and, optionally, some sub-paths.
+    /// Creates a path root from a base directory and, optionally, some subpaths.
     /// </summary>
-    /// <param name="directory">Root directory.</param>
-    /// <param name="subDirectories">Additional paths to combine with the root directory.</param>
-    public RootPath(IDirectoryInfo directory, params string[] subDirectories)
+    /// <param name="directory">Base directory.</param>
+    /// <param name="subpaths">Additional paths to combine with the base directory.</param>
+    public PathRoot(IDirectoryInfo directory, params string[] subpaths)
     {
         Directory = directory;
         FileSystem = directory.FileSystem;
-        var fullPath = Path.GetFullPath(Path.Combine(subDirectories), directory.FullName);
+        var fullPath = Path.GetFullPath(Path.Combine(subpaths), directory.FullName);
         Full = Path.TrimEndingDirectorySeparator(fullPath);
     }
 
@@ -28,7 +28,7 @@ public sealed record RootPath
 
     public RootedPath Combine(params string[] relatives) => Combine(Path.Combine(relatives));
 
-    public bool Equals(RootPath? other) =>
+    public bool Equals(PathRoot? other) =>
         other is not null && StringComparer.OrdinalIgnoreCase.Equals(Full, other.Full);
 
     public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Full);

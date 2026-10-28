@@ -29,7 +29,7 @@ public class ModInstallerTest
     private readonly Mock<Action<RootedPath>> callbackMock = new();
 
     private readonly string destinationPath;
-    private readonly RootPath destinationRoot;
+    private readonly PathRoot destinationRoot;
 
     public ModInstallerTest()
     {
@@ -43,7 +43,7 @@ public class ModInstallerTest
 
         var destDir = fs.Directory.CreateDirectory("Dest");
         destinationPath = destDir.FullName;
-        destinationRoot = new RootPath(destDir);
+        destinationRoot = new PathRoot(destDir);
     }
 
     #endregion

@@ -70,7 +70,7 @@ public class PackageReconciliationService<TEventHandler>(
         var installOrKeepActions = new List<IReconciliationAction>();
         var toUninstall = new HashSet<string>();
         var processed = new HashSet<string>();
-        var installRoot = new RootPath(installDir);
+        var installRoot = new PathRoot(installDir);
         var previouslyInstalledPaths = previousState.Values
             .SelectMany(state => state.Files).Select(installRoot.Combine);
         var trackingBackupProvider = new SkipInstalledBackupStrategy.Provider<TEventHandler>(

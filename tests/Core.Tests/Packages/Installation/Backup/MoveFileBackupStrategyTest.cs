@@ -25,7 +25,7 @@ public class MoveFileBackupStrategyTest
     public MoveFileBackupStrategyTest()
     {
         var currentDirectory = fs.DirectoryInfo.New(fs.Directory.GetCurrentDirectory());
-        originalPath = new RootPath(currentDirectory).Combine(OriginalFile);
+        originalPath = new PathRoot(currentDirectory).Combine(OriginalFile);
         backupFileNamingMock.Setup(m => m.ToBackup(It.IsAny<string>())).Returns<string>(f => $"{f}.backup");
         mfbs = new MoveFileBackupStrategy(fs, BackupFileNaming, eventHandlerMock.Object);
     }

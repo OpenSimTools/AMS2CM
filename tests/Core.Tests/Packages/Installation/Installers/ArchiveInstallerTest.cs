@@ -15,7 +15,7 @@ public class ArchiveInstallerTest : IDisposable
     private readonly FileSystem fs = new();
     private readonly IDirectoryInfo testDirectory;
     private readonly string destinationPath;
-    private readonly RootPath destinationRoot;
+    private readonly PathRoot destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
     private static readonly ProcessingCallbacks<RootedPath> NoCallbacks = new();
 
@@ -25,7 +25,7 @@ public class ArchiveInstallerTest : IDisposable
             Path.Combine(Path.GetTempPath(), $"{nameof(ArchiveInstallerTest)}-{Guid.NewGuid():N}"));
         var destDir = testDirectory.CreateSubdirectory("Destination");
         destinationPath = destDir.FullName;
-        destinationRoot = new RootPath(destDir);
+        destinationRoot = new PathRoot(destDir);
     }
 
     public void Dispose()

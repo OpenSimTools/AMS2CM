@@ -5,19 +5,18 @@
 /// </summary>
 public sealed record RootedPath
 {
-    public RootPath Root { get; }
+    public PathRoot Root { get; }
     public string Relative { get; }
     public string Full => Path.Combine(Root.Full, Relative);
 
-    public RootedPath(RootPath root, string relative = "")
+    public RootedPath(PathRoot root, string relative = "")
         : this(root, root.Full, relative)
     {
     }
 
-    private RootedPath(RootPath root, string basePath, string relative)
+    private RootedPath(PathRoot root, string basePath, string relative)
     {
         Root = root;
-        var fs = root.FileSystem;
         var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(relative, basePath));
         var relativePath = Path.GetRelativePath(Root.Full, fullPath);
         if (Path.IsPathRooted(relativePath) || relativePath == ".." ||

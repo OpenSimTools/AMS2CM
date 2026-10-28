@@ -21,7 +21,7 @@ public class SkipUpdatedBackupStrategyTest
     public SkipUpdatedBackupStrategyTest()
     {
         fs = new MockFileSystem(new Dictionary<string, MockFileData>());
-        originalFile = new RootPath(fs.DirectoryInfo.New("root")).Combine("original");
+        originalFile = new PathRoot(fs.DirectoryInfo.New("root")).Combine("original");
     }
 
     #endregion

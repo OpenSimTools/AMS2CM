@@ -27,7 +27,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         TEventHandler eventHandler)
     {
         internal IDirectoryInfo InstallDir { get; } = installDir;
-        internal RootPath InstallRoot { get; } = new(installDir);
+        internal PathRoot InstallRoot { get; } = new(installDir);
 
         internal IBackupStrategyProvider<DateTimeOffset, TEventHandler> BackupStrategyProvider { get; } =
             backupStrategyProvider;
@@ -186,7 +186,7 @@ internal abstract class ReconciliationAction<TEventHandler>
     }
 
     protected readonly IDirectoryInfo InstallDir;
-    protected readonly RootPath InstallRoot;
+    protected readonly PathRoot InstallRoot;
     protected readonly TEventHandler EventHandler;
     protected readonly IBackupStrategy BackupStrategy;
 

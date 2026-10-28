@@ -18,7 +18,7 @@ public class SkipInstalledBackupStrategyTest
     public SkipInstalledBackupStrategyTest()
     {
         var fs = new MockFileSystem();
-        path = new RootPath(fs.DirectoryInfo.New("Original")).Combine("File");
+        path = new PathRoot(fs.DirectoryInfo.New("Original")).Combine("File");
         baseProvider.Setup(m => m.BackupStrategy(It.IsAny<DateTimeOffset>(), It.IsAny<IBackupEventHandler>()))
             .Returns(inner.Object);
     }

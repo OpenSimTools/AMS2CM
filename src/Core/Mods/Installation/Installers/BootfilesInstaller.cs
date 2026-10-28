@@ -26,7 +26,7 @@ public class BootfilesInstaller : BaseModInstaller
         void PostProcessingEnd();
     }
 
-    private readonly RootPath gameRoot;
+    private readonly PathRoot gameRoot;
     private readonly IBootfilesNaming bootfilesNaming;
     private readonly IEventHandler eventHandler;
 
@@ -36,7 +36,7 @@ public class BootfilesInstaller : BaseModInstaller
         base(PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir, bootfilesNaming),
             tempDir, config)
     {
-        gameRoot = new RootPath(gameInstallationDir);
+        gameRoot = new PathRoot(gameInstallationDir);
         VehicleListDir = gameRoot.Combine(config.BootfilesVehicleListDir);
         TrackListDir = gameRoot.Combine(config.BootfilesTrackListDir);
         DrivelineDir = gameRoot.Combine(config.BootfilesDrivelineDir);

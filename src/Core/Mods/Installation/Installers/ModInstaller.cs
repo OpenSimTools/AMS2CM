@@ -42,7 +42,7 @@ public class ModInstaller : BaseModInstaller
         modName = $"{normalisedName}_{hexVersionHash}";
 
         modConfigPath =
-            new RootPath(gameInstallationDir).Combine(GameSupportedModRelativeDir, modName);
+            new PathRoot(gameInstallationDir).Combine(GameSupportedModRelativeDir, modName);
     }
 
     public override IReadOnlySet<string> PackageDependencies =>

@@ -5,11 +5,11 @@ using FluentAssertions;
 namespace Core.Tests.Utils;
 
 [UnitTest]
-public class RootPathTest
+public class PathRootTest
 {
     private readonly MockFileSystem fs = new();
 
-    private static readonly string RootDirectory = Path.Combine(Path.GetTempPath(), nameof(RootPathTest));
+    private static readonly string RootDirectory = Path.Combine(Path.GetTempPath(), nameof(PathRootTest));
 
     [Fact]
     public void Constructor_NormalizesRelativeRootAgainstCurrentDirectory()
@@ -18,7 +18,7 @@ public class RootPathTest
         fs.Directory.SetCurrentDirectory(RootDirectory);
         var relative = Path.Combine("a", ".", "b", "..") + Path.DirectorySeparatorChar;
 
-        var root = new RootPath(fs.DirectoryInfo.New(relative));
+        var root = new PathRoot(fs.DirectoryInfo.New(relative));
 
         root.Full.Should().Be(Path.Combine(fs.Directory.GetCurrentDirectory(), "a"));
         root.FileSystem.Should().BeSameAs(fs);
@@ -29,10 +29,10 @@ public class RootPathTest
     public void Constructor_PreservesRootWhenDirectoryIsMoved()
     {
         var directory = fs.Directory.CreateDirectory(RootDirectory);
-        var root = new RootPath(directory);
-        var equivalent = new RootPath(fs.DirectoryInfo.New(RootDirectory));
+        var root = new PathRoot(directory);
+        var equivalent = new PathRoot(fs.DirectoryInfo.New(RootDirectory));
         var child = root.Combine("child");
-        var roots = new HashSet<RootPath> { root };
+        var roots = new HashSet<PathRoot> { root };
         var paths = new HashSet<RootedPath> { child };
         var hashCode = root.GetHashCode();
 
@@ -50,21 +50,21 @@ public class RootPathTest
     [Fact]
     public void EqualityAndHashCode_CompareCanonicalPathsIgnoringCase()
     {
-        var root = new RootPath(fs.DirectoryInfo.New(RootDirectory));
-        var equivalent = new RootPath(fs.DirectoryInfo.New(Path.Combine(RootDirectory.ToUpperInvariant(), ".")));
-        var different = new RootPath(fs.DirectoryInfo.New(RootDirectory + "-other"));
+        var root = new PathRoot(fs.DirectoryInfo.New(RootDirectory));
+        var equivalent = new PathRoot(fs.DirectoryInfo.New(Path.Combine(RootDirectory.ToUpperInvariant(), ".")));
+        var different = new PathRoot(fs.DirectoryInfo.New(RootDirectory + "-other"));
 
         (root == equivalent).Should().BeTrue();
         root.Equals(different).Should().BeFalse();
         root.GetHashCode().Should().Be(equivalent.GetHashCode());
-        new HashSet<RootPath> { root, equivalent, different }.Should().HaveCount(2);
+        new HashSet<PathRoot> { root, equivalent, different }.Should().HaveCount(2);
         root.Equals(null).Should().BeFalse();
     }
 
     [Fact]
     public void Combine_SingleAndMultiplePathsNormalizeWithinRoot()
     {
-        var root = new RootPath(fs.DirectoryInfo.New(RootDirectory));
+        var root = new PathRoot(fs.DirectoryInfo.New(RootDirectory));
 
         var single = root.Combine(Path.Combine("a", "b", "..", "c"));
         var multiple = root.Combine("a", "", "b", "..", "c");
@@ -79,7 +79,7 @@ public class RootPathTest
     [Fact]
     public void Combine_WithoutPathsRepresentsRoot()
     {
-        var root = new RootPath(fs.DirectoryInfo.New(RootDirectory));
+        var root = new PathRoot(fs.DirectoryInfo.New(RootDirectory));
 
         var path = root.Combine();
 

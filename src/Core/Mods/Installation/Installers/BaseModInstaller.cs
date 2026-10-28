@@ -25,7 +25,7 @@ public abstract class BaseModInstaller : IPackageInstaller
 
     protected readonly IFileSystem FileSystem;
     protected readonly IPackageInstaller Inner;
-    protected readonly RootPath StagingRoot;
+    protected readonly PathRoot StagingRoot;
     protected readonly string GameSupportedModRelativeDir;
 
     private readonly Lazy<IRootFinder.RootPaths> rootPaths;
@@ -39,7 +39,7 @@ public abstract class BaseModInstaller : IPackageInstaller
     {
         FileSystem = tempDir.FileSystem;
         Inner = inner;
-        StagingRoot = new RootPath(tempDir, inner.PackageName);
+        StagingRoot = new PathRoot(tempDir, inner.PackageName);
         GameSupportedModRelativeDir = Paths.NormalizeDirectorySeparators(config.GameSupportedModDir) +
                                       Path.DirectorySeparatorChar;
         VehicleListFileName = config.VehicleListFileName;

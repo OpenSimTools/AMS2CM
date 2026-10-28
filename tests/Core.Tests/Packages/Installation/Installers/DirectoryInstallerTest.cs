@@ -17,14 +17,14 @@ public class DirectoryInstallerTest
     private readonly MockFileSystem fs = new();
     private readonly IDirectoryInfo sourceDir;
     private readonly IDirectoryInfo destinationDir;
-    private readonly RootPath destinationRoot;
+    private readonly PathRoot destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
 
     public DirectoryInstallerTest()
     {
         sourceDir = fs.Directory.CreateDirectory("PackageDir");
         destinationDir = fs.Directory.CreateDirectory("Destination");
-        destinationRoot = new RootPath(destinationDir);
+        destinationRoot = new PathRoot(destinationDir);
     }
 
     #endregion

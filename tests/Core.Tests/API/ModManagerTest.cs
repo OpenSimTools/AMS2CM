@@ -961,7 +961,7 @@ public class ModManagerTest : IDisposable
         var modContentsDir = testDir.CreateSubdirectory(modName);
         foreach (var relativePath in relativePaths)
         {
-            CreateFile(new RootPath(modContentsDir).Combine(relativePath), $"{versionHash}");
+            CreateFile(new PathRoot(modContentsDir).Combine(relativePath), $"{versionHash}");
         }
 
         callback(modContentsDir.FullName);
@@ -1000,7 +1000,7 @@ public class ModManagerTest : IDisposable
         $"{relativePath}{BaseInstaller.RemoveFileSuffix}";
 
     private RootedPath GamePath(params string[] segments) =>
-        new RootPath(gameDir).Combine(segments);
+        new PathRoot(gameDir).Combine(segments);
 
     private class InMemoryStatePersistence : IStatePersistence
     {

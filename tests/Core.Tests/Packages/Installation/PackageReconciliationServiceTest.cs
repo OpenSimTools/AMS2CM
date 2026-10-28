@@ -575,7 +575,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
     }
 
     protected RootedPath DestinationPath(string relativePath) =>
-        new RootPath(destinationDir).Combine(relativePath);
+        new PathRoot(destinationDir).Combine(relativePath);
 
     protected abstract IReconciliationService<TEventHandler> NewService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
