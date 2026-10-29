@@ -3,7 +3,7 @@ using Core.Games;
 using Core.IO;
 using Core.Mods;
 using Core.Mods.Installation;
-using Core.Mods.Installation.Installers;
+using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Repository;
 using Core.State;
@@ -39,10 +39,10 @@ public static class Init
             fs,
             new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>(fs));
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
-        var modInstallerFactory = new ModInstallerFactory<ModInstallConfig>(game, tempDir, bootfilesNaming,
-            modInstallConfig);
-        var modReconciliationService = new ModReconciliationService<IEventHandler>(backupStrategyProvider,
-            bootfilesNaming, modInstallerFactory);
+        var modReconciliationService = new ReconciliationService<IEventHandler>(
+            backupStrategyProvider,
+            ModReconciliationContext<IEventHandler, ModInstallConfig>.Factory(game, tempDir,
+                bootfilesNaming, modInstallConfig));
         return new ModManager(game, modRepository, bootfilesNaming, modReconciliationService, statePersistence,
             safeFileDelete, tempDir);
     }

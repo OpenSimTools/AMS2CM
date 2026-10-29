@@ -14,17 +14,101 @@ namespace Core.Tests.Packages.Installation;
 
 [IntegrationTest]
 public class
-    PackageReconciliationServiceTest : ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>
+    ReconciliationServiceTest : ReconciliationServiceTestBase<ReconciliationService.IEventHandler>
 {
     #region Setup
 
     private class TestException : Exception;
 
-    protected override IReconciliationService<PackageReconciliationService.IEventHandler> NewService(
-        IBackupStrategyProvider<DateTimeOffset, PackageReconciliationService.IEventHandler> backupStrategyProvider) =>
-        new PackageReconciliationService<PackageReconciliationService.IEventHandler>(backupStrategyProvider);
+    protected override IReconciliationService<ReconciliationService.IEventHandler> NewService(
+        IBackupStrategyProvider<DateTimeOffset, ReconciliationService.IEventHandler> backupStrategyProvider) =>
+        new ReconciliationService<ReconciliationService.IEventHandler>(
+            backupStrategyProvider, PackageReconciliationContext<ReconciliationService.IEventHandler>.Factory());
 
     #endregion
+
+    [Fact]
+    public void Reconcile_RepeatedCallsUseIndependentState()
+    {
+        var backupStrategyProvider = new Mock<IBackupStrategyProvider<DateTimeOffset,
+            ReconciliationService.IEventHandler>>();
+        backupStrategyProvider.Setup(m => m.BackupStrategy(It.IsAny<DateTimeOffset>(),
+            It.IsAny<ReconciliationService.IEventHandler>())).Returns(BackupStrategyMock.Object);
+        var service = NewService(backupStrategyProvider.Object);
+        var installDir = Directory.CreateTempSubdirectory();
+        var savedStates = new List<IReadOnlyDictionary<string, PackageInstallationState>>();
+
+        foreach (var name in new[] { "A", "B" })
+        {
+            var package = new Mock<IPackage>();
+            package.Setup(p => p.CreateInstaller()).Returns(InstallerOf(name, versionHash: 1, files: ["Shared"]));
+
+            service.Reconcile(ReadOnlyDictionary<string, PackageInstallationState>.Empty,
+                [package.Object], installDir, savedStates.Add, EventHandlerMock.Object, CancellationToken.None);
+        }
+
+        savedStates.Should().HaveCount(2);
+        savedStates[0].Keys.Should().Equal("A");
+        savedStates[1].Keys.Should().Equal("B");
+        foreach (var state in savedStates.SelectMany(s => s.Values))
+        {
+            state.Files.Should().Equal("Shared");
+        }
+    }
+
+    [Fact]
+    public void Apply_AlreadyCancelledDoesNotExecuteActions()
+    {
+        Apply([
+            InstallerOf("A")
+        ], new CancellationToken(canceled: true));
+
+        InstallationState.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_CancellationPreservesUnprocessedState()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["AF"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["BF"], ShadowedBy: [])
+        };
+        using var cancellation = new CancellationTokenSource();
+        EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
+            .Callback(cancellation.Cancel);
+
+        Apply([
+            InstallerOf("A", versionHash: 2, files: ["AF"]),
+            InstallerOf("B", versionHash: 2, files: ["BF"])
+        ], cancellation.Token);
+
+        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["BF"], ShadowedBy: [])
+        });
+    }
+
+    [Fact]
+    public void Reconcile_FailureBeforeInstallationsDoesNotCallAfterInstall()
+    {
+        var package = new Mock<IPackage>();
+        package.Setup(p => p.CreateInstaller()).Throws<TestException>();
+        var afterInstall = new Mock<Action<IReadOnlyDictionary<string, PackageInstallationState>>>();
+        var service = NewService(Mock.Of<IBackupStrategyProvider<DateTimeOffset,
+            ReconciliationService.IEventHandler>>());
+
+        var reconcile = () => service.Reconcile(
+            ReadOnlyDictionary<string, PackageInstallationState>.Empty,
+            [package.Object], Directory.CreateTempSubdirectory(), afterInstall.Object,
+            EventHandlerMock.Object, CancellationToken.None);
+
+        reconcile.Should().Throw<TestException>();
+        afterInstall.Verify(m => m(It.IsAny<IReadOnlyDictionary<string, PackageInstallationState>>()), Times.Never);
+    }
 
     [Fact]
     public void Apply_NoPackages()
@@ -522,7 +606,7 @@ public class
         };
 
         // InSequence not verified in Loose mode!
-        var eventHandlerMock = new Mock<PackageReconciliationService.IEventHandler>(MockBehavior.Strict);
+        var eventHandlerMock = new Mock<ReconciliationService.IEventHandler>(MockBehavior.Strict);
         eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()));
         var sequence = new MockSequence();
         eventHandlerMock.InSequence(sequence).Setup(m => m.ReconciliationStart());
@@ -583,7 +667,11 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
     protected abstract IReconciliationService<TEventHandler> NewService(
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider);
 
-    protected void Apply(IPackageInstaller[] installers, TEventHandler? eventHandler = null)
+    protected void Apply(IPackageInstaller[] installers, TEventHandler? eventHandler = null) =>
+        Apply(installers, CancellationToken.None, eventHandler);
+
+    protected void Apply(IPackageInstaller[] installers, CancellationToken cancellationToken,
+        TEventHandler? eventHandler = null)
     {
         var packages = installers.Select(installer =>
         {
@@ -604,7 +692,7 @@ public abstract class ReconciliationServiceTestBase<TEventHandler> where TEventH
             destinationDir,
             newState => InstallationState = newState,
             eventHandler ?? EventHandlerMock.Object,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     protected IPackageInstaller InstallerOf(string name, int? versionHash = null) =>

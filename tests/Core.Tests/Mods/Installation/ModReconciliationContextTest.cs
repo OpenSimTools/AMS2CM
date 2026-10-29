@@ -1,6 +1,7 @@
+using Core.API;
+using Core.Games;
 using Core.Mods;
 using Core.Mods.Installation;
-using Core.Mods.Installation.Installers;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -11,33 +12,42 @@ using FluentAssertions;
 namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
-public class ModReconciliationServiceTest :
-    ReconciliationServiceTestBase<PackageReconciliationService.IEventHandler>,
-    IModInstallerFactory<PackageReconciliationService.IEventHandler>
+public class ModReconciliationContextTest :
+    ReconciliationServiceTestBase<IEventHandler>
 {
     #region Setup
 
-    private static readonly string GeneratedBootfilesName = "__generated";
-    private static readonly string BootfilesPackageName = "__package";
-    private static readonly string ModRequiringBootfiles = "ModRequiringBootfiles";
+    private const string GeneratedBootfilesName = "__generated";
+    private const string BootfilesPackageName = "__package";
+    private const string ModRequiringBootfiles = "ModRequiringBootfiles";
 
-    protected override IReconciliationService<PackageReconciliationService.IEventHandler> NewService(
-        IBackupStrategyProvider<DateTimeOffset, PackageReconciliationService.IEventHandler> backupStrategyProvider)
+    protected override IReconciliationService<IEventHandler> NewService(
+        IBackupStrategyProvider<DateTimeOffset, IEventHandler> backupStrategyProvider)
     {
         var bootfilesNamingMock = new Mock<IBootfilesNaming>();
         bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
         bootfilesNamingMock.Setup(m => m.IsGeneratedBootfiles(GeneratedBootfilesName)).Returns(true);
-        return new ModReconciliationService<PackageReconciliationService.IEventHandler>(
-            backupStrategyProvider, bootfilesNamingMock.Object, this);
+        return new ReconciliationService<IEventHandler>(backupStrategyProvider,
+            previousState => new TestModReconciliationContext(previousState, bootfilesNamingMock.Object, this));
     }
 
-    public IPackageInstaller ModInstaller(IPackageInstaller packageInstaller, IPackageInstaller bootfilesInstaller) =>
-        packageInstaller.PackageName == ModRequiringBootfiles
-            ? new InstallerWithBootfilesDependency(packageInstaller, bootfilesInstaller)
-            : packageInstaller;
+    private sealed class TestModReconciliationContext(
+        IReadOnlyDictionary<string, PackageInstallationState> previousState,
+        IBootfilesNaming bootfilesNaming,
+        ModReconciliationContextTest test)
+        : ModReconciliationContext<IEventHandler, ModInstallConfig>(previousState,
+            Mock.Of<IGame>(), Mock.Of<ITempDir>(), bootfilesNaming, new ModInstallConfig())
+    {
+        protected override IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
+            IPackageInstaller bootfilesInstaller) =>
+            packageInstaller.PackageName == ModRequiringBootfiles
+                ? new InstallerWithBootfilesDependency(packageInstaller, bootfilesInstaller)
+                : packageInstaller;
 
-    public IPackageInstaller BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, PackageReconciliationService.IEventHandler eventHandler) =>
-        bootfilesPackageInstaller ?? InstallerOf(GeneratedBootfilesName);
+        protected override IPackageInstaller CreateBootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller,
+            IEventHandler eventHandler) =>
+            bootfilesPackageInstaller ?? test.InstallerOf(GeneratedBootfilesName);
+    }
 
     private class InstallerWithBootfilesDependency(IPackageInstaller inner, IPackageInstaller bootfiles) : IPackageInstaller
     {
@@ -56,6 +66,38 @@ public class ModReconciliationServiceTest :
 
     #endregion
 
+    [Fact]
+    public void Apply_PreservesPreviousBootfilesDependencies()
+    {
+        var previousState = new Dictionary<string, PackageInstallationState>
+        {
+            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [BootfilesPackageName], Files: FilesNotUsed, ShadowedBy: [])
+        };
+        InstallationState = previousState;
+
+        Apply([
+            InstallerOf("Untouched", versionHash: 1)
+        ]);
+
+        previousState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
+    }
+
+    [Fact]
+    public void Apply_CancellationPreservesUnprocessedBootfilesDependencies()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [BootfilesPackageName], Files: FilesNotUsed, ShadowedBy: [])
+        };
+
+        Apply([
+            InstallerOf("Untouched", versionHash: 1)
+        ], new CancellationToken(canceled: true));
+
+        InstallationState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
+    }
 
     [Fact]
     public void Apply_InstallsGeneratedBootfilesIfModRequiresThem()
