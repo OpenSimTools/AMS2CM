@@ -6,7 +6,7 @@ namespace Core.Packages.Installation;
 
 public sealed class ReconciliationService<TEventHandler>(
     IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
-    PackageReconciliationContext<TEventHandler>.FactoryFunc createContext)
+    IReconciliationContext<TEventHandler>.FactoryFunc createContext)
     : IReconciliationService<TEventHandler>
     where TEventHandler : ReconciliationService.IEventHandler
 {
@@ -18,7 +18,7 @@ public sealed class ReconciliationService<TEventHandler>(
         CancellationToken cancellationToken)
     {
         var context = createContext(previousState);
-        var actions = context.ReconciliationActions(backupStrategyProvider, packages, installDir, eventHandler);
+        var actions = context.ReconciliationActions(packages, installDir, backupStrategyProvider, eventHandler);
         try
         {
             Execute(actions, context, eventHandler, cancellationToken);
@@ -30,7 +30,7 @@ public sealed class ReconciliationService<TEventHandler>(
     }
 
     private static void Execute(IReadOnlyCollection<IReconciliationAction> reconciliationActions,
-        PackageReconciliationContext<TEventHandler> context,
+        IReconciliationContext<TEventHandler> context,
         TEventHandler eventHandler,
         CancellationToken cancellationToken)
     {

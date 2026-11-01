@@ -17,7 +17,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
     where TEventHandler : ReconciliationService.IEventHandler, BootfilesInstaller.IEventHandler
     where TConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
 {
-    public static FactoryFunc Factory(
+    public static IReconciliationContext<TEventHandler>.FactoryFunc Factory(
         IGame game,
         ITempDir tempDir,
         IBootfilesNaming bootfilesNaming,

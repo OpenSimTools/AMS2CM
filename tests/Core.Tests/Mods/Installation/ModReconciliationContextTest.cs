@@ -13,7 +13,7 @@ namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
 public class ModReconciliationContextTest :
-    ReconciliationServiceTestBase<IEventHandler>
+    ReconciliationIntegrationTestBase<IEventHandler>
 {
     #region Setup
 
@@ -21,14 +21,15 @@ public class ModReconciliationContextTest :
     private const string BootfilesPackageName = "__package";
     private const string ModRequiringBootfiles = "ModRequiringBootfiles";
 
-    protected override IReconciliationService<IEventHandler> NewService(
-        IBackupStrategyProvider<DateTimeOffset, IEventHandler> backupStrategyProvider)
+    protected override IReconciliationContext<IEventHandler>.FactoryFunc ContextFactory
     {
-        var bootfilesNamingMock = new Mock<IBootfilesNaming>();
-        bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
-        bootfilesNamingMock.Setup(m => m.IsGeneratedBootfiles(GeneratedBootfilesName)).Returns(true);
-        return new ReconciliationService<IEventHandler>(backupStrategyProvider,
-            previousState => new TestModReconciliationContext(previousState, bootfilesNamingMock.Object, this));
+        get
+        {
+            var bootfilesNamingMock = new Mock<IBootfilesNaming>();
+            bootfilesNamingMock.Setup(m => m.IsBootfiles(BootfilesPackageName)).Returns(true);
+            bootfilesNamingMock.Setup(m => m.IsGeneratedBootfiles(GeneratedBootfilesName)).Returns(true);
+            return previousState => new TestModReconciliationContext(previousState, bootfilesNamingMock.Object, this);
+        }
     }
 
     private sealed class TestModReconciliationContext(
@@ -44,84 +45,56 @@ public class ModReconciliationContextTest :
                 ? new InstallerWithBootfilesDependency(packageInstaller, bootfilesInstaller)
                 : packageInstaller;
 
+        // Note: the real bootfiles installer will skip installation when not needed, but this will not.
         protected override IPackageInstaller CreateBootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller,
             IEventHandler eventHandler) =>
-            bootfilesPackageInstaller ?? test.InstallerOf(GeneratedBootfilesName);
+            bootfilesPackageInstaller ?? test.Installer(GeneratedBootfilesName);
     }
 
-    private class InstallerWithBootfilesDependency(IPackageInstaller inner, IPackageInstaller bootfiles) : IPackageInstaller
+    private class InstallerWithBootfilesDependency(IPackageInstaller inner, IPackageInstaller bootfiles)
+        : IPackageInstaller
     {
         public string PackageName => inner.PackageName;
         public int? PackageVersionHash => inner.PackageVersionHash;
+
         public IReadOnlySet<string> PackageDependencies =>
             inner.PackageDependencies.Append(bootfiles.PackageName).ToHashSet();
+
         public IReadOnlySet<RootedPath> InstalledFiles => inner.InstalledFiles;
         public IInstallation.State Installed => inner.Installed;
         public DateTimeOffset InstallTime => inner.InstallTime;
 
         public void Install(IInstaller.Destination destination, IBackupStrategy backupStrategy,
             ProcessingCallbacks<RootedPath> callbacks) => inner.Install(destination, backupStrategy, callbacks);
+
         public IEnumerable<string> RelativeDirectoryPaths => inner.RelativeDirectoryPaths;
     }
 
     #endregion
 
     [Fact]
-    public void Apply_PreservesPreviousBootfilesDependencies()
+    public void Reconcile_InstallsGeneratedBootfilesIfModRequiresThem()
     {
-        var previousState = new Dictionary<string, PackageInstallationState>
-        {
-            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [BootfilesPackageName], Files: FilesNotUsed, ShadowedBy: [])
-        };
-        InstallationState = previousState;
-
-        Apply([
-            InstallerOf("Untouched", versionHash: 1)
-        ]);
-
-        previousState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
-    }
-
-    [Fact]
-    public void Apply_CancellationPreservesUnprocessedBootfilesDependencies()
-    {
-        InstallationState = new Dictionary<string, PackageInstallationState>
-        {
-            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [BootfilesPackageName], Files: FilesNotUsed, ShadowedBy: [])
-        };
-
-        Apply([
-            InstallerOf("Untouched", versionHash: 1)
-        ], new CancellationToken(canceled: true));
-
-        InstallationState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
-    }
-
-    [Fact]
-    public void Apply_InstallsGeneratedBootfilesIfModRequiresThem()
-    {
-        Apply([
-            InstallerOf(ModRequiringBootfiles)
+        Reconcile([
+            Package(ModRequiringBootfiles)
         ]);
 
         InstalledPackages.Should().BeEquivalentTo([ModRequiringBootfiles, GeneratedBootfilesName]);
     }
 
     [Fact]
-    public void Apply_InstallsBootfilesPackageIfModRequiresThem()
+    public void Reconcile_InstallsBootfilesPackageIfModRequiresThem()
     {
-        Apply([
-            InstallerOf(ModRequiringBootfiles),
-            InstallerOf(BootfilesPackageName)
+        Reconcile([
+            Package(ModRequiringBootfiles),
+            Package(BootfilesPackageName)
         ]);
 
-        InstalledPackages.Should().BeEquivalentTo([ModRequiringBootfiles, BootfilesPackageName]);
+        InstalledPackages.Should().BeEquivalentTo(ModRequiringBootfiles, BootfilesPackageName);
     }
 
     [Fact]
-    public void Apply_AlwaysCallsBootfilesPackageInstaller()
+    public void Reconcile_AlwaysCallsBootfilesPackageInstaller()
     {
         var packages = new List<string>();
         var progress = new List<double>();
@@ -129,11 +102,11 @@ public class ModReconciliationContextTest :
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
-        Apply([
-            InstallerOf("I1"),           // 25%
-            InstallerOf("I2"),           // 50%
-            InstallerOf("I3"),           // 75%
-            InstallerOf(BootfilesPackageName) // 100%
+        Reconcile([
+            Package("I1"),                // 25%
+            Package("I2"),                // 50%
+            Package("I3"),                // 75%
+            Package(BootfilesPackageName) // 100%
         ]);
 
         packages.Should().Contain(BootfilesPackageName);
@@ -141,7 +114,7 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
-    public void Apply_AlwaysCallsGeneratedBootfilesInstaller()
+    public void Reconcile_AlwaysCallsGeneratedBootfilesInstaller()
     {
         var packages = new List<string>();
         var progress = new List<double>();
@@ -149,7 +122,7 @@ public class ModReconciliationContextTest :
         EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
             .Callback<IPercent>(p => progress.Add(p.Percent));
 
-        Apply([
+        Reconcile([
             // Generated bootfiles 100%
         ]);
 
@@ -158,7 +131,7 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
-    public void Apply_AlignsBootfilesDepsWithCurrent()
+    public void Reconcile_AlignsBootfilesDependenciesWithCurrent()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
@@ -169,10 +142,11 @@ public class ModReconciliationContextTest :
             [BootfilesPackageName] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
                 Dependencies: [], Files: FilesNotUsed, ShadowedBy: [])
         };
+        var previousState = InstallationState;
 
-        Apply([
-            InstallerOf(ModRequiringBootfiles, versionHash: 3, files: ["F3"]),
-            InstallerOf("Untouched", versionHash: 2, files: FilesNotUsed)
+        Reconcile([
+            Package(ModRequiringBootfiles, versionHash: 3, files: ["F3"]),
+            Package("Untouched", versionHash: 2, files: FilesNotUsed)
         ]);
 
         EventHandlerMock.Verify(m => m.UninstallingPackage(ModRequiringBootfiles));
@@ -181,7 +155,27 @@ public class ModReconciliationContextTest :
         EventHandlerMock.Verify(m => m.InstallingPackage(GeneratedBootfilesName));
 
         InstallationState.Keys.Should().BeEquivalentTo(ModRequiringBootfiles, "Untouched", GeneratedBootfilesName);
-        InstallationState[ModRequiringBootfiles].Dependencies.Should().BeEquivalentTo([GeneratedBootfilesName]);
-        InstallationState["Untouched"].Dependencies.Should().BeEquivalentTo([GeneratedBootfilesName]);
+        InstallationState[ModRequiringBootfiles].Dependencies.Should().BeEquivalentTo(GeneratedBootfilesName);
+        InstallationState["Untouched"].Dependencies.Should().BeEquivalentTo(GeneratedBootfilesName);
+
+        previousState["Untouched"].Dependencies.Should().BeEquivalentTo(BootfilesPackageName);
+    }
+
+    [Fact]
+    public void Reconcile_CancellationPreservesUnprocessedBootfilesDependencies()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [BootfilesPackageName], Files: FilesNotUsed, ShadowedBy: [])
+        };
+        var previousState = InstallationState;
+
+        Reconcile([
+            Package("Untouched", versionHash: 1)
+        ], new CancellationToken(canceled: true));
+
+        InstallationState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
+        previousState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
     }
 }

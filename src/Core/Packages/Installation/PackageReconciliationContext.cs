@@ -7,13 +7,10 @@ using Core.Utils;
 namespace Core.Packages.Installation;
 
 public class PackageReconciliationContext<TEventHandler>(
-    IReadOnlyDictionary<string, PackageInstallationState> currentState)
+    IReadOnlyDictionary<string, PackageInstallationState> currentState) : IReconciliationContext<TEventHandler>
     where TEventHandler : ReconciliationService.IEventHandler
 {
-    public delegate PackageReconciliationContext<TEventHandler> FactoryFunc(
-        IReadOnlyDictionary<string, PackageInstallationState> currentState);
-
-    public static FactoryFunc Factory() =>
+    public static IReconciliationContext<TEventHandler>.FactoryFunc Factory() =>
         currentState => new PackageReconciliationContext<TEventHandler>(currentState);
 
     private readonly Dictionary<string, PackageInstallationState> currentState = new(currentState);
@@ -25,12 +22,9 @@ public class PackageReconciliationContext<TEventHandler>(
         IReadOnlyList<IPackageInstaller> Installers,
         IReadOnlyDictionary<string, PackageInstallationState> PlanningState);
 
-    protected virtual PlanningInputs CreatePlanningInputs(IEnumerable<IPackage> packages,
-        TEventHandler eventHandler) => new(packages.Select(p => p.CreateInstaller()).ToArray(), currentState);
-
-    internal IReadOnlyCollection<IReconciliationAction> ReconciliationActions(
+    public IReadOnlyCollection<IReconciliationAction> ReconciliationActions(IEnumerable<IPackage> packages,
+        IDirectoryInfo installDir,
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
-        IEnumerable<IPackage> packages, IDirectoryInfo installDir,
         TEventHandler eventHandler)
     {
         var inputs = CreatePlanningInputs(packages, eventHandler);
@@ -38,6 +32,9 @@ public class PackageReconciliationContext<TEventHandler>(
         var actionFactory = CreateActionFactory(backupStrategyProvider, installDir, eventHandler);
         return CreateActions(joinedState, actionFactory);
     }
+
+    protected virtual PlanningInputs CreatePlanningInputs(IEnumerable<IPackage> packages,
+        TEventHandler eventHandler) => new(packages.Select(p => p.CreateInstaller()).ToArray(), currentState);
 
     private static OrderedDictionary<string, (PackageInstallationState?, IPackageInstaller?)> JoinPreviousState(
         IReadOnlyDictionary<string, PackageInstallationState> planningState,
@@ -119,7 +116,7 @@ public class PackageReconciliationContext<TEventHandler>(
         state.ShadowedBy.Intersect(toUninstall).Any() ||
         (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains));
 
-    internal void ExecuteAction(IReconciliationAction action)
+    public void ExecuteAction(IReconciliationAction action)
     {
         var shadowedBy = new HashSet<string>();
         var installCallbacks = new ProcessingCallbacks<RootedPath>
