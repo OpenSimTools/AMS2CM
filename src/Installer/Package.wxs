@@ -4,7 +4,9 @@
 			 Manufacturer="OpenSimTools"
 			 Version="$(var.GitVersion_AssemblySemFileVer)"
 			 UpgradeCode="d7c90f41-5192-4f44-9a19-ad8f061d6348">
-    <MajorUpgrade AllowDowngrades="yes" />
+    <MajorUpgrade AllowDowngrades="no"
+                  AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of [ProductName] is already installed. Uninstall it before installing this version." />
 
     <MediaTemplate EmbedCab="yes" />
 
