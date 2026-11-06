@@ -6,6 +6,6 @@
         </MappedFolder>
     </MappedFolders>
     <LogonCommand>
-        <Command>msiexec /i C:\Installer\AMS2CM.msi</Command>
+        <Command>msiexec /i C:\Installer\AMS2CM.msi /L*V C:\Installer\install.log</Command>
     </LogonCommand>
 </Configuration>

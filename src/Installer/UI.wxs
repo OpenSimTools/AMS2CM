@@ -2,7 +2,7 @@
   <?foreach WIXUIARCH in X86;X64;A64 ?>
   <Fragment>
     <UI Id="WixUI_Custom_$(WIXUIARCH)">
-      <Publish Dialog="BrowseDlg" Control="OK" Event="CheckTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="CheckTargetPath" Value="[_BrowseProperty]" Order="1" />
     </UI>
 
     <UIRef Id="WixUI_Custom" />

@@ -8,6 +8,7 @@
 					<File Source="$(var.CLI.TargetDir)\AMS2CM.dll" />
 					<File Source="$(var.CLI.TargetDir)\AMS2CM.pdb" />
 					<File Source="$(var.CLI.TargetDir)\AMS2CM.runtimeconfig.json" />
+					<File Source="$(var.CLI.TargetDir)\AMS2CM.deps.json" />
 				</Component>
 			</Directory>
 		</StandardDirectory>
