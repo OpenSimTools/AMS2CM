@@ -7,6 +7,8 @@
 - Review every introduced code inspection warning. Apply appropriate fixes; otherwise, explain the tradeoff and ask the human. Never silently ignore or suppress warnings.
 - Use the null-forgiving operator (`!`) only with explicit human approval and when null is provably impossible but the compiler cannot establish it. Explain that proof when requesting approval.
 - Aim to create small methods with meaningful names.
+- Order methods by call flow: callers before callees, with callees in the order they are called. For interface implementations, follow the interface's declaration order instead.
+- Keep corresponding parameters in a consistent order across related method signatures and calls.
 
 ## Tests
 
