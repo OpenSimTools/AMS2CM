@@ -9,6 +9,7 @@
 - Aim to create small methods with meaningful names.
 - Order methods by call flow: callers before callees, with callees in the order they are called. For interface implementations, follow the interface's declaration order instead.
 - Keep corresponding parameters in a consistent order across related method signatures and calls.
+- Prefer polymorphism or explicit interface contracts over branching on runtime types when the design allows it.
 
 ## Tests
 
