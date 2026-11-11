@@ -13,7 +13,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
     IGame game,
     ITempDir tempDir,
     IBootfilesNaming bootfilesNaming,
-    TConfig config) : PackageReconciliationContext<TEventHandler>(previousState)
+    TConfig config) : PackageReconciliationContextBase<TEventHandler>(previousState)
     where TEventHandler : ModReconciliationContext.IEventHandler
     where TConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
 {
@@ -25,11 +25,10 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         new ModReconciliationContext<TEventHandler, TConfig>(
             previousState, game, tempDir, bootfilesNaming, config);
 
-    protected override PlanningInputs CreatePlanningInputs(IEnumerable<IPackage> packages,
-        TEventHandler eventHandler)
+    private protected override IReadOnlyCollection<Action> CreateActions(IEnumerable<IPackage> packages,
+        ReconciliationAction<TEventHandler>.Factory actionFactory, TEventHandler eventHandler)
     {
-        var inputs = base.CreatePlanningInputs(packages, eventHandler);
-        var (bootfiles, notBootfiles) = inputs.Installers.ToImmutableArray()
+        var (bootfiles, notBootfiles) = packages.Select(p => p.CreateInstaller()).ToImmutableArray()
             .Partition(p => bootfilesNaming.IsBootfiles(p.PackageName));
         var bootfilesInstaller = CreateBootfilesInstaller(bootfiles.FirstOrDefault(), eventHandler);
 
@@ -37,7 +36,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
             .Select(i => CreateModInstaller(i, bootfilesInstaller))
             .Append(bootfilesInstaller);
 
-        var planningState = inputs.PlanningState
+        var planningState = CurrentState
             .SelectValues(s => s with
             {
                 Dependencies = s.Dependencies
@@ -45,7 +44,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
                     .ToArray()
             });
 
-        return new PlanningInputs(modInstallers.ToArray(), planningState);
+        return CreatePackageActions(modInstallers.ToArray(), planningState, actionFactory);
     }
 
     protected virtual IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
