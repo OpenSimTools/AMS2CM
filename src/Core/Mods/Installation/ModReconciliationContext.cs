@@ -24,7 +24,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         ITempDir tempDir,
         IBootfilesNaming bootfilesNaming,
         TConfig config,
-    MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) => previousState =>
+        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) => previousState =>
         new ModReconciliationContext<TEventHandler, TConfig>(
             previousState, game, tempDir, bootfilesNaming, config, backupFileNaming);
 
@@ -39,38 +39,10 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         var installers = notBootfiles.Select(p => p.CreateInstaller()).ToArray();
         var modInstallers = installers.Select(i => CreateModInstaller(i, bootfilesName));
 
-        var planningState = CurrentState
-            .SelectValues(s => s with
-            {
-                Dependencies = s.Dependencies
-                    .Select(d => bootfilesNaming.IsBootfiles(d) ? bootfilesName : d)
-                    .ToArray()
-            });
-
+        var planningState = CreatePlanningState(bootfilesName);
         var ordinaryState = planningState.Where(p => p.Key != bootfilesName).ToDictionary();
-        return [.. CreatePackageActions(modInstallers.ToArray(), ordinaryState, actionFactory), () =>
-        {
-            var state = CurrentState.GetValueOrDefault(bootfilesName);
-            var currentDependents = CurrentState
-                .Where(p => p.Key != bootfilesName && p.Value.Dependencies.Contains(bootfilesName))
-                .Select(p => p.Key).ToHashSet();
-            if (currentDependents.Count == 0)
-            {
-                eventHandler.PostProcessingNotRequired();
-                if (state is not null)
-                {
-                    ExecuteAction(actionFactory.Uninstall(bootfilesName, state));
-                }
-                return;
-            }
-
-            var bootfiles = CreateBootfilesInstaller(bootfilesPackage, CurrentState, eventHandler);
-            if (state is not null)
-            {
-                ExecuteAction(actionFactory.Uninstall(bootfiles.PackageName, state));
-            }
-            ExecuteAction(actionFactory.Install(bootfiles));
-        }];
+        return [.. CreatePackageActions(modInstallers.ToArray(), ordinaryState, actionFactory),
+            () => ReconcileBootfiles(bootfilesPackage, bootfilesName, planningState, actionFactory, eventHandler)];
     }
 
     protected virtual IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
@@ -78,12 +50,70 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         new ModInstaller(packageInstaller, tempDir.BaseDirectory, config, game.InstallationDirectory,
             bootfilesPackageName);
 
+    private IReadOnlyDictionary<string, PackageInstallationState> CreatePlanningState(string bootfilesName) =>
+        CurrentState.SelectValues(s => s with
+        {
+            Dependencies = s.Dependencies
+                .Select(d => bootfilesNaming.IsBootfiles(d) ? bootfilesName : d).ToArray()
+        });
+
+    private void ReconcileBootfiles(IPackage? bootfilesPackage, string bootfilesName,
+        IReadOnlyDictionary<string, PackageInstallationState> planningState,
+        ReconciliationAction<TEventHandler>.Factory actionFactory, TEventHandler eventHandler)
+    {
+        var state = CurrentState.GetValueOrDefault(bootfilesName);
+        var currentDependents = Dependents(CurrentState, bootfilesName);
+        if (currentDependents.Count == 0)
+        {
+            eventHandler.PostProcessingNotRequired();
+            if (state is not null)
+            {
+                ExecuteAction(actionFactory.Uninstall(bootfilesName, state));
+            }
+            return;
+        }
+
+        var bootfiles = CreateBootfilesInstaller(bootfilesPackage, CurrentState, eventHandler);
+        var requiresInstallation = RequiresInstallation(bootfiles, state, planningState, currentDependents);
+        if (state is not null)
+        {
+            ExecuteAction(requiresInstallation
+                ? actionFactory.Uninstall(bootfilesName, state)
+                : actionFactory.Keep(bootfilesName, state));
+        }
+        if (requiresInstallation)
+        {
+            ExecuteAction(actionFactory.Install(bootfiles));
+        }
+    }
+
+    private static HashSet<string> Dependents(IReadOnlyDictionary<string, PackageInstallationState> state,
+        string bootfilesName) =>
+        state.Where(p => p.Key != bootfilesName && p.Value.Dependencies.Contains(bootfilesName))
+            .Select(p => p.Key).ToHashSet();
+
     protected virtual IPackageInstaller CreateBootfilesInstaller(IPackage? bootfilesPackage,
         IReadOnlyDictionary<string, PackageInstallationState> state, TEventHandler eventHandler) =>
         new BootfilesInstaller(bootfilesPackage?.CreateInstaller() ??
             new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
                 game.InstallationDirectory, tempDir.BaseDirectory, state, backupFileNaming), tempDir.BaseDirectory, config,
             game.InstallationDirectory, bootfilesNaming, eventHandler);
+
+    private bool RequiresInstallation(IPackageInstaller bootfiles, PackageInstallationState? state,
+        IReadOnlyDictionary<string, PackageInstallationState> planningState, IReadOnlySet<string> currentDependents)
+    {
+        if (state is null) return true;
+        var previousDependents = Dependents(planningState, bootfiles.PackageName);
+        var previous = planningState.GetValueOrDefault(bootfiles.PackageName);
+        return !previousDependents.SetEquals(currentDependents) ||
+            previousDependents.Union(currentDependents).Any(ReplacedPackages.Contains) ||
+            state.Partial || state.VersionHash is null || bootfiles.PackageVersionHash is null ||
+            state.VersionHash != bootfiles.PackageVersionHash ||
+            state.ShadowedBy.Any(ReplacedPackages.Contains) ||
+            state.ShadowedBy.Any(p => !CurrentState.ContainsKey(p)) ||
+            (previous is not null && !previous.ShadowedBy.ToHashSet().SetEquals(state.ShadowedBy));
+    }
+
 }
 
 public static class ModReconciliationContext

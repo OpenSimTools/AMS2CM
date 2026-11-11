@@ -850,6 +850,23 @@ public class ModManagerTest
     }
 
     [Fact]
+    public void Install_UnchangedBootfilesAreRetained()
+    {
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModPackage(101, [Path.Combine(DirAtRoot, "Track.trd")]), CreateCustomBootfiles(900)
+        ]);
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+        var original = File.ReadAllText(GamePath(TrackListRelativePath).Full);
+        eventHandlerMock.Invocations.Clear();
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        eventHandlerMock.Verify(e => e.ExtractingBootfiles(It.IsAny<string?>()), Times.Never);
+        eventHandlerMock.Verify(e => e.UninstallingPackage($"{BootfilesPrefix}900"), Times.Never);
+        File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Be(original);
+    }
+
+    [Fact]
     public void Install_ChangedDependentReinstallsBootfiles()
     {
         CreateFile(GamePath(TrackListRelativePath), "Original game tracks").CreationTimeUtc = PastDate.UtcDateTime;
@@ -871,6 +888,26 @@ public class ModManagerTest
         File.ReadAllText(GamePath(BackupName(TrackListRelativePath)).Full).Should().Be("Original game tracks");
 
     }
+    [Fact]
+    public void Uninstall_AfterDependentChangeRestoresOriginal()
+    {
+        CreateFile(GamePath(TrackListRelativePath), "Original game tracks").CreationTimeUtc = PastDate.UtcDateTime;
+        var bootfiles = CreateCustomBootfiles(900);
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModPackage(101, [Path.Combine(DirAtRoot, "Old.trd")]), bootfiles
+        ]);
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModPackage(102, [Path.Combine(DirAtRoot, "New.trd")]), bootfiles
+        ]);
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        modManager.UninstallAllMods(eventHandlerMock.Object);
+
+        File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Be("Original game tracks");
+        File.Exists(GamePath(BackupName(TrackListRelativePath)).Full).Should().BeFalse();
+    }
+
     [Fact]
     public void Install_TrackModsAlwaysRequireBootfiles()
     {
@@ -948,6 +985,20 @@ public class ModManagerTest
 
         persistedState.Should().BeEmpty();
         eventHandlerMock.Verify(e => e.PostProcessingNotRequired(), Times.Once);
+    }
+
+    [Fact]
+    public void Install_UnchangedGeneratedBootfilesSkipGeneration()
+    {
+        var (_, bootfilesState) = SetUpGeneratedBootfiles(partial: false);
+
+        var install = () => modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        install.Should().NotThrow();
+        eventHandlerMock.Verify(e => e.SkippingPackage(GeneratedBootfilesName), Times.Once);
+        eventHandlerMock.Verify(e => e.UninstallingPackage(GeneratedBootfilesName), Times.Never);
+        File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Be("Installed bootfiles");
+        persistedState.For(GeneratedBootfilesName).Should().BeEquivalentTo(bootfilesState);
     }
 
     [Fact]

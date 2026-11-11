@@ -12,6 +12,7 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
 {
     private readonly Dictionary<string, PackageInstallationState> currentState = new(currentState);
     private readonly Dictionary<RootedPath, string> installedFiles = [];
+    protected readonly HashSet<string> ReplacedPackages = [];
 
     public IReadOnlyDictionary<string, PackageInstallationState> CurrentState => currentState;
 
@@ -134,6 +135,7 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
 
     protected void ExecuteAction(IReconciliationAction action)
     {
+        RecordReplacement(action);
         var shadowedBy = new HashSet<string>(action.ShadowedBy);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
         {
@@ -146,7 +148,16 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         }
         finally
         {
+            RecordReplacement(action);
             UpdateState(action, shadowedBy);
+        }
+    }
+
+    private void RecordReplacement(IReconciliationAction action)
+    {
+        if (action.InstallState == IInstallation.State.NotInstalled)
+        {
+            ReplacedPackages.Add(action.PackageName);
         }
     }
 
