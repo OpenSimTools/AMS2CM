@@ -3,7 +3,7 @@
 ## Code
 
 - Only make changes required by the task, including formatting changes.
-- Before completing a task, remove unused code (including `using` directives) from all modified files, even if it predates the task.
+- After final edits, check every modified code file using available static analysis tools. Remove unused code and imports, even if pre-existing, and recheck after cleanup. If automated analysis is unavailable, review manually and report that limitation.
 - Review every introduced code inspection warning. Apply appropriate fixes; otherwise, explain the tradeoff and ask the human. Never silently ignore or suppress warnings.
 - Use the null-forgiving operator (`!`) only with explicit human approval and when null is provably impossible but the compiler cannot establish it. Explain that proof when requesting approval.
 - Aim to create small methods with meaningful names.
