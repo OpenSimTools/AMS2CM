@@ -19,6 +19,8 @@ public class ModManagerTest
     #region Setup
 
     private const string BootfilesPrefix = "BP";
+    private const string GeneratedBootfilesName = BootfilesPrefix + "_generated";
+    private static readonly string[] BootfilesSourceNames = ["BOOTFLOW.bff", "BOOTSPLASH.bff", "PHYSICSPERSISTENT.bff"];
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
     private static readonly string GameSupportedModDirectory = Path.Combine("Mod", "Directory");
@@ -848,6 +850,28 @@ public class ModManagerTest
     }
 
     [Fact]
+    public void Install_ChangedDependentReinstallsBootfiles()
+    {
+        CreateFile(GamePath(TrackListRelativePath), "Original game tracks").CreationTimeUtc = PastDate.UtcDateTime;
+        var bootfiles = CreateCustomBootfiles(900);
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModPackage(101, [Path.Combine(DirAtRoot, "Old.trd")]), bootfiles
+        ]);
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+        eventHandlerMock.Invocations.Clear();
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
+            CreateModPackage(102, [Path.Combine(DirAtRoot, "New.trd")]), bootfiles
+        ]);
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        eventHandlerMock.Verify(e => e.ExtractingBootfiles(It.IsAny<string?>()), Times.Once);
+        eventHandlerMock.Verify(e => e.UninstallingPackage($"{BootfilesPrefix}900"), Times.Once);
+        File.ReadAllText(GamePath(TrackListRelativePath).Full).Should().Contain("New.trd").And.NotContain("Old.trd");
+        File.ReadAllText(GamePath(BackupName(TrackListRelativePath)).Full).Should().Be("Original game tracks");
+
+    }
+    [Fact]
     public void Install_TrackModsAlwaysRequireBootfiles()
     {
         modRepositoryMock.Setup(m => m.ListEnabled()).Returns([
@@ -905,13 +929,51 @@ public class ModManagerTest
 
         // Unfortunately, there is no easy way to create pak files!
         modManager.Invoking(m => m.InstallEnabledMods(eventHandlerMock.Object))
-            .Should().Throw<DirectoryNotFoundException>();
+            .Should().Throw<FileNotFoundException>();
 
         //CreateBootfileSources();
         //
         //modManager.InstallEnabledMods()
         //
         //persistedState.Should().HaveInstalled(["Package100", $"{BootfilesPrefix}_generated"]);
+    }
+
+    [Fact]
+    public void Install_UnneededGeneratedBootfilesDoNotRequireSources()
+    {
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([]);
+        Directory.Exists(GamePath("Pakfiles").Full).Should().BeFalse();
+
+        modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        persistedState.Should().BeEmpty();
+        eventHandlerMock.Verify(e => e.PostProcessingNotRequired(), Times.Once);
+    }
+
+    [Fact]
+    public void Install_GenerationFailureLeavesBootfilesUninstalled()
+    {
+        var (mod, _) = SetUpGeneratedBootfiles(partial: true);
+
+        var install = () => modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        install.Should().Throw<Exception>();
+        eventHandlerMock.Verify(e => e.UninstallingPackage(GeneratedBootfilesName), Times.Once);
+        File.Exists(GamePath(TrackListRelativePath).Full).Should().BeFalse();
+        persistedState.Should().HaveInstalled([mod.Name]);
+    }
+
+    [Fact]
+    public void Install_GenerationFailureMakesDependentModPartial()
+    {
+        var (mod, _) = SetUpGeneratedBootfiles(partial: true);
+
+        var install = () => modManager.InstallEnabledMods(eventHandlerMock.Object);
+
+        install.Should().Throw<Exception>();
+        modManager.FetchState().Should().ContainSingle().Which.IsInstalled.Should().BeNull();
+        persistedState.For(mod.Name).Partial.Should().BeFalse();
+        persistedState.For(mod.Name).Files.Should().Contain(Path.Combine(DirAtRoot, "Track.trd"));
     }
 
     [Fact]
@@ -929,6 +991,28 @@ public class ModManagerTest
     }
 
     #region Utility methods
+
+    private (IPackage Mod, PackageInstallationState BootfilesState) SetUpGeneratedBootfiles(bool partial)
+    {
+        var trackPath = Path.Combine(DirAtRoot, "Track.trd");
+        var mod = CreateModPackage(101, [trackPath]);
+        var sources = BootfilesSourceNames
+            .Select(name => CreateFile(GamePath("Pakfiles", name), "Invalid archive")).ToArray();
+        CreateFile(GamePath(trackPath), "Installed track").CreationTimeUtc = PastDate.UtcDateTime;
+        CreateFile(GamePath(TrackListRelativePath), "Installed bootfiles").CreationTimeUtc = PastDate.UtcDateTime;
+        CreateFile(GamePath(GameSupportedModDirectory, mod.Name, DefaultModInstallConfig.TrackListFileName),
+            "Track.trd");
+        var bootfilesState = new PackageInstallationState(PastDate, FileSystemHash.Hash32(sources),
+            Partial: partial, Dependencies: [], Files: [TrackListRelativePath], ShadowedBy: []);
+        persistedState.InitModInstallationState(new Dictionary<string, PackageInstallationState>
+        {
+            [mod.Name] = new(PastDate, 101, false, [GeneratedBootfilesName], [trackPath], []),
+            [GeneratedBootfilesName] = bootfilesState
+        });
+        modRepositoryMock.Setup(m => m.ListEnabled()).Returns([mod]);
+        modRepositoryMock.Setup(m => m.ListDisabled()).Returns([]);
+        return (mod, bootfilesState);
+    }
 
     private static IPackage Package(string Name, string Location, int? VersionHash)
     {
@@ -982,11 +1066,7 @@ public class ModManagerTest
 
     private IFileInfo CreateFile(RootedPath path, string content = "")
     {
-        var parentDirFullPath = Path.GetDirectoryName(path.Full);
-        if (parentDirFullPath is not null)
-        {
-            Directory.CreateDirectory(parentDirFullPath);
-        }
+        Directory.CreateDirectory(Path.GetDirectoryName(path.Full) ?? path.Root.Full);
 
         File.WriteAllText(path.Full, content);
         return fs.FileInfo.New(path.Full);
@@ -1054,18 +1134,15 @@ public class ModManagerTest
         {
             var writtenState = WrittenState();
             var actualMods = writtenState.Installation;
+            actualMods.Keys.Should().BeEquivalentTo(expected.Keys);
             var expectedMods = expected.Select(mod =>
             {
                 var expectedTime = mod.Value.Time;
-                var actualTime = writtenState.Installation.GetValueOrDefault(mod.Key)?.Time;
-                if (actualTime is null)
-                {
-                    return mod;
-                }
+                var actualTime = actualMods[mod.Key].Time;
 
                 ValidateDateTime(expectedTime, actualTime);
                 return new KeyValuePair<string, PackageInstallationState>(mod.Key,
-                    mod.Value with { Time = (DateTimeOffset)actualTime });
+                    mod.Value with { Time = actualTime });
             });
             actualMods.Should().BeEquivalentTo(expectedMods);
         }
@@ -1078,8 +1155,9 @@ public class ModManagerTest
 
         private SavedState WrittenState()
         {
-            savedState.Should().NotBeNull("State was not written");
-            return savedState!;
+            var state = savedState;
+            state.Should().NotBeNull("State was not written");
+            return state;
         }
 
         /// <summary>

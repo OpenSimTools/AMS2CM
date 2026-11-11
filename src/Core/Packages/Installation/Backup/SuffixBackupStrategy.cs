@@ -4,6 +4,8 @@ namespace Core.Packages.Installation.Backup;
 
 public class SuffixBackupStrategy : MoveFileBackupStrategy
 {
+    internal static IBackupFileNaming Naming { get; } = new BackupFileNaming();
+
     internal class Provider<TState, TEventHandler>(IFileSystem fs) : IBackupStrategyProvider<TState, TEventHandler>
         where TEventHandler : IBackupEventHandler
     {
@@ -20,7 +22,7 @@ public class SuffixBackupStrategy : MoveFileBackupStrategy
     }
 
     public SuffixBackupStrategy(IFileSystem fs, IBackupEventHandler? eventHandler) :
-        base(fs, new BackupFileNaming(), eventHandler)
+        base(fs, Naming, eventHandler)
     {
     }
 }

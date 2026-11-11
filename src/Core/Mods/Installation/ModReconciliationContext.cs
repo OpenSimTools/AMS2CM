@@ -3,6 +3,7 @@ using Core.Games;
 using Core.Mods.Installation.Installers;
 using Core.Packages;
 using Core.Packages.Installation;
+using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 
@@ -13,7 +14,8 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
     IGame game,
     ITempDir tempDir,
     IBootfilesNaming bootfilesNaming,
-    TConfig config) : PackageReconciliationContextBase<TEventHandler>(previousState)
+    TConfig config,
+    MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) : PackageReconciliationContextBase<TEventHandler>(previousState)
     where TEventHandler : ModReconciliationContext.IEventHandler
     where TConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
 {
@@ -21,9 +23,10 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         IGame game,
         ITempDir tempDir,
         IBootfilesNaming bootfilesNaming,
-        TConfig config) => previousState =>
+        TConfig config,
+    MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) => previousState =>
         new ModReconciliationContext<TEventHandler, TConfig>(
-            previousState, game, tempDir, bootfilesNaming, config);
+            previousState, game, tempDir, bootfilesNaming, config, backupFileNaming);
 
     private protected override IReadOnlyCollection<Action> CreateActions(IEnumerable<IPackage> packages,
         ReconciliationAction<TEventHandler>.Factory actionFactory,
@@ -77,7 +80,9 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
 
     protected virtual IPackageInstaller CreateBootfilesInstaller(IPackage? bootfilesPackage,
         IReadOnlyDictionary<string, PackageInstallationState> state, TEventHandler eventHandler) =>
-        new BootfilesInstaller(bootfilesPackage?.CreateInstaller(), tempDir.BaseDirectory, config,
+        new BootfilesInstaller(bootfilesPackage?.CreateInstaller() ??
+            new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
+                game.InstallationDirectory, tempDir.BaseDirectory, state, backupFileNaming), tempDir.BaseDirectory, config,
             game.InstallationDirectory, bootfilesNaming, eventHandler);
 }
 

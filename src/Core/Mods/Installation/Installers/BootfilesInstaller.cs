@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -30,11 +30,10 @@ public class BootfilesInstaller : BaseModInstaller
     private readonly IBootfilesNaming bootfilesNaming;
     private readonly IEventHandler eventHandler;
 
-    public BootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller, IDirectoryInfo tempDir,
+    public BootfilesInstaller(IPackageInstaller bootfilesPackageInstaller, IDirectoryInfo tempDir,
         IConfig config, IDirectoryInfo gameInstallationDir, IBootfilesNaming bootfilesNaming,
         IEventHandler eventHandler) :
-        base(PackageOrGenerated(bootfilesPackageInstaller, gameInstallationDir, tempDir, bootfilesNaming),
-            tempDir, config)
+        base(bootfilesPackageInstaller, tempDir, config)
     {
         gameRoot = new PathRoot(gameInstallationDir);
         VehicleListDir = gameRoot.Combine(config.BootfilesVehicleListDir);
@@ -43,14 +42,6 @@ public class BootfilesInstaller : BaseModInstaller
         this.bootfilesNaming = bootfilesNaming;
         this.eventHandler = eventHandler;
     }
-
-    private static IPackageInstaller PackageOrGenerated(IPackageInstaller? bootfilesPackageInstaller,
-        IDirectoryInfo gameInstallationDirectory, IDirectoryInfo tempDir, IBootfilesNaming bootfilesNaming) =>
-        bootfilesPackageInstaller ?? new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
-            gameInstallationDirectory, tempDir);
-
-    // Force bootfiles to be uninstalled every time
-    public override int? PackageVersionHash => null;
 
     // Bootfiles cannot have dependencies.
     public override IReadOnlySet<string> PackageDependencies => ImmutableHashSet<string>.Empty;

@@ -106,7 +106,7 @@ public class BootfilesInstallerTest
 
         var bootfiles = InstallBootfiles();
         bootfiles.InstalledFiles.Should().BeEquivalentPathTo(expected);
-        bootfiles.PackageVersionHash.Should().BeNull();
+        bootfiles.PackageVersionHash.Should().Be(42);
 
         eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
         eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);

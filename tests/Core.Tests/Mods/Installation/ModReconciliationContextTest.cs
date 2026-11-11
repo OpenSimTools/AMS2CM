@@ -44,7 +44,8 @@ public class ModReconciliationContextTest :
         IBootfilesNaming bootfilesNaming,
         ModReconciliationContextTest test)
         : ModReconciliationContext<ModReconciliationContext.IEventHandler, ModInstallConfig>(previousState,
-            Mock.Of<IGame>(), Mock.Of<ITempDir>(), bootfilesNaming, new ModInstallConfig())
+            Mock.Of<IGame>(), Mock.Of<ITempDir>(), bootfilesNaming, new ModInstallConfig(),
+            Mock.Of<MoveFileBackupStrategy.IBackupFileNaming>())
     {
         protected override IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
             string bootfilesPackageName) =>

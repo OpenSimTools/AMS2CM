@@ -42,7 +42,7 @@ public static class Init
         var modReconciliationService = new ReconciliationService<IEventHandler>(
             backupStrategyProvider,
             ModReconciliationContext<IEventHandler, ModInstallConfig>.Factory(game, tempDir,
-                bootfilesNaming, modInstallConfig));
+                bootfilesNaming, modInstallConfig, SuffixBackupStrategy.Naming));
         return new ModManager(game, modRepository, bootfilesNaming, modReconciliationService, statePersistence,
             safeFileDelete, tempDir);
     }
