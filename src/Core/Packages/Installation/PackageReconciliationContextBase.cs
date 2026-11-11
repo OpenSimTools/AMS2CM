@@ -37,7 +37,8 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
     }
 
     private protected abstract IReadOnlyCollection<Action> CreateActions(IEnumerable<IPackage> packages,
-        ReconciliationAction<TEventHandler>.Factory actionFactory, TEventHandler eventHandler);
+        ReconciliationAction<TEventHandler>.Factory actionFactory,
+        TEventHandler eventHandler);
 
     private protected IReadOnlyCollection<Action> CreatePackageActions(
         IReadOnlyCollection<IPackageInstaller> installers,
@@ -45,8 +46,22 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         ReconciliationAction<TEventHandler>.Factory actionFactory)
     {
         var joinedState = JoinPreviousState(planningState, installers);
-        return BuildActions(joinedState, actionFactory)
-            .Select(action => (Action)(() => ExecuteAction(action))).ToArray();
+        HashSet<string> processed = [];
+        HashSet<string> toUninstall = [];
+        List<Action> actions = [];
+        foreach (var (packageName, (state, installer)) in joinedState)
+        {
+            processed.Add(packageName);
+            var uninstall = state is not null && ShouldUninstall(state, installer, toUninstall, processed);
+            if (uninstall)
+            {
+                toUninstall.Add(packageName);
+            }
+
+            // Decide replacements from the original plan, but resolve ownership after earlier actions.
+            actions.Add(() => ProcessPackage(packageName, state, installer, uninstall, actionFactory));
+        }
+        return actions;
     }
 
     private static OrderedDictionary<string, (PackageInstallationState?, IPackageInstaller?)> JoinPreviousState(
@@ -71,42 +86,6 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         return joinedState;
     }
 
-    private static IReadOnlyCollection<IReconciliationAction> BuildActions(
-        OrderedDictionary<string, (PackageInstallationState?, IPackageInstaller?)> joinedState,
-        ReconciliationAction<TEventHandler>.Factory actionFactory)
-    {
-        HashSet<string> processed = [];
-        HashSet<string> toUninstall = [];
-        var uninstallActions = new List<IReconciliationAction>();
-        var installOrKeepActions = new List<IReconciliationAction>();
-        foreach (var (packageName, (state, installer)) in joinedState)
-        {
-            processed.Add(packageName);
-
-            if (state is not null && ShouldUninstall(state, installer, toUninstall, processed))
-            {
-                uninstallActions.Add(actionFactory.Uninstall(packageName, state));
-                toUninstall.Add(packageName);
-            }
-
-            if (installer is null)
-            {
-                continue;
-            }
-
-            if (state is null || toUninstall.Contains(packageName))
-            {
-                installOrKeepActions.Add(actionFactory.Install(installer));
-            }
-            else
-            {
-                installOrKeepActions.Add(actionFactory.Keep(packageName, state));
-            }
-        }
-
-        return [.. uninstallActions, .. installOrKeepActions];
-    }
-
     private static bool ShouldUninstall(PackageInstallationState state, IPackageInstaller? installer,
         IReadOnlySet<string> toUninstall, IReadOnlySet<string> processed) =>
         state.Partial ||
@@ -117,27 +96,49 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         state.ShadowedBy.Intersect(toUninstall).Any() ||
         (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains));
 
-    private void ExecuteAction(IReconciliationAction action)
+    private void ProcessPackage(string packageName, PackageInstallationState? state,
+        IPackageInstaller? installer, bool uninstall, ReconciliationAction<TEventHandler>.Factory actionFactory)
     {
-        var shadowedBy = new HashSet<string>();
+        foreach (var action in ResolveActions(packageName, state, installer, uninstall, actionFactory))
+        {
+            ExecuteAction(action);
+        }
+    }
+
+    private List<IReconciliationAction> ResolveActions(
+        string packageName, PackageInstallationState? state, IPackageInstaller? installer, bool uninstall,
+        ReconciliationAction<TEventHandler>.Factory actionFactory)
+    {
+        if (state is not null)
+        {
+            var ownership = currentState[packageName];
+            // Keep planning metadata, including remapped bootfiles dependencies.
+            state = state with { Files = ownership.Files, ShadowedBy = ownership.ShadowedBy };
+        }
+        List<IReconciliationAction> actions = [];
+        if (uninstall && state is not null)
+        {
+            actions.Add(actionFactory.Uninstall(packageName, state));
+        }
+        if (installer is null) return actions;
+        if (state is null || uninstall)
+        {
+            actions.Add(actionFactory.Install(installer));
+        }
+        else
+        {
+            actions.Add(actionFactory.Keep(packageName, state));
+        }
+        return actions;
+    }
+
+    protected void ExecuteAction(IReconciliationAction action)
+    {
+        var shadowedBy = new HashSet<string>(action.ShadowedBy);
         var installCallbacks = new ProcessingCallbacks<RootedPath>
         {
-            Accept = gamePath =>
-            {
-                var shadowingPackageName = installedFiles.GetValueOrDefault(gamePath);
-                if (shadowingPackageName is null)
-                {
-                    return true;
-                }
-
-                if (shadowingPackageName != action.PackageName)
-                {
-                    shadowedBy.Add(shadowingPackageName);
-                }
-
-                return false;
-            },
-            Before = gamePath => installedFiles.Add(gamePath, action.PackageName)
+            Accept = gamePath => AcceptFile(gamePath, action.PackageName, shadowedBy),
+            Before = gamePath => ClaimFile(gamePath, action.PackageName)
         };
         try
         {
@@ -146,6 +147,31 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         finally
         {
             UpdateState(action, shadowedBy);
+        }
+    }
+
+    private bool AcceptFile(RootedPath gamePath, string packageName, HashSet<string> shadowedBy)
+    {
+        var shadowingPackageName = installedFiles.GetValueOrDefault(gamePath);
+        if (shadowingPackageName is null) return true;
+        if (shadowingPackageName != packageName)
+        {
+            shadowedBy.Add(shadowingPackageName);
+        }
+        return false;
+    }
+
+    private void ClaimFile(RootedPath gamePath, string packageName)
+    {
+        installedFiles[gamePath] = packageName;
+        foreach (var (name, state) in currentState.ToArray())
+        {
+            if (name == packageName || !state.Files.Any(p => gamePath.Root.Combine(p) == gamePath)) continue;
+            currentState[name] = state with
+            {
+                Files = state.Files.Where(p => gamePath.Root.Combine(p) != gamePath).ToArray(),
+                ShadowedBy = state.ShadowedBy.Append(packageName).Distinct().ToArray()
+            };
         }
     }
 
@@ -169,4 +195,5 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
             );
         }
     }
+
 }
