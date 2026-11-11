@@ -1,3 +1,4 @@
+using System.IO.Abstractions.TestingHelpers;
 using Core.API;
 using Core.Games;
 using Core.Mods;
@@ -6,6 +7,8 @@ using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
+using Core.State;
+using Core.State.JsonFile;
 using Core.Tests.Packages.Installation;
 using Core.Utils;
 using FluentAssertions;
@@ -153,6 +156,21 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
+    public void BootfilesConstructionFailureDoesNotUninstallExistingBootfiles()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        var previous = InstallationState[BootfilesPackageName];
+        creatingBootfiles.Setup(c => c(It.IsAny<IReadOnlyDictionary<string, PackageInstallationState>>()))
+            .Throws(new FileNotFoundException("Missing source"));
+
+        var reconcile = () => Reconcile([Package(ModRequiringBootfiles, 2), Package(BootfilesPackageName, 1)]);
+
+        reconcile.Should().Throw<FileNotFoundException>();
+        InstallationState[BootfilesPackageName].Should().Be(previous with { Partial = true });
+        EventHandlerMock.Verify(e => e.UninstallingPackage(BootfilesPackageName), Times.Never);
+    }
+
+    [Fact]
     public void Reconcile_InstallsGeneratedBootfilesIfModRequiresThem()
     {
         Reconcile([
@@ -250,6 +268,7 @@ public class ModReconciliationContextTest :
         InstallationState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
         previousState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
     }
+
     [Fact]
     public void BootfilesAreReinstalledAfterDependentModChanges()
     {
@@ -284,6 +303,43 @@ public class ModReconciliationContextTest :
         InstallationState[BootfilesPackageName].Partial.Should().BeFalse();
     }
 
+    [Fact]
+    public void AddingDependentInvalidatesBootfilesBeforePostProcessing()
+    {
+        Reconcile([Package("OtherDependent", 1, ["Other"], [BootfilesPackageName]),
+            Package(BootfilesPackageName, 1)]);
+
+        Reconcile([Package("OtherDependent", 1, ["Other"], [BootfilesPackageName]),
+            Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)], actionCount: 2);
+
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RemovingDependentInvalidatesBootfilesBeforePostProcessing()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1),
+            Package("OtherDependent", 1, ["Other"], [BootfilesPackageName]), Package(BootfilesPackageName, 1)]);
+
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)], actionCount: 1);
+
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RepairingDependentInvalidatesBootfilesBeforePostProcessing()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        InstallationState = new Dictionary<string, PackageInstallationState>(InstallationState)
+        {
+            [ModRequiringBootfiles] = InstallationState[ModRequiringBootfiles] with { Partial = true }
+        };
+
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)], actionCount: 1);
+
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
@@ -301,6 +357,30 @@ public class ModReconciliationContextTest :
         EventHandlerMock.Verify(e => e.InstallingPackage(BootfilesPackageName), Times.Never);
         configure.Verify(c => c(), Times.Never);
         InstallationState[BootfilesPackageName].Should().BeEquivalentTo(original);
+    }
+
+    [Fact]
+    public void ReplacingShadowingModInvalidatesBootfilesBeforePostProcessing()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package("Shadowing", 1, ["Shared"]),
+            Package(BootfilesPackageName, 1, ["Shared", "BootOnly"])]);
+
+        Reconcile([Package(ModRequiringBootfiles, 1), Package("Shadowing", 2, ["Shared"]),
+            Package(BootfilesPackageName, 1, ["Shared", "BootOnly"])], actionCount: 2);
+
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RemovingShadowingModInvalidatesBootfilesBeforePostProcessing()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package("Shadowing", 1, ["Shared"]),
+            Package(BootfilesPackageName, 1, ["Shared", "BootOnly"])]);
+
+        Reconcile([Package(ModRequiringBootfiles, 1),
+            Package(BootfilesPackageName, 1, ["Shared", "BootOnly"])], actionCount: 1);
+
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
     }
 
     [Fact]
@@ -401,6 +481,49 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
+    public void InterruptedDependentUpdateRebuildsBootfilesAfterReload()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        var previous = InstallationState[BootfilesPackageName];
+
+        Reconcile([Package(ModRequiringBootfiles, 2), Package(BootfilesPackageName, 1)], actionCount: 1);
+
+        InstallationState[BootfilesPackageName].Should().Be(previous with { Partial = true });
+        VerifyBootfilesRecovery([Package(ModRequiringBootfiles, 2), Package(BootfilesPackageName, 1)]);
+        EventHandlerMock.Verify(e => e.SkippingPackage(ModRequiringBootfiles), Times.Once);
+    }
+
+    [Fact]
+    public void InterruptedDependentUpdateRebuildsGeneratedBootfilesAfterReload()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1)]);
+
+        Reconcile([Package(ModRequiringBootfiles, 2)], actionCount: 1);
+        ReloadState();
+        EventHandlerMock.Invocations.Clear();
+        Reconcile([Package(ModRequiringBootfiles, 2)]);
+
+        EventHandlerMock.Verify(e => e.SkippingPackage(ModRequiringBootfiles), Times.Once);
+        EventHandlerMock.Verify(e => e.InstallingPackage(GeneratedBootfilesName), Times.Once);
+        InstallationState[GeneratedBootfilesName].Partial.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RecoveredBootfilesAreSkippedOnNextRun()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        Reconcile([Package(ModRequiringBootfiles, 2), Package(BootfilesPackageName, 1)], actionCount: 1);
+        Reconcile([Package(ModRequiringBootfiles, 2), Package(BootfilesPackageName, 1)]);
+        EventHandlerMock.Invocations.Clear();
+        configure.Invocations.Clear();
+
+        Reconcile([Package(ModRequiringBootfiles, 2), Package(BootfilesPackageName, 1)]);
+
+        EventHandlerMock.Verify(e => e.SkippingPackage(BootfilesPackageName), Times.Once);
+        configure.Verify(c => c(), Times.Never);
+    }
+
+    [Fact]
     public void PlanningDependentUpdatePreservesBootfilesState()
     {
         Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
@@ -411,4 +534,67 @@ public class ModReconciliationContextTest :
         InstallationState[BootfilesPackageName].Should().Be(previous);
     }
 
+    [Fact]
+    public void FailedDependentRemovalRetainsBootfilesInvalidation()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        BackupStrategyMock.Setup(b => b.RestoreBackup(DestinationPath(ModRequiringBootfiles)))
+            .Throws(new IOException("Restore failed"));
+
+        var reconcile = () => Reconcile([Package(BootfilesPackageName, 1)]);
+
+        reconcile.Should().Throw<IOException>();
+        ReloadState();
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
+    [Fact]
+    public void FailedNewDependentInstallationRetainsBootfilesInvalidation()
+    {
+        Reconcile([Package("OtherDependent", 1, ["Other"], [BootfilesPackageName]),
+            Package(BootfilesPackageName, 1)]);
+        configureMod.Setup(c => c()).Throws(new IOException("Configuration failed"));
+
+        var reconcile = () => Reconcile([Package("OtherDependent", 1, ["Other"], [BootfilesPackageName]),
+            Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+
+        reconcile.Should().Throw<IOException>();
+        ReloadState();
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
+    [Fact]
+    public void NewOwnerInvalidatesBootfilesBeforePostProcessing()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1),
+            Package(BootfilesPackageName, 1, ["Shared", "BootOnly"])]);
+
+        Reconcile([Package("NewOwner", 1, ["Shared"]), Package(ModRequiringBootfiles, 1),
+            Package(BootfilesPackageName, 1, ["Shared", "BootOnly"])], actionCount: 1);
+
+        InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
+    }
+
+    #region Utility Methods
+
+    private void VerifyBootfilesRecovery(IPackage[] packages)
+    {
+        ReloadState();
+        EventHandlerMock.Invocations.Clear();
+
+        Reconcile(packages);
+
+        EventHandlerMock.Verify(e => e.InstallingPackage(BootfilesPackageName), Times.Once);
+        InstallationState[BootfilesPackageName].Partial.Should().BeFalse();
+    }
+
+    private void ReloadState()
+    {
+        var fs = new MockFileSystem();
+        var persistence = new JsonFileStatePersistence(fs.Directory.CreateTempSubdirectory());
+        persistence.WriteState(new SavedState(InstallationState));
+        InstallationState = persistence.ReadState().Installation;
+    }
+
+    #endregion
 }

@@ -100,10 +100,26 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
     private void ProcessPackage(string packageName, PackageInstallationState? state,
         IPackageInstaller? installer, bool uninstall, ReconciliationAction<TEventHandler>.Factory actionFactory)
     {
-        foreach (var action in ResolveActions(packageName, state, installer, uninstall, actionFactory))
+        var changing = uninstall || state is null;
+        try
         {
-            ExecuteAction(action);
+            if (changing)
+            {
+                BeforePackageChange(packageName, state);
+            }
+            foreach (var action in ResolveActions(packageName, state, installer, uninstall, actionFactory))
+            {
+                ExecuteAction(action);
+            }
         }
+        finally
+        {
+            AfterPackageProcessing(packageName, changing);
+        }
+    }
+
+    protected virtual void BeforePackageChange(string packageName, PackageInstallationState? previousState)
+    {
     }
 
     private List<IReconciliationAction> ResolveActions(
@@ -183,7 +199,12 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
                 Files = state.Files.Where(p => gamePath.Root.Combine(p) != gamePath).ToArray(),
                 ShadowedBy = state.ShadowedBy.Append(packageName).Distinct().ToArray()
             };
+            AfterOwnershipTransfer(name);
         }
+    }
+
+    protected virtual void AfterOwnershipTransfer(string previousOwner)
+    {
     }
 
     private void UpdateState(IReconciliationAction action, IReadOnlyCollection<string> shadowedBy)
@@ -207,4 +228,15 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         }
     }
 
+    protected virtual void AfterPackageProcessing(string packageName, bool changing)
+    {
+    }
+
+    protected void MarkPartial(string packageName)
+    {
+        if (currentState.TryGetValue(packageName, out var state))
+        {
+            currentState[packageName] = state with { Partial = true };
+        }
+    }
 }

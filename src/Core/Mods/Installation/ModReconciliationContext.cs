@@ -114,6 +114,42 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
             (previous is not null && !previous.ShadowedBy.ToHashSet().SetEquals(state.ShadowedBy));
     }
 
+    protected override void BeforePackageChange(string packageName, PackageInstallationState? previousState)
+    {
+        MarkBootfilesDependenciesPartial(previousState);
+        foreach (var (name, state) in CurrentState.ToArray())
+        {
+            if (bootfilesNaming.IsBootfiles(name) && state.ShadowedBy.Contains(packageName))
+            {
+                MarkPartial(name);
+            }
+        }
+    }
+
+    private void MarkBootfilesDependenciesPartial(PackageInstallationState? state)
+    {
+        if (state is null) return;
+        foreach (var dependency in state.Dependencies.Where(bootfilesNaming.IsBootfiles))
+        {
+            MarkPartial(dependency);
+        }
+    }
+
+    protected override void AfterPackageProcessing(string packageName, bool changing)
+    {
+        if (changing)
+        {
+            MarkBootfilesDependenciesPartial(CurrentState.GetValueOrDefault(packageName));
+        }
+    }
+
+    protected override void AfterOwnershipTransfer(string previousOwner)
+    {
+        if (bootfilesNaming.IsBootfiles(previousOwner))
+        {
+            MarkPartial(previousOwner);
+        }
+    }
 }
 
 public static class ModReconciliationContext
