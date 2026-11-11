@@ -23,6 +23,8 @@
 
 ## Version Control
 
-- Write your commit message in the imperative: "Fix bug" and not "Fixed bug" or "Fixes bug."
-- First line of commit message must be 50 characters or less, then a blank line.
-- Remaining text should be wrapped at 72 characters. Prefer bullet points.
+- Keep commits focused on one logical change.
+- Follow [Conventional Commits](https://www.conventionalcommits.org/), using imperative subjects under 50 characters.
+- Keep commit messages concise. Include a body only when useful to explain why, significant trade-offs, or breaking changes. Wrap at 72 characters.
+- Describe changes and rationale, not development activities. Omit test execution summaries, counts, and routine validation details.
+- Never invent information.
