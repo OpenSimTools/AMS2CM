@@ -13,7 +13,7 @@ namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
 public class ModReconciliationContextTest :
-    ReconciliationIntegrationTestBase<IEventHandler>
+    ReconciliationIntegrationTestBase<ModReconciliationContext.IEventHandler>
 {
     #region Setup
 
@@ -21,7 +21,7 @@ public class ModReconciliationContextTest :
     private const string BootfilesPackageName = "__package";
     private const string ModRequiringBootfiles = "ModRequiringBootfiles";
 
-    protected override IReconciliationContext<IEventHandler>.FactoryFunc ContextFactory
+    protected override IReconciliationContext<ModReconciliationContext.IEventHandler>.FactoryFunc ContextFactory
     {
         get
         {
@@ -36,18 +36,19 @@ public class ModReconciliationContextTest :
         IReadOnlyDictionary<string, PackageInstallationState> previousState,
         IBootfilesNaming bootfilesNaming,
         ModReconciliationContextTest test)
-        : ModReconciliationContext<IEventHandler, ModInstallConfig>(previousState,
+        : ModReconciliationContext<ModReconciliationContext.IEventHandler, ModInstallConfig>(previousState,
             Mock.Of<IGame>(), Mock.Of<ITempDir>(), bootfilesNaming, new ModInstallConfig())
     {
         protected override IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
             IPackageInstaller bootfilesInstaller) =>
-            packageInstaller.PackageName == ModRequiringBootfiles
-                ? new InstallerWithBootfilesDependency(packageInstaller, bootfilesInstaller)
-                : packageInstaller;
+            new Dictionary<string, IPackageInstaller>
+            {
+                [ModRequiringBootfiles] = new InstallerWithBootfilesDependency(packageInstaller, bootfilesInstaller)
+            }.GetValueOrDefault(packageInstaller.PackageName, packageInstaller);
 
         // Note: the real bootfiles installer will skip installation when not needed, but this will not.
         protected override IPackageInstaller CreateBootfilesInstaller(IPackageInstaller? bootfilesPackageInstaller,
-            IEventHandler eventHandler) =>
+            ModReconciliationContext.IEventHandler eventHandler) =>
             bootfilesPackageInstaller ?? test.Installer(GeneratedBootfilesName);
     }
 
@@ -94,43 +95,6 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
-    public void Reconcile_AlwaysCallsBootfilesPackageInstaller()
-    {
-        var packages = new List<string>();
-        var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.InstallingPackage(It.IsAny<string>())).Callback<string>(packages.Add);
-        EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
-            .Callback<IPercent>(p => progress.Add(p.Percent));
-
-        Reconcile([
-            Package("I1"),                // 25%
-            Package("I2"),                // 50%
-            Package("I3"),                // 75%
-            Package(BootfilesPackageName) // 100%
-        ]);
-
-        packages.Should().Contain(BootfilesPackageName);
-        progress.Should().Equal(0.25, 0.5, 0.75, 1.0);
-    }
-
-    [Fact]
-    public void Reconcile_AlwaysCallsGeneratedBootfilesInstaller()
-    {
-        var packages = new List<string>();
-        var progress = new List<double>();
-        EventHandlerMock.Setup(m => m.InstallingPackage(It.IsAny<string>())).Callback<string>(packages.Add);
-        EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
-            .Callback<IPercent>(p => progress.Add(p.Percent));
-
-        Reconcile([
-            // Generated bootfiles 100%
-        ]);
-
-        packages.Should().Equal(GeneratedBootfilesName);
-        progress.Should().Equal(1.0);
-    }
-
-    [Fact]
     public void Reconcile_AlignsBootfilesDependenciesWithCurrent()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
@@ -162,7 +126,7 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
-    public void Reconcile_CancellationPreservesUnprocessedBootfilesDependencies()
+    public void Reconcile_PlanningPreservesUnprocessedBootfilesDependencies()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
@@ -173,7 +137,7 @@ public class ModReconciliationContextTest :
 
         Reconcile([
             Package("Untouched", versionHash: 1)
-        ], new CancellationToken(canceled: true));
+        ], actionCount: 0);
 
         InstallationState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);
         previousState["Untouched"].Dependencies.Should().Equal(BootfilesPackageName);

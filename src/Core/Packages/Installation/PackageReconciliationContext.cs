@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -8,7 +8,7 @@ namespace Core.Packages.Installation;
 
 public class PackageReconciliationContext<TEventHandler>(
     IReadOnlyDictionary<string, PackageInstallationState> currentState) : IReconciliationContext<TEventHandler>
-    where TEventHandler : ReconciliationService.IEventHandler
+    where TEventHandler : IReconciliationContext.IEventHandler
 {
     public static IReconciliationContext<TEventHandler>.FactoryFunc Factory() =>
         currentState => new PackageReconciliationContext<TEventHandler>(currentState);
@@ -22,7 +22,7 @@ public class PackageReconciliationContext<TEventHandler>(
         IReadOnlyList<IPackageInstaller> Installers,
         IReadOnlyDictionary<string, PackageInstallationState> PlanningState);
 
-    public IReadOnlyCollection<IReconciliationAction> ReconciliationActions(IEnumerable<IPackage> packages,
+    public IReadOnlyCollection<Action> ReconciliationActions(IEnumerable<IPackage> packages,
         IDirectoryInfo installDir,
         IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider,
         TEventHandler eventHandler)
@@ -30,7 +30,7 @@ public class PackageReconciliationContext<TEventHandler>(
         var inputs = CreatePlanningInputs(packages, eventHandler);
         var joinedState = JoinPreviousState(inputs.PlanningState, inputs.Installers);
         var actionFactory = CreateActionFactory(backupStrategyProvider, installDir, eventHandler);
-        return CreateActions(joinedState, actionFactory);
+        return CreateActions(joinedState, actionFactory).Select(action => (Action)(() => ExecuteAction(action))).ToArray();
     }
 
     protected virtual PlanningInputs CreatePlanningInputs(IEnumerable<IPackage> packages,
@@ -116,7 +116,7 @@ public class PackageReconciliationContext<TEventHandler>(
         state.ShadowedBy.Intersect(toUninstall).Any() ||
         (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains));
 
-    public void ExecuteAction(IReconciliationAction action)
+    private void ExecuteAction(IReconciliationAction action)
     {
         var shadowedBy = new HashSet<string>();
         var installCallbacks = new ProcessingCallbacks<RootedPath>

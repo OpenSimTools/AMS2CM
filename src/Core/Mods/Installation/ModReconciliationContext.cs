@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using Core.Games;
 using Core.Mods.Installation.Installers;
 using Core.Packages;
@@ -14,7 +14,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
     ITempDir tempDir,
     IBootfilesNaming bootfilesNaming,
     TConfig config) : PackageReconciliationContext<TEventHandler>(previousState)
-    where TEventHandler : ReconciliationService.IEventHandler, BootfilesInstaller.IEventHandler
+    where TEventHandler : ModReconciliationContext.IEventHandler
     where TConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
 {
     public static IReconciliationContext<TEventHandler>.FactoryFunc Factory(
@@ -57,4 +57,11 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         TEventHandler eventHandler) =>
         new BootfilesInstaller(bootfilesPackageInstaller, tempDir.BaseDirectory, config,
             game.InstallationDirectory, bootfilesNaming, eventHandler);
+}
+
+public static class ModReconciliationContext
+{
+    public interface IEventHandler : IReconciliationContext.IEventHandler, BootfilesInstaller.IEventHandler
+    {
+    }
 }

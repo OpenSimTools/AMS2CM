@@ -1,4 +1,4 @@
-﻿using System.IO.Abstractions;
+using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Utils;
 
@@ -19,49 +19,42 @@ public sealed class ReconciliationService<TEventHandler>(
     {
         var context = createContext(previousState);
         var actions = context.ReconciliationActions(packages, installDir, backupStrategyProvider, eventHandler);
+
+        if (actions.Count == 0)
+        {
+            eventHandler.ReconciliationNoPackages();
+            return;
+        }
+
         try
         {
-            Execute(actions, context, eventHandler, cancellationToken);
+            eventHandler.ReconciliationStart();
+            var progress = new PercentOfTotal(actions.Count);
+            foreach (var action in actions)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                action();
+                eventHandler.ProgressUpdate(progress.IncrementDone());
+            }
+            eventHandler.ReconciliationEnd();
         }
         finally
         {
             afterInstall(context.CurrentState);
         }
     }
-
-    private static void Execute(IReadOnlyCollection<IReconciliationAction> reconciliationActions,
-        IReconciliationContext<TEventHandler> context,
-        TEventHandler eventHandler,
-        CancellationToken cancellationToken)
-    {
-        if (reconciliationActions.Count == 0)
-        {
-            eventHandler.ReconciliationNoPackages();
-            return;
-        }
-
-        eventHandler.ReconciliationStart();
-
-        var progress = new PercentOfTotal(reconciliationActions.Count);
-        foreach (var action in reconciliationActions.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
-        {
-            context.ExecuteAction(action);
-            eventHandler.ProgressUpdate(progress.IncrementDone());
-        }
-
-        eventHandler.ReconciliationEnd();
-    }
 }
 
 public static class ReconciliationService
 {
-    public interface IEventHandler : IProgress, IBackupEventHandler
+    public interface IEventHandler : IProgress, IReconciliationContext.IEventHandler
     {
         void ReconciliationNoPackages();
         void ReconciliationStart();
-        void InstallingPackage(string packageName);
-        void SkippingPackage(string packageName);
-        void UninstallingPackage(string packageName);
         void ReconciliationEnd();
     }
 

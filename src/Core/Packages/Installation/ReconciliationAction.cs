@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -19,7 +19,7 @@ public interface IReconciliationAction
 }
 
 internal abstract class ReconciliationAction<TEventHandler>
-    where TEventHandler : ReconciliationService.IEventHandler
+    where TEventHandler : IReconciliationContext.IEventHandler
 {
     public class Factory(
         IDirectoryInfo installDir,

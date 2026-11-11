@@ -5,14 +5,14 @@ using FluentAssertions;
 namespace Core.Tests.Packages.Installation;
 
 [IntegrationTest]
-public class PackageReconciliationContextTest : ReconciliationIntegrationTestBase<ReconciliationService.IEventHandler>
+public class PackageReconciliationContextTest : ReconciliationIntegrationTestBase<IReconciliationContext.IEventHandler>
 {
     #region Setup
 
     private class TestException : Exception;
 
-    protected override IReconciliationContext<ReconciliationService.IEventHandler>.FactoryFunc ContextFactory =>
-        PackageReconciliationContext<ReconciliationService.IEventHandler>.Factory();
+    protected override IReconciliationContext<IReconciliationContext.IEventHandler>.FactoryFunc ContextFactory =>
+        PackageReconciliationContext<IReconciliationContext.IEventHandler>.Factory();
 
     #endregion
 
@@ -472,10 +472,8 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
         };
 
         // InSequence not verified in Loose mode!
-        var eventHandlerMock = new Mock<ReconciliationService.IEventHandler>(MockBehavior.Strict);
-        eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()));
+        var eventHandlerMock = new Mock<IReconciliationContext.IEventHandler>(MockBehavior.Strict);
         var sequence = new MockSequence();
-        eventHandlerMock.Setup(m => m.ReconciliationStart());
         eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("Removed"));
         eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("A"));
         eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("B"));
@@ -483,7 +481,6 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
         eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("A"));
         eventHandlerMock.InSequence(sequence).Setup(m => m.SkippingPackage("Kept"));
         eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("B"));
-        eventHandlerMock.Setup(m => m.ReconciliationEnd());
 
         Reconcile([
             Package("New", versionHash: 1),
@@ -494,7 +491,7 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
-    public void Reconcile_CancellationPreservesUnprocessedState()
+    public void Reconcile_ExecutingOneActionPreservesLaterState()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
@@ -503,14 +500,11 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
             ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
                 Dependencies: [], Files: ["BF"], ShadowedBy: [])
         };
-        using var cancellation = new CancellationTokenSource();
-        EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
-            .Callback(cancellation.Cancel);
 
         Reconcile([
             Package("A", versionHash: 2, files: ["AF"]),
             Package("B", versionHash: 2, files: ["BF"])
-        ], cancellation.Token);
+        ], actionCount: 1);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
