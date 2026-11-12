@@ -6,6 +6,8 @@ using Core.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
 
+using static Core.Mods.Installation.Installers.GeneratedBootfilesInstaller;
+
 namespace Core.Tests.Mods.Installation.Installers;
 
 [UnitTest]
@@ -20,9 +22,9 @@ public class GeneratedBootfilesInstallerTest
     private static IEnumerable<string> SourceFiles => SourceBackupNames.Keys;
     private static readonly Dictionary<string, string> SourceBackupNames = new()
     {
-        ["BOOTFLOW.bff"] = "first.bin",
-        ["BOOTSPLASH.bff"] = "second.bin",
-        ["PHYSICSPERSISTENT.bff"] = "third.bin"
+        [BootFlowPakFileName] = "first.bin",
+        [BootSplashPakFileName] = "second.bin",
+        [PhysicsPersistentPakFileName] = "third.bin"
     };
     private static readonly DateTime Timestamp = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -31,7 +33,7 @@ public class GeneratedBootfilesInstallerTest
         fs.Directory.CreateDirectory("Backups");
         foreach (var name in SourceFiles)
         {
-            var path = fs.Path.GetFullPath(Path.Combine("Game", "Pakfiles", name));
+            var path = fs.Path.GetFullPath(Path.Combine("Game", PakfilesDirectory, name));
             backupFileNaming.Setup(n => n.ToBackup(path)).Returns(BackupPath(name));
             fs.AddFile(path, new MockFileData(name)
             {
@@ -44,13 +46,13 @@ public class GeneratedBootfilesInstallerTest
     #endregion
 
     [Theory]
-    [InlineData("BOOTFLOW.bff")]
-    [InlineData("BOOTSPLASH.bff")]
-    [InlineData("PHYSICSPERSISTENT.bff")]
+    [InlineData(GeneratedBootfilesInstaller.BootFlowPakFileName)]
+    [InlineData(GeneratedBootfilesInstaller.BootSplashPakFileName)]
+    [InlineData(GeneratedBootfilesInstaller.PhysicsPersistentPakFileName)]
     public void EachSourceChangesVersion(string name)
     {
         var original = CreateInstaller().PackageVersionHash;
-        fs.File.AppendAllText(Path.Combine("Game", "Pakfiles", name), "Changed");
+        fs.File.AppendAllText(Path.Combine("Game", PakfilesDirectory, name), "Changed");
 
         CreateInstaller().PackageVersionHash.Should().NotBe(original);
     }
@@ -60,7 +62,7 @@ public class GeneratedBootfilesInstallerTest
     {
         var expected = CreateInstaller().PackageVersionHash;
         var installer = CreateInstaller();
-        fs.File.Delete(Path.Combine("Game", "Pakfiles", SomeSourceFile));
+        fs.File.Delete(Path.Combine("Game", PakfilesDirectory, SomeSourceFile));
 
         installer.PackageVersionHash.Should().Be(expected);
     }
@@ -69,7 +71,7 @@ public class GeneratedBootfilesInstallerTest
     public void OwnedSourcesUseOriginalBackupsIndividually()
     {
         var original = CreateInstaller().PackageVersionHash;
-        var relative = Path.Combine("Pakfiles", SomeSourceFile);
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
         var path = Path.Combine("Game", relative);
         fs.File.Move(path, BackupPath(SomeSourceFile));
         fs.AddFile(path, new MockFileData("Installed content") { CreationTime = Timestamp });
@@ -84,7 +86,7 @@ public class GeneratedBootfilesInstallerTest
     [Fact]
     public void UpdatedOwnedSourceUsesLiveFile()
     {
-        var relative = Path.Combine("Pakfiles", SomeSourceFile);
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
         var path = Path.Combine("Game", relative);
         fs.AddFile(BackupPath(SomeSourceFile), "Old source");
         fs.File.SetCreationTimeUtc(path, Timestamp.AddDays(1));
@@ -110,7 +112,7 @@ public class GeneratedBootfilesInstallerTest
     [Fact]
     public void ConstructionReportsMissingBackup()
     {
-        var relative = Path.Combine("Pakfiles", SomeSourceFile);
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
         var state = new Dictionary<string, PackageInstallationState>
         {
             ["Bootfiles"] = new(new DateTimeOffset(Timestamp), 1, false, [], [relative], [])
@@ -124,7 +126,7 @@ public class GeneratedBootfilesInstallerTest
     [Fact]
     public void GenerationUsesBackupWithUnrelatedFileName()
     {
-        var relative = Path.Combine("Pakfiles", SomeSourceFile);
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
         fs.File.Move(Path.Combine("Game", relative), BackupPath(SomeSourceFile));
         var installer = CreateInstaller(new Dictionary<string, PackageInstallationState>
         {
@@ -141,7 +143,7 @@ public class GeneratedBootfilesInstallerTest
     [Fact]
     public void GenerationFailureDoesNotInstallFiles()
     {
-        var path = Path.Combine("Game", "Pakfiles", SomeSourceFile);
+        var path = Path.Combine("Game", PakfilesDirectory, SomeSourceFile);
         var original = fs.File.ReadAllText(path);
         var installer = CreateInstaller();
 
@@ -156,7 +158,7 @@ public class GeneratedBootfilesInstallerTest
     [Fact]
     public void GenerationReselectsRestoredSource()
     {
-        var relative = Path.Combine("Pakfiles", SomeSourceFile);
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
         var path = Path.Combine("Game", relative);
         fs.File.Move(path, BackupPath(SomeSourceFile));
         var state = new Dictionary<string, PackageInstallationState>

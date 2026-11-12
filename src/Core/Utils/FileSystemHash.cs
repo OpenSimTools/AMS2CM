@@ -5,9 +5,7 @@ namespace Core.Utils;
 
 public static class FileSystemHash
 {
-    public static int Hash32(IFileInfo fileInfo) => Hash32(new[] { fileInfo });
-
-    public static int Hash32(IEnumerable<IFileInfo> files)
+    public static int Hash32(params IEnumerable<IFileInfo> files)
     {
         var hasher = new XxHash3();
         foreach (var fileInfo in files)

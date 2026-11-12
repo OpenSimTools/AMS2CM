@@ -1,4 +1,4 @@
-using System.IO.Abstractions;
+﻿using System.IO.Abstractions;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -15,15 +15,15 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
     internal const string BootSplashPakFileName = "BOOTSPLASH.bff";
     internal const string PhysicsPersistentPakFileName = "PHYSICSPERSISTENT.bff";
 
-    private static readonly string[] SourceNames =
+    private static readonly string BmtFilesWildcard =
+        Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
+
+    internal static readonly string[] SourceNames =
         [BootFlowPakFileName, BootSplashPakFileName, PhysicsPersistentPakFileName];
 
     private readonly IDirectoryInfo gameInstallationDirectory;
     private readonly IReadOnlyDictionary<string, PackageInstallationState> state;
     private readonly MoveFileBackupStrategy.IBackupFileNaming backupFileNaming;
-
-    private readonly string BmtFilesWildcard =
-        Path.Combine("vehicles", "_data", "effects", "backfire", "*.bmt");
 
     /// <remarks>The state must reflect live ownership, updated in place throughout reconciliation.</remarks>
     public GeneratedBootfilesInstaller(string packageName, IDirectoryInfo gameInstallationDirectory,
@@ -50,9 +50,8 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     private static Dictionary<string, IFileInfo> SelectSources(IDirectoryInfo gameInstallationDirectory,
         IReadOnlyDictionary<string, PackageInstallationState> state,
-        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming)
-    {
-        return SourceNames.ToDictionary(name => name, name =>
+        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) =>
+        SourceNames.ToDictionary(name => name, name =>
         {
             var relative = Path.Combine(PakfilesDirectory, name);
             var live = gameInstallationDirectory.FileSystem.FileInfo.New(
@@ -60,11 +59,12 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
             var owner = state.Values.FirstOrDefault(s => s.Files.Any(p =>
                 StringComparer.OrdinalIgnoreCase.Equals(Paths.NormalizeDirectorySeparators(p), relative)));
             var source = owner is not null && (!live.Exists || live.CreationTimeUtc <= owner.Time.UtcDateTime)
-                ? gameInstallationDirectory.FileSystem.FileInfo.New(backupFileNaming.ToBackup(live.FullName)) : live;
-            return source.Exists ? source
+                ? gameInstallationDirectory.FileSystem.FileInfo.New(backupFileNaming.ToBackup(live.FullName))
+                : live;
+            return source.Exists
+                ? source
                 : throw new FileNotFoundException("Missing bootfiles generation source", source.FullName);
         });
-    }
 
     protected override void InstallAllFiles(InstallBody body)
     {

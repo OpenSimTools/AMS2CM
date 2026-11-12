@@ -3,6 +3,7 @@ using System.IO.Abstractions.TestingHelpers;
 using Core.API;
 using Core.Games;
 using Core.IO;
+using Core.Mods.Installation.Installers;
 using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Installers;
@@ -20,7 +21,6 @@ public class ModManagerTest
 
     private const string BootfilesPrefix = "BP";
     private const string GeneratedBootfilesName = BootfilesPrefix + "_generated";
-    private static readonly string[] BootfilesSourceNames = ["BOOTFLOW.bff", "BOOTSPLASH.bff", "PHYSICSPERSISTENT.bff"];
     private const string DirAtRoot = "DirAtRoot";
     private const string FileExcludedFromInstall = "Excluded";
     private static readonly string GameSupportedModDirectory = Path.Combine("Mod", "Directory");
@@ -1047,8 +1047,8 @@ public class ModManagerTest
     {
         var trackPath = Path.Combine(DirAtRoot, "Track.trd");
         var mod = CreateModPackage(101, [trackPath]);
-        var sources = BootfilesSourceNames
-            .Select(name => CreateFile(GamePath("Pakfiles", name), "Invalid archive")).ToArray();
+        var sources = GeneratedBootfilesInstaller.SourceNames
+            .Select(name => CreateFile(GamePath(GeneratedBootfilesInstaller.PakfilesDirectory, name), "Invalid archive")).ToArray();
         CreateFile(GamePath(trackPath), "Installed track").CreationTimeUtc = PastDate.UtcDateTime;
         CreateFile(GamePath(TrackListRelativePath), "Installed bootfiles").CreationTimeUtc = PastDate.UtcDateTime;
         CreateFile(GamePath(GameSupportedModDirectory, mod.Name, DefaultModInstallConfig.TrackListFileName),
