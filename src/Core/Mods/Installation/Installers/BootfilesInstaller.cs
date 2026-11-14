@@ -17,13 +17,10 @@ public class BootfilesInstaller : BaseModInstaller
 
     public interface IEventHandler
     {
-        void PostProcessingNotRequired();
-        void PostProcessingStart();
         void ExtractingBootfiles(string? packageName);
         void PostProcessingVehicles();
         void PostProcessingTracks();
         void PostProcessingDrivelines();
-        void PostProcessingEnd();
     }
 
     private readonly PathRoot gameRoot;
@@ -50,14 +47,7 @@ public class BootfilesInstaller : BaseModInstaller
         ProcessingCallbacks<RootedPath> callbacks)
     {
         var modConfigs = CollectModConfig();
-        if (modConfigs.None())
-        {
-            eventHandler.PostProcessingNotRequired();
-            return;
-        }
-
-        eventHandler.PostProcessingStart();
-        var packageNameIfNotGenerated = bootfilesNaming.IsGeneratedBootfiles(PackageName) ? PackageName : null;
+        var packageNameIfNotGenerated = bootfilesNaming.IsGeneratedBootfiles(PackageName) ? null : PackageName;
         eventHandler.ExtractingBootfiles(packageNameIfNotGenerated);
 
         innerInstall();
@@ -79,8 +69,6 @@ public class BootfilesInstaller : BaseModInstaller
             eventHandler.PostProcessingDrivelines();
             InsertDrivelineRecords(modConfigs.DrivelineRecords, backupStrategy, callbacks);
         }
-
-        eventHandler.PostProcessingEnd();
     }
 
     protected override RootedPath VehicleListDir { get; }

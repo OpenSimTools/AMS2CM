@@ -119,6 +119,7 @@ public class ModReconciliationContextTest :
 
         creatingBootfiles.Verify(c => c(It.IsAny<IReadOnlyDictionary<string, PackageInstallationState>>()), Times.Never);
         Mock.Get(bootfiles).Verify(p => p.CreateInstaller(), Times.Never);
+        EventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -152,7 +153,6 @@ public class ModReconciliationContextTest :
         creatingBootfiles.Verify(c => c(It.IsAny<IReadOnlyDictionary<string, PackageInstallationState>>()), Times.Never);
         Mock.Get(bootfiles).Verify(p => p.CreateInstaller(), Times.Never);
         InstalledPackages.Should().BeEmpty();
-        EventHandlerMock.Verify(e => e.PostProcessingNotRequired(), Times.Once);
     }
 
     [Fact]
@@ -183,12 +183,18 @@ public class ModReconciliationContextTest :
     [Fact]
     public void Reconcile_InstallsBootfilesPackageIfModRequiresThem()
     {
+        var sequence = new MockSequence();
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
+        events.InSequence(sequence).Setup(e => e.InstallingPackage(ModRequiringBootfiles));
+        events.InSequence(sequence).Setup(e => e.InstallingPackage(BootfilesPackageName));
+
         Reconcile([
             Package(ModRequiringBootfiles),
             Package(BootfilesPackageName)
-        ]);
+        ], events.Object);
 
         InstalledPackages.Should().BeEquivalentTo(ModRequiringBootfiles, BootfilesPackageName);
+        events.VerifyAll();
     }
 
     [Fact]
@@ -211,12 +217,11 @@ public class ModReconciliationContextTest :
     [Fact]
     public void Reconcile_SkipsUnnecessaryGeneratedBootfiles()
     {
-        var packages = new List<string>();
-        EventHandlerMock.Setup(m => m.InstallingPackage(It.IsAny<string>())).Callback<string>(packages.Add);
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
 
-        Reconcile([]);
+        Reconcile([], events.Object);
 
-        packages.Should().BeEmpty();
+        events.VerifyNoOtherCalls();
         creatingBootfiles.Verify(c => c(It.IsAny<IReadOnlyDictionary<string, PackageInstallationState>>()), Times.Never);
     }
 
@@ -304,6 +309,35 @@ public class ModReconciliationContextTest :
     }
 
     [Fact]
+    public void UnchangedBootfilesAreSkipped()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        var sequence = new MockSequence();
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
+        events.InSequence(sequence).Setup(e => e.SkippingPackage(ModRequiringBootfiles));
+        events.InSequence(sequence).Setup(e => e.SkippingPackage(BootfilesPackageName));
+
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)], events.Object);
+
+        events.VerifyAll();
+    }
+
+    [Fact]
+    public void SwitchingToPackagedBootfilesRemovesGeneratedBootfiles()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1)]);
+        var sequence = new MockSequence();
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(GeneratedBootfilesName));
+        events.InSequence(sequence).Setup(e => e.SkippingPackage(ModRequiringBootfiles));
+        events.InSequence(sequence).Setup(e => e.InstallingPackage(BootfilesPackageName));
+
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)], events.Object);
+
+        events.VerifyAll();
+    }
+
+    [Fact]
     public void AddingDependentInvalidatesBootfilesBeforePostProcessing()
     {
         Reconcile([Package("OtherDependent", 1, ["Other"], [BootfilesPackageName]),
@@ -388,11 +422,47 @@ public class ModReconciliationContextTest :
     {
         Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
         configure.Invocations.Clear();
+        var sequence = new MockSequence();
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(ModRequiringBootfiles));
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(BootfilesPackageName));
 
-        Reconcile([Package(BootfilesPackageName, 1)]);
+        Reconcile([Package(BootfilesPackageName, 1)], events.Object);
 
         InstallationState.Should().BeEmpty();
         configure.Verify(c => c(), Times.Never);
+        events.VerifyAll();
+    }
+
+    [Fact]
+    public void EmptySelectionRemovesObsoleteBootfiles()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        var sequence = new MockSequence();
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(ModRequiringBootfiles));
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(BootfilesPackageName));
+
+        Reconcile([], events.Object);
+
+        events.VerifyAll();
+    }
+
+    [Fact]
+    public void BootfilesUninstallFailurePropagates()
+    {
+        Reconcile([Package(ModRequiringBootfiles, 1), Package(BootfilesPackageName, 1)]);
+        BackupStrategyMock.Setup(b => b.RestoreBackup(DestinationPath(BootfilesPackageName)))
+            .Throws(new IOException("Restore failed"));
+        var sequence = new MockSequence();
+        var events = new Mock<ModReconciliationContext.IEventHandler>(MockBehavior.Strict);
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(ModRequiringBootfiles));
+        events.InSequence(sequence).Setup(e => e.UninstallingPackage(BootfilesPackageName));
+
+        var reconcile = () => Reconcile([], events.Object);
+
+        reconcile.Should().Throw<IOException>();
+        events.VerifyAll();
     }
 
     [Fact]

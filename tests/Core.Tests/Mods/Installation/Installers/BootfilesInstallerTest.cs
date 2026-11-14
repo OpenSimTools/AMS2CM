@@ -14,7 +14,9 @@ namespace Core.Tests.Mods.Installation.Installers;
 [UnitTest]
 public class BootfilesInstallerTest
 {
-    private const string BootfilesPackageName = "notused";
+    #region Setup
+
+    private const string BootfilesPackageName = "BootfilesPackage";
     private static readonly string FileInBootfilesPackage = Path.Combine(GameDirAtRoot, "Something");
 
     private const string GameDirAtRoot = "DirAtRoot";
@@ -25,8 +27,6 @@ public class BootfilesInstallerTest
     private const string TrackListFileName = "TrackList";
     private const string BootfilesDrivelineDir = "BootfilesDrivelineDir";
     private const string DrivelineFileName = "Driveline";
-
-    #region Setup
 
     private readonly MockFileSystem fs = new();
     private readonly FakeTimeProvider fakeTimeProvider = new();
@@ -58,19 +58,32 @@ public class BootfilesInstallerTest
     #endregion
 
     [Fact]
-    public void BootfilesAreNotInstalledWhenNoMods()
+    public void BootfilesAreInstalledWithoutModConfig()
     {
-        InstallBootfiles().InstalledFiles.Should().BeEmpty();
+        var expected = DestRootedPaths(FileInBootfilesPackage);
 
-        eventHandlerMock.Verify(m => m.PostProcessingNotRequired(), Times.Once);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentPathTo(expected);
 
-        callbackMock.VerifyNoOtherCalls();
+        eventHandlerMock.Verify(m => m.ExtractingBootfiles(BootfilesPackageName), Times.Once);
+        eventHandlerMock.VerifyNoOtherCalls();
 
-        fs.AllFiles.Should().BeEmpty();
+        VerifyCallbackCalledWith(expected);
+        fs.AllFiles.Should().BeEquivalentTo(expected.Select(path => path.Full));
     }
 
     [Fact]
-    public void BootfilesAreNotInstalledForModsWithManifests()
+    public void GeneratedBootfilesAreExtractedFromGame()
+    {
+        bootfilesNamingMock.Setup(m => m.IsGeneratedBootfiles(BootfilesPackageName)).Returns(true);
+
+        InstallBootfiles();
+
+        eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
+        eventHandlerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void ConfigFromModsWithManifestsIsIgnored()
     {
         var contents = MultiLineContents();
 
@@ -79,11 +92,14 @@ public class BootfilesInstallerTest
         fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "ModName", TrackListFileName), contents);
         fs.AddFile(Path.Combine(destinationPath, GameSupportedModDirectory, "ModName", DrivelineFileName), contents);
 
-        InstallBootfiles().InstalledFiles.Should().BeEmpty();
+        var expected = DestRootedPaths(FileInBootfilesPackage);
 
-        eventHandlerMock.Verify(m => m.PostProcessingNotRequired(), Times.Once);
+        InstallBootfiles().InstalledFiles.Should().BeEquivalentPathTo(expected);
 
-        callbackMock.VerifyNoOtherCalls();
+        eventHandlerMock.Verify(m => m.ExtractingBootfiles(BootfilesPackageName), Times.Once);
+        eventHandlerMock.VerifyNoOtherCalls();
+
+        VerifyCallbackCalledWith(expected);
 
         fs.File.Exists(Path.Combine(destinationPath, BootfilesVehicleListDir, VehicleListFileName)).Should().BeFalse();
         fs.File.Exists(Path.Combine(destinationPath, BootfilesTrackListDir, TrackListFileName)).Should().BeFalse();
@@ -108,10 +124,8 @@ public class BootfilesInstallerTest
         bootfiles.InstalledFiles.Should().BeEquivalentPathTo(expected);
         bootfiles.PackageVersionHash.Should().Be(42);
 
-        eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
-        eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
+        eventHandlerMock.Verify(m => m.ExtractingBootfiles(BootfilesPackageName), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingVehicles(), Times.Once);
-        eventHandlerMock.Verify(m => m.PostProcessingEnd(), Times.Once);
         eventHandlerMock.VerifyNoOtherCalls();
 
         VerifyCallbackCalledWith(expected);
@@ -136,10 +150,8 @@ public class BootfilesInstallerTest
 
         InstallBootfiles().InstalledFiles.Should().BeEquivalentPathTo(expected);
 
-        eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
-        eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
+        eventHandlerMock.Verify(m => m.ExtractingBootfiles(BootfilesPackageName), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingTracks(), Times.Once);
-        eventHandlerMock.Verify(m => m.PostProcessingEnd(), Times.Once);
         eventHandlerMock.VerifyNoOtherCalls();
 
         VerifyCallbackCalledWith(expected);
@@ -164,10 +176,8 @@ public class BootfilesInstallerTest
 
         InstallBootfiles().InstalledFiles.Should().BeEquivalentPathTo(expected);
 
-        eventHandlerMock.Verify(m => m.PostProcessingStart(), Times.Once);
-        eventHandlerMock.Verify(m => m.ExtractingBootfiles(null), Times.Once);
+        eventHandlerMock.Verify(m => m.ExtractingBootfiles(BootfilesPackageName), Times.Once);
         eventHandlerMock.Verify(m => m.PostProcessingDrivelines(), Times.Once);
-        eventHandlerMock.Verify(m => m.PostProcessingEnd(), Times.Once);
         eventHandlerMock.VerifyNoOtherCalls();
 
         VerifyCallbackCalledWith(expected);
@@ -209,7 +219,7 @@ public class BootfilesInstallerTest
                 .Select(line => line.Split('#')[0].Trim())
                 .Where(line => !string.IsNullOrEmpty(line)));
 
-    private IReadOnlySet<RootedPath> DestRootedPaths(params string[] relativePaths) =>
+    private HashSet<RootedPath> DestRootedPaths(params string[] relativePaths) =>
         relativePaths.Select(destinationRoot.Combine).ToHashSet();
 
     private void VerifyCallbackCalledWith(IReadOnlySet<RootedPath> relativePaths)

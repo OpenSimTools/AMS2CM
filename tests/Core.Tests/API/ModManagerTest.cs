@@ -984,7 +984,6 @@ public class ModManagerTest
         modManager.InstallEnabledMods(eventHandlerMock.Object);
 
         persistedState.Should().BeEmpty();
-        eventHandlerMock.Verify(e => e.PostProcessingNotRequired(), Times.Once);
     }
 
     [Fact]

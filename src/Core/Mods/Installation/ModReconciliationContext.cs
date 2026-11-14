@@ -65,7 +65,6 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         var currentDependents = Dependents(CurrentState, bootfilesName);
         if (currentDependents.Count == 0)
         {
-            eventHandler.PostProcessingNotRequired();
             if (state is not null)
             {
                 ExecuteAction(actionFactory.Uninstall(bootfilesName, state));

@@ -22,7 +22,7 @@ public sealed class ReconciliationService<TEventHandler>(
 
         if (actions.Count == 0)
         {
-            eventHandler.ReconciliationNoPackages();
+            eventHandler.ReconciliationNoActions();
             return;
         }
 
@@ -34,13 +34,13 @@ public sealed class ReconciliationService<TEventHandler>(
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    return;
+                    break;
                 }
 
                 action();
                 eventHandler.ProgressUpdate(progress.IncrementDone());
             }
-            eventHandler.ReconciliationEnd();
+            eventHandler.ReconciliationEnd(cancellationToken);
         }
         finally
         {
@@ -53,9 +53,9 @@ public static class ReconciliationService
 {
     public interface IEventHandler : IProgress, IReconciliationContext.IEventHandler
     {
-        void ReconciliationNoPackages();
+        void ReconciliationNoActions();
         void ReconciliationStart();
-        void ReconciliationEnd();
+        void ReconciliationEnd(CancellationToken cancellationToken);
     }
 
     public interface IProgress
