@@ -15,6 +15,7 @@
 
 - Place test setup and constants in a `Setup` region at the top of the class, and test utility methods in a `Utility Methods` region at the bottom.
 - Prefer `[Fact]`. Use `[Theory]` only when parameterization is needed.
+- Keep all unit tests for a class in a single test class. Do not create separate test classes for individual methods.
 - Keep test cases to the minimum needed to cover distinct execution paths. Do not add filler or redundant cases.
 - Test one behaviour per test. `And` in a test name usually signals combined behaviours; simplify the test, not just its name. Multiple assertions are fine when they verify the same behaviour.
 - Keep test names, scenarios, and data within the class's own domain and responsibilities, without introducing unrelated application concepts.
