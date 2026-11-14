@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.IO.Abstractions;
 using Core.Games;
 using Core.Mods.Installation.Installers;
 using Core.Packages;
@@ -15,7 +16,8 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
     ITempDir tempDir,
     IBootfilesNaming bootfilesNaming,
     TConfig config,
-    MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) : PackageReconciliationContextBase<TEventHandler>(previousState)
+    MoveFileBackupStrategy.IBackupFileNaming backupFileNaming,
+    IFileUpdateTracker updateTracker) : PackageReconciliationContextBase<TEventHandler>(previousState)
     where TEventHandler : ModReconciliationContext.IEventHandler
     where TConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
 {
@@ -24,9 +26,10 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
         ITempDir tempDir,
         IBootfilesNaming bootfilesNaming,
         TConfig config,
-        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) => previousState =>
+        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming,
+        IFileUpdateTracker updateTracker) => previousState =>
         new ModReconciliationContext<TEventHandler, TConfig>(
-            previousState, game, tempDir, bootfilesNaming, config, backupFileNaming);
+            previousState, game, tempDir, bootfilesNaming, config, backupFileNaming, updateTracker);
 
     private protected override IReadOnlyCollection<Action> CreateActions(IEnumerable<IPackage> packages,
         ReconciliationAction<TEventHandler>.Factory actionFactory,
@@ -57,28 +60,28 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
                 .Select(d => bootfilesNaming.IsBootfiles(d) ? bootfilesName : d).ToArray()
         });
 
-    private void ReconcileBootfiles(IPackage? bootfilesPackage, string bootfilesName,
+    private void ReconcileBootfiles(IPackage? package, string packageName,
         IReadOnlyDictionary<string, PackageInstallationState> planningState,
         ReconciliationAction<TEventHandler>.Factory actionFactory, TEventHandler eventHandler)
     {
-        var state = CurrentState.GetValueOrDefault(bootfilesName);
-        var currentDependents = Dependents(CurrentState, bootfilesName);
+        var state = CurrentState.GetValueOrDefault(packageName);
+        var currentDependents = Dependents(CurrentState, packageName);
         if (currentDependents.Count == 0)
         {
             if (state is not null)
             {
-                ExecuteAction(actionFactory.Uninstall(bootfilesName, state));
+                ExecuteAction(actionFactory.Uninstall(packageName, state));
             }
             return;
         }
 
-        var bootfiles = CreateBootfilesInstaller(bootfilesPackage, CurrentState, eventHandler);
+        var bootfiles = CreateBootfilesInstaller(package, CurrentState, eventHandler);
         var requiresInstallation = RequiresInstallation(bootfiles, state, planningState, currentDependents);
         if (state is not null)
         {
             ExecuteAction(requiresInstallation
-                ? actionFactory.Uninstall(bootfilesName, state)
-                : actionFactory.Keep(bootfilesName, state));
+                ? actionFactory.Uninstall(packageName, state)
+                : actionFactory.Keep(packageName, state));
         }
         if (requiresInstallation)
         {
@@ -88,26 +91,39 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
 
     private static HashSet<string> Dependents(IReadOnlyDictionary<string, PackageInstallationState> state,
         string bootfilesName) =>
-        state.Where(p => p.Key != bootfilesName && p.Value.Dependencies.Contains(bootfilesName))
-            .Select(p => p.Key).ToHashSet();
+    [
+        .. state.Where(p => p.Key != bootfilesName && p.Value.Dependencies.Contains(bootfilesName))
+            .Select(p => p.Key)
+    ];
 
     protected virtual IPackageInstaller CreateBootfilesInstaller(IPackage? bootfilesPackage,
         IReadOnlyDictionary<string, PackageInstallationState> state, TEventHandler eventHandler) =>
         new BootfilesInstaller(bootfilesPackage?.CreateInstaller() ??
             new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
-                game.InstallationDirectory, tempDir.BaseDirectory, state, backupFileNaming), tempDir.BaseDirectory, config,
+                tempDir.BaseDirectory, relative => ResolveSource(relative, state)), tempDir.BaseDirectory, config,
             game.InstallationDirectory, bootfilesNaming, eventHandler);
 
-    private bool RequiresInstallation(IPackageInstaller bootfiles, PackageInstallationState? state,
+    private IFileInfo ResolveSource(string relative, IReadOnlyDictionary<string, PackageInstallationState> state)
+    {
+        var directory = game.InstallationDirectory;
+        var live = directory.FileSystem.FileInfo.New(Path.Combine(directory.FullName, relative));
+        var owner = state.Values.FirstOrDefault(s => s.Files.Any(p =>
+            StringComparer.OrdinalIgnoreCase.Equals(Paths.NormalizeDirectorySeparators(p), relative)));
+        return owner is not null && !updateTracker.HasBeenUpdated(live, owner.Time)
+            ? directory.FileSystem.FileInfo.New(backupFileNaming.ToBackup(live.FullName))
+            : live;
+    }
+
+    private bool RequiresInstallation(IPackageInstaller installer, PackageInstallationState? state,
         IReadOnlyDictionary<string, PackageInstallationState> planningState, IReadOnlySet<string> currentDependents)
     {
         if (state is null) return true;
-        var previousDependents = Dependents(planningState, bootfiles.PackageName);
-        var previous = planningState.GetValueOrDefault(bootfiles.PackageName);
+        var previousDependents = Dependents(planningState, installer.PackageName);
+        var previous = planningState.GetValueOrDefault(installer.PackageName);
         return !previousDependents.SetEquals(currentDependents) ||
             previousDependents.Union(currentDependents).Any(ReplacedPackages.Contains) ||
-            state.Partial || state.VersionHash is null || bootfiles.PackageVersionHash is null ||
-            state.VersionHash != bootfiles.PackageVersionHash ||
+            state.Partial || state.VersionHash is null || installer.PackageVersionHash is null ||
+            state.VersionHash != installer.PackageVersionHash ||
             state.ShadowedBy.Any(ReplacedPackages.Contains) ||
             state.ShadowedBy.Any(p => !CurrentState.ContainsKey(p)) ||
             (previous is not null && !previous.ShadowedBy.ToHashSet().SetEquals(state.ShadowedBy));
@@ -153,7 +169,5 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
 
 public static class ModReconciliationContext
 {
-    public interface IEventHandler : IReconciliationContext.IEventHandler, BootfilesInstaller.IEventHandler
-    {
-    }
+    public interface IEventHandler : IReconciliationContext.IEventHandler, BootfilesInstaller.IEventHandler;
 }

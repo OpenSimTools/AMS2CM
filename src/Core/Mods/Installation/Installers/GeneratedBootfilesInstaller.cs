@@ -1,6 +1,4 @@
 ﻿using System.IO.Abstractions;
-using Core.Packages.Installation;
-using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
 using Core.Utils;
 using PCarsTools;
@@ -21,46 +19,29 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
     internal static readonly string[] SourceNames =
         [BootFlowPakFileName, BootSplashPakFileName, PhysicsPersistentPakFileName];
 
-    private readonly IDirectoryInfo gameInstallationDirectory;
-    private readonly IReadOnlyDictionary<string, PackageInstallationState> state;
-    private readonly MoveFileBackupStrategy.IBackupFileNaming backupFileNaming;
+    private readonly Func<string, IFileInfo> resolveSource;
 
-    /// <remarks>The state must reflect live ownership, updated in place throughout reconciliation.</remarks>
-    public GeneratedBootfilesInstaller(string packageName, IDirectoryInfo gameInstallationDirectory,
-        IDirectoryInfo tempDir, IReadOnlyDictionary<string, PackageInstallationState> state,
-        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) :
-        base(CreateExtractionDirectory(tempDir), packageName,
-            HashSources(gameInstallationDirectory, state, backupFileNaming))
+    public GeneratedBootfilesInstaller(string packageName, IDirectoryInfo tempDir,
+        Func<string, IFileInfo> resolveSource) :
+        base(CreateExtractionDirectory(tempDir), packageName, HashSources(resolveSource))
     {
-        this.gameInstallationDirectory = gameInstallationDirectory;
-        this.state = state;
-        this.backupFileNaming = backupFileNaming;
+        this.resolveSource = resolveSource;
     }
 
     private static IDirectoryInfo CreateExtractionDirectory(IDirectoryInfo tempDir) =>
         tempDir.CreateSubdirectory(Guid.NewGuid().ToString());
 
-    private static int HashSources(IDirectoryInfo gameInstallationDirectory,
-        IReadOnlyDictionary<string, PackageInstallationState> state,
-        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming)
+    private static int HashSources(Func<string, IFileInfo> resolveSource)
     {
-        var sources = SelectSources(gameInstallationDirectory, state, backupFileNaming);
+        var sources = SelectSources(resolveSource);
         return FileSystemHash.Hash32(SourceNames.Select(name => sources[name]));
     }
 
-    private static Dictionary<string, IFileInfo> SelectSources(IDirectoryInfo gameInstallationDirectory,
-        IReadOnlyDictionary<string, PackageInstallationState> state,
-        MoveFileBackupStrategy.IBackupFileNaming backupFileNaming) =>
+    private static Dictionary<string, IFileInfo> SelectSources(Func<string, IFileInfo> resolveSource) =>
         SourceNames.ToDictionary(name => name, name =>
         {
             var relative = Path.Combine(PakfilesDirectory, name);
-            var live = gameInstallationDirectory.FileSystem.FileInfo.New(
-                Path.Combine(gameInstallationDirectory.FullName, relative));
-            var owner = state.Values.FirstOrDefault(s => s.Files.Any(p =>
-                StringComparer.OrdinalIgnoreCase.Equals(Paths.NormalizeDirectorySeparators(p), relative)));
-            var source = owner is not null && (!live.Exists || live.CreationTimeUtc <= owner.Time.UtcDateTime)
-                ? gameInstallationDirectory.FileSystem.FileInfo.New(backupFileNaming.ToBackup(live.FullName))
-                : live;
+            var source = resolveSource(relative);
             return source.Exists
                 ? source
                 : throw new FileNotFoundException("Missing bootfiles generation source", source.FullName);
@@ -68,7 +49,7 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
 
     protected override void InstallAllFiles(InstallBody body)
     {
-        GenerateBootfiles(SelectSources(gameInstallationDirectory, state, backupFileNaming));
+        GenerateBootfiles();
         base.InstallAllFiles(body);
     }
 
@@ -77,8 +58,9 @@ internal class GeneratedBootfilesInstaller : BaseDirectoryInstaller
         fileInfo.MoveTo(destinationPath.Full, overwrite: true);
     }
 
-    private void GenerateBootfiles(IReadOnlyDictionary<string, IFileInfo> selectedSources)
+    private void GenerateBootfiles()
     {
+        var selectedSources = SelectSources(resolveSource);
         ExtractPakFileFromGame(selectedSources, BootFlowPakFileName);
         ExtractPakFileFromGame(selectedSources, PhysicsPersistentPakFileName);
         CreateEmptyFile(ExtractedPakPath($"{PhysicsPersistentPakFileName}{BaseInstaller.RemoveFileSuffix}"));

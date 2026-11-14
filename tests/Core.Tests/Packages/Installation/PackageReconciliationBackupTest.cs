@@ -24,6 +24,7 @@ public class PackageReconciliationBackupTest
     {
         destination = fs.Directory.CreateDirectory("Game");
         var backups = new SkipUpdatedBackupStrategy.Provider<ReconciliationService.IEventHandler>(fs,
+            new CreationTimeFileUpdateTracker(),
             new SuffixBackupStrategy.Provider<DateTimeOffset, ReconciliationService.IEventHandler>(fs));
         service = new ReconciliationService<ReconciliationService.IEventHandler>(backups,
             PackageReconciliationContext<ReconciliationService.IEventHandler>.Factory());

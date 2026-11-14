@@ -35,14 +35,15 @@ public static class Init
         ITempDir tempDir,
         ModInstallConfig modInstallConfig)
     {
+        var updateTracker = new CreationTimeFileUpdateTracker();
         var backupStrategyProvider = new SkipUpdatedBackupStrategy.Provider<IEventHandler>(
-            fs,
+            fs, updateTracker,
             new SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>(fs));
         var bootfilesNaming = new PrefixBootfilesNaming(modInstallConfig);
         var modReconciliationService = new ReconciliationService<IEventHandler>(
             backupStrategyProvider,
             ModReconciliationContext<IEventHandler, ModInstallConfig>.Factory(game, tempDir,
-                bootfilesNaming, modInstallConfig, SuffixBackupStrategy.Naming));
+                bootfilesNaming, modInstallConfig, SuffixBackupStrategy.Naming, updateTracker));
         return new ModManager(game, modRepository, bootfilesNaming, modReconciliationService, statePersistence,
             safeFileDelete, tempDir);
     }

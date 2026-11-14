@@ -13,6 +13,8 @@ using Core.Tests.Packages.Installation;
 using Core.Utils;
 using FluentAssertions;
 
+using static Core.Mods.Installation.Installers.GeneratedBootfilesInstaller;
+
 namespace Core.Tests.Mods.Installation;
 
 [IntegrationTest]
@@ -28,6 +30,34 @@ public class ModReconciliationContextTest :
     private const string GeneratedBootfilesName = "__generated";
     private const string BootfilesPackageName = "__package";
     private const string ModRequiringBootfiles = "ModRequiringBootfiles";
+
+    private readonly MockFileSystem sourceFileSystem = new();
+    private readonly Mock<MoveFileBackupStrategy.IBackupFileNaming> sourceBackupFileNaming = new();
+
+    private static string SomeSourceFile => SourceFiles.First();
+    private static IEnumerable<string> SourceFiles => SourceBackupNames.Keys;
+    private static readonly Dictionary<string, string> SourceBackupNames = new()
+    {
+        [BootFlowPakFileName] = "first.bin",
+        [BootSplashPakFileName] = "second.bin",
+        [PhysicsPersistentPakFileName] = "third.bin"
+    };
+    private static readonly DateTime SourceTimestamp = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    public ModReconciliationContextTest()
+    {
+        sourceFileSystem.Directory.CreateDirectory("Backups");
+        foreach (var name in SourceFiles)
+        {
+            var path = sourceFileSystem.Path.GetFullPath(Path.Combine("Game", PakfilesDirectory, name));
+            sourceBackupFileNaming.Setup(n => n.ToBackup(path)).Returns(BackupPath(name));
+            sourceFileSystem.AddFile(path, new MockFileData(name)
+            {
+                LastWriteTime = SourceTimestamp,
+                CreationTime = SourceTimestamp
+            });
+        }
+    }
 
     protected override IReconciliationContext<ModReconciliationContext.IEventHandler>.FactoryFunc ContextFactory
     {
@@ -48,7 +78,7 @@ public class ModReconciliationContextTest :
         ModReconciliationContextTest test)
         : ModReconciliationContext<ModReconciliationContext.IEventHandler, ModInstallConfig>(previousState,
             Mock.Of<IGame>(), Mock.Of<ITempDir>(), bootfilesNaming, new ModInstallConfig(),
-            Mock.Of<MoveFileBackupStrategy.IBackupFileNaming>())
+            Mock.Of<MoveFileBackupStrategy.IBackupFileNaming>(), Mock.Of<IFileUpdateTracker>())
     {
         protected override IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
             string bootfilesPackageName) =>
@@ -645,6 +675,76 @@ public class ModReconciliationContextTest :
         InstallationState[BootfilesPackageName].Partial.Should().BeTrue();
     }
 
+    [Fact]
+    public void OwnedSourcesUseOriginalBackupsIndividually()
+    {
+        var original = CreateGeneratedBootfilesInstaller().PackageVersionHash;
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
+        var path = Path.Combine("Game", relative);
+        sourceFileSystem.File.Move(path, BackupPath(SomeSourceFile));
+        sourceFileSystem.AddFile(path, new MockFileData("Installed content") { CreationTime = SourceTimestamp });
+        var installer = CreateGeneratedBootfilesInstaller(new Dictionary<string, PackageInstallationState>
+        {
+            ["Bootfiles"] = new(new DateTimeOffset(SourceTimestamp), 1, false, [],
+                [relative.Replace('\\', '/').ToLowerInvariant()], [])
+        });
+
+        installer.PackageVersionHash.Should().Be(original);
+    }
+
+    [Fact]
+    public void UpdatedOwnedSourceUsesLiveFile()
+    {
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
+        var path = Path.Combine("Game", relative);
+        sourceFileSystem.AddFile(BackupPath(SomeSourceFile), "Old source");
+        sourceFileSystem.File.SetCreationTimeUtc(path, SourceTimestamp.AddDays(1));
+        var expected = CreateGeneratedBootfilesInstaller().PackageVersionHash;
+        var installer = CreateGeneratedBootfilesInstaller(new Dictionary<string, PackageInstallationState>
+        {
+            ["Bootfiles"] = new(new DateTimeOffset(SourceTimestamp), 1, false, [], [relative], [])
+        });
+
+        installer.PackageVersionHash.Should().Be(expected);
+    }
+
+    [Fact]
+    public void ConstructionReportsMissingBackup()
+    {
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
+        var state = new Dictionary<string, PackageInstallationState>
+        {
+            ["Bootfiles"] = new(new DateTimeOffset(SourceTimestamp), 1, false, [], [relative], [])
+        };
+
+        var create = () => CreateGeneratedBootfilesInstaller(state);
+
+        create.Should().Throw<FileNotFoundException>().Which.FileName.Should().Be(BackupPath(SomeSourceFile));
+    }
+
+    [Fact]
+    public void GenerationReselectsRestoredSource()
+    {
+        var relative = Path.Combine(PakfilesDirectory, SomeSourceFile);
+        var path = Path.Combine("Game", relative);
+        sourceFileSystem.File.Move(path, BackupPath(SomeSourceFile));
+        var state = new Dictionary<string, PackageInstallationState>
+        {
+            ["Bootfiles"] = new(new DateTimeOffset(SourceTimestamp), 1, false, [], [relative], [])
+        };
+        var installer = CreateGeneratedBootfilesInstaller(state);
+        var backupStrategy = new MoveFileBackupStrategy(sourceFileSystem, sourceBackupFileNaming.Object, null);
+        backupStrategy.RestoreBackup(new PathRoot(sourceFileSystem.DirectoryInfo.New("Game")).Combine(relative));
+        state.Remove("Bootfiles");
+
+        var install = () => installer.Install(new PathRoot(sourceFileSystem.DirectoryInfo.New("Destination")).Combine,
+            Mock.Of<IBackupStrategy>(), new ProcessingCallbacks<RootedPath>());
+
+        // The archive reader uses the real filesystem. Reaching the live path proves reselection,
+        // even though the mock file cannot be opened by that reader.
+        install.Should().Throw<IOException>().WithMessage($"*'{sourceFileSystem.Path.GetFullPath(path)}'*");
+    }
+
     #region Utility Methods
 
     private void VerifyBootfilesRecovery(IPackage[] packages)
@@ -664,6 +764,24 @@ public class ModReconciliationContextTest :
         var persistence = new JsonFileStatePersistence(fs.Directory.CreateTempSubdirectory());
         persistence.WriteState(new SavedState(InstallationState));
         InstallationState = persistence.ReadState().Installation;
+    }
+
+    private IPackageInstaller CreateGeneratedBootfilesInstaller(
+        IReadOnlyDictionary<string, PackageInstallationState>? state = null) =>
+        new SourceTestContext(this).CreateGeneratedBootfilesInstaller(state ?? new Dictionary<string, PackageInstallationState>());
+
+    private string BackupPath(string name) => sourceFileSystem.Path.GetFullPath(Path.Combine("Backups", SourceBackupNames[name]));
+
+    private sealed class SourceTestContext(ModReconciliationContextTest test)
+        : ModReconciliationContext<ModReconciliationContext.IEventHandler, ModInstallConfig>(
+            new Dictionary<string, PackageInstallationState>(),
+            Mock.Of<IGame>(g => g.InstallationDirectory == test.sourceFileSystem.DirectoryInfo.New("Game")),
+            Mock.Of<ITempDir>(t => t.BaseDirectory == test.sourceFileSystem.Directory.CreateDirectory("Temp")),
+            Mock.Of<IBootfilesNaming>(n => n.GeneratedBootfilesName == "Generated"),
+            new ModInstallConfig(), test.sourceBackupFileNaming.Object, new CreationTimeFileUpdateTracker())
+    {
+        public IPackageInstaller CreateGeneratedBootfilesInstaller(IReadOnlyDictionary<string, PackageInstallationState> state) =>
+            CreateBootfilesInstaller(null, state, Mock.Of<ModReconciliationContext.IEventHandler>());
     }
 
     #endregion
