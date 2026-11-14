@@ -105,6 +105,7 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         {
             if (changing)
             {
+                MarkShadowedPackagesPartial(packageName);
                 BeforePackageChange(packageName, state);
             }
             foreach (var action in ResolveActions(packageName, state, installer, uninstall, actionFactory))
@@ -115,6 +116,25 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         finally
         {
             AfterPackageProcessing(packageName, changing);
+        }
+    }
+
+    private void MarkShadowedPackagesPartial(string packageName)
+    {
+        foreach (var (name, state) in currentState.ToArray())
+        {
+            if (state.ShadowedBy.Contains(packageName))
+            {
+                MarkPartial(name);
+            }
+        }
+    }
+
+    protected void MarkPartial(string packageName)
+    {
+        if (currentState.TryGetValue(packageName, out var state))
+        {
+            currentState[packageName] = state with { Partial = true };
         }
     }
 
@@ -130,7 +150,7 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
         {
             var ownership = currentState[packageName];
             // Keep planning metadata, including remapped bootfiles dependencies.
-            state = state with { Files = ownership.Files, ShadowedBy = ownership.ShadowedBy };
+            state = state with { Partial = ownership.Partial, Files = ownership.Files, ShadowedBy = ownership.ShadowedBy };
         }
         List<IReconciliationAction> actions = [];
         if (uninstall && state is not null)
@@ -230,13 +250,5 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
 
     protected virtual void AfterPackageProcessing(string packageName, bool changing)
     {
-    }
-
-    protected void MarkPartial(string packageName)
-    {
-        if (currentState.TryGetValue(packageName, out var state))
-        {
-            currentState[packageName] = state with { Partial = true };
-        }
     }
 }

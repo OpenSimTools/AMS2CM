@@ -3,7 +3,10 @@ using System.IO.Abstractions.TestingHelpers;
 using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
+using Core.State;
+using Core.State.JsonFile;
 using Core.Tests.Packages.Installation.Installers;
+using Core.Utils;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -110,6 +113,51 @@ public class PackageReconciliationBackupTest
         state["B"].ShadowedBy.Should().BeEmpty();
     }
 
+    [Fact]
+    public void InterruptedUpdateRecoversShadowedFile()
+    {
+        fs.AddFile(PathOf("Shared"), "Original");
+        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
+        ReconcileFirstAction(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
+        ReloadState();
+
+        Reconcile(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
+
+        fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
+        state["B"].Files.Should().Contain("Shared");
+        state["B"].Partial.Should().BeFalse();
+        state["B"].ShadowedBy.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void InterruptedRemovalRecoversShadowedFile()
+    {
+        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
+        ReconcileFirstAction(Package("B", 1, "BF", "Shared"));
+        ReloadState();
+
+        Reconcile(Package("B", 1, "BF", "Shared"));
+
+        fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
+        state["B"].Partial.Should().BeFalse();
+        state["B"].ShadowedBy.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemovingRecoveredPackagesRestoresOriginal()
+    {
+        fs.AddFile(PathOf("Shared"), "Original");
+        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
+        ReconcileFirstAction(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
+        ReloadState();
+        Reconcile(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
+
+        Reconcile();
+
+        fs.File.ReadAllText(PathOf("Shared")).Should().Be("Original");
+        fs.File.Exists(PathOf("Shared.orig")).Should().BeFalse();
+    }
+
     #region Utility Methods
 
     private string PathOf(string file) => Path.Combine(destination.FullName, file);
@@ -125,6 +173,22 @@ public class PackageReconciliationBackupTest
     private void Reconcile(params IPackage[] packages) =>
         service.Reconcile(state, packages, destination, updated => state = updated,
             Mock.Of<ReconciliationService.IEventHandler>(), CancellationToken.None);
+
+    private void ReconcileFirstAction(params IPackage[] packages)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var events = new Mock<ReconciliationService.IEventHandler>();
+        events.Setup(e => e.ProgressUpdate(It.IsAny<IPercent?>())).Callback(cancellation.Cancel);
+        service.Reconcile(state, packages, destination, updated => state = updated,
+            events.Object, cancellation.Token);
+    }
+
+    private void ReloadState()
+    {
+        var persistence = new JsonFileStatePersistence(fs.Directory.CreateTempSubdirectory());
+        persistence.WriteState(new SavedState(state));
+        state = persistence.ReadState().Installation;
+    }
 
     #endregion
 }
