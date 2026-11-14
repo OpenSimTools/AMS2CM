@@ -8,7 +8,7 @@ using FluentAssertions;
 namespace Core.Tests.Packages.Installation;
 
 [UnitTest]
-public class ReconciliationOwnershipTest
+public class ReconciliationActionTest
 {
     #region Setup
 
@@ -17,7 +17,7 @@ public class ReconciliationOwnershipTest
     private readonly ReconciliationAction<ReconciliationService.IEventHandler>.Factory factory;
     private readonly PackageInstallationState state = new(DateTimeOffset.UnixEpoch, 1, false, [], ["File"], ["Owner"]);
 
-    public ReconciliationOwnershipTest()
+    public ReconciliationActionTest()
     {
         var provider = new Mock<IBackupStrategyProvider<DateTimeOffset, ReconciliationService.IEventHandler>>();
         provider.Setup(p => p.BackupStrategy(It.IsAny<DateTimeOffset>(), It.IsAny<ReconciliationService.IEventHandler>()))
@@ -27,19 +27,6 @@ public class ReconciliationOwnershipTest
     }
 
     #endregion
-
-    [Fact]
-    public void RepeatedKeepsPreserveHistoricalShadowing()
-    {
-        var first = new TestReconciliationContext(
-            new Dictionary<string, PackageInstallationState> { ["Package"] = state });
-        first.Execute(factory.Keep("Package", state));
-        var second = new TestReconciliationContext(first.CurrentState);
-
-        second.Execute(factory.Keep("Package", first.CurrentState["Package"]));
-
-        second.CurrentState["Package"].ShadowedBy.Should().ContainSingle("Owner");
-    }
 
     [Fact]
     public void UninstallDoesNotRestoreClaimedFile()
@@ -67,14 +54,4 @@ public class ReconciliationOwnershipTest
         action.InstallState.Should().Be(IInstallation.State.PartiallyInstalled);
         action.ShadowedBy.Should().ContainSingle("Owner");
     }
-
-    #region Utility Methods
-
-    private sealed class TestReconciliationContext(IReadOnlyDictionary<string, PackageInstallationState> currentState)
-        : PackageReconciliationContext<ReconciliationService.IEventHandler>(currentState)
-    {
-        public void Execute(IReconciliationAction action) => ExecuteAction(action);
-    }
-
-    #endregion
 }

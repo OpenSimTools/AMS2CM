@@ -75,6 +75,10 @@ public class ReconciliationServiceTest
 
         Reconcile(cancellation.Token);
 
+        actions[0].Verify(a => a(), Times.Once);
+        actions[1].Verify(a => a(), Times.Once);
+        actions[2].Verify(a => a(), Times.Once);
+        events.Verify();
         events.Verify(e => e.ReconciliationEnd(cancellation.Token), Times.Once);
         VerifyStateSaved();
     }
@@ -109,7 +113,9 @@ public class ReconciliationServiceTest
 
         Reconcile(cancellation.Token);
 
+        actions[0].Verify(a => a(), Times.Once);
         actions[1].Verify(a => a(), Times.Never);
+        events.Verify();
         events.Verify(e => e.ReconciliationEnd(cancellation.Token), Times.Once);
         VerifyStateSaved();
     }
@@ -185,7 +191,7 @@ public class ReconciliationServiceTest
     private void ExpectProgress(double fraction) =>
         events.InSequence(sequence).Setup(e =>
             e.ProgressUpdate(It.Is<IPercent>(
-                p => Math.Abs(p.Percent - fraction) <= ProgressTolerance)));
+                p => Math.Abs(p.Percent - fraction) <= ProgressTolerance))).Verifiable(Times.Once);
 
     private void ExpectStateSaved()
     {

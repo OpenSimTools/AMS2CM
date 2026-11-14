@@ -48,7 +48,7 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
             () => ReconcileBootfiles(bootfilesPackage, bootfilesName, planningState, actionFactory, eventHandler)];
     }
 
-    protected virtual IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
+    private IPackageInstaller CreateModInstaller(IPackageInstaller packageInstaller,
         string bootfilesPackageName) =>
         new ModInstaller(packageInstaller, tempDir.BaseDirectory, config, game.InstallationDirectory,
             bootfilesPackageName);
@@ -96,12 +96,19 @@ public class ModReconciliationContext<TEventHandler, TConfig>(
             .Select(p => p.Key)
     ];
 
-    protected virtual IPackageInstaller CreateBootfilesInstaller(IPackage? bootfilesPackage,
+    private BootfilesInstaller CreateBootfilesInstaller(IPackage? bootfilesPackage,
         IReadOnlyDictionary<string, PackageInstallationState> state, TEventHandler eventHandler) =>
-        new BootfilesInstaller(bootfilesPackage?.CreateInstaller() ??
-            new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
-                tempDir.BaseDirectory, relative => ResolveSource(relative, state)), tempDir.BaseDirectory, config,
+        new(BootfilesPackageInstaller(bootfilesPackage, state), tempDir.BaseDirectory, config,
             game.InstallationDirectory, bootfilesNaming, eventHandler);
+
+    private IPackageInstaller BootfilesPackageInstaller(IPackage? bootfilesPackage,
+        IReadOnlyDictionary<string, PackageInstallationState> state) =>
+        bootfilesPackage?.CreateInstaller() ?? CreateGeneratedBootfilesInstaller(state);
+
+    protected virtual IPackageInstaller CreateGeneratedBootfilesInstaller(
+        IReadOnlyDictionary<string, PackageInstallationState> state) =>
+        new GeneratedBootfilesInstaller(bootfilesNaming.GeneratedBootfilesName,
+            tempDir.BaseDirectory, relative => ResolveSource(relative, state));
 
     private IFileInfo ResolveSource(string relative, IReadOnlyDictionary<string, PackageInstallationState> state)
     {

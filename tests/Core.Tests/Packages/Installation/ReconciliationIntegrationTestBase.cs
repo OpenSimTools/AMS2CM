@@ -4,7 +4,6 @@ using System.IO.Abstractions.TestingHelpers;
 using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
-using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.Time.Testing;
@@ -17,8 +16,6 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
     #region Setup
 
     protected readonly DateTimeOffset ValueNotUsed = DateTimeOffset.MinValue;
-
-    protected readonly IReadOnlyCollection<string> FilesNotUsed = [Guid.NewGuid().ToString()];
 
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
     protected readonly Mock<TEventHandler> EventHandlerMock = new();
@@ -34,14 +31,14 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
     protected IEnumerable<string> InstalledPackages => InstallationState.Keys;
 
     private readonly MockFileSystem fs;
-    private readonly IDirectoryInfo destinationDir;
+    protected IDirectoryInfo DestinationDirectory { get; }
     protected readonly IDirectory Directory;
 
     protected ReconciliationIntegrationTestBase()
     {
         fs = new MockFileSystem();
         Directory = fs.Directory;
-        destinationDir = Directory.CreateTempSubdirectory();
+        DestinationDirectory = Directory.CreateTempSubdirectory();
         TestInstallationTimeUtc = DateTimeOffset.Now.AddDays(10).ToUniversalTime();
         var fakeLocalTimeOffset = TimeSpan.FromHours(3);
         testTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.ToOffset(fakeLocalTimeOffset));
@@ -58,7 +55,7 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
     #region Utility Methods
 
     protected RootedPath DestinationPath(string relativePath) =>
-        new PathRoot(destinationDir).Combine(relativePath);
+        new PathRoot(DestinationDirectory).Combine(relativePath);
 
     protected void Reconcile(IPackage[] packages, TEventHandler? eventHandler = null) =>
         Reconcile(packages, int.MaxValue, eventHandler);
@@ -66,15 +63,29 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
     protected void Reconcile(IPackage[] packages, int actionCount,
         TEventHandler? eventHandler = null)
     {
-        var context = ContextFactory(InstallationState);
-        var actions = context.ReconciliationActions(packages, destinationDir, backupStrategyProvider,
-            eventHandler ?? EventHandlerMock.Object);
-        InstallationState = context.CurrentState;
-        foreach (var action in actions.Take(actionCount))
+        foreach (var action in PlanReconciliation(packages, eventHandler).Take(actionCount))
         {
             action();
         }
     }
+
+    protected IReadOnlyCollection<Action> PlanReconciliation(IPackage[] packages, TEventHandler? eventHandler = null)
+    {
+        var context = ContextFactory(InstallationState);
+        var actions = context.ReconciliationActions(packages, DestinationDirectory, backupStrategyProvider,
+            eventHandler ?? EventHandlerMock.Object);
+        InstallationState = context.CurrentState;
+        return actions;
+    }
+
+    protected static Dictionary<string, PackageInstallationState> CopyInstallationState(
+        IReadOnlyDictionary<string, PackageInstallationState> state) =>
+        state.ToDictionary(p => p.Key, p => p.Value with
+        {
+            Dependencies = p.Value.Dependencies.ToArray(),
+            Files = p.Value.Files.ToArray(),
+            ShadowedBy = p.Value.ShadowedBy.ToArray()
+        });
 
     protected IPackage Package(string name, IReadOnlyCollection<string> files) =>
         Package(name, null, files);
@@ -87,10 +98,7 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
         Package(new StaticFilesInstaller(fs, testTimeProvider,
             name, versionHash, files.ToDictionary(f => f, _ => ""), dependencies));
 
-    protected IPackage Package(string name, int? versionHash = null) =>
-        Package(Installer(name, versionHash));
-
-    private static IPackage Package(IPackageInstaller installer)
+    private static IPackage Package(StaticFilesInstaller installer)
     {
         var package = new Mock<IPackage>();
         package.SetupGet(p => p.Name).Returns(installer.PackageName);
@@ -98,10 +106,6 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
         package.Setup(p => p.CreateInstaller()).Returns(installer);
         return package.Object;
     }
-
-    protected IPackageInstaller Installer(string name, int? versionHash = null) =>
-        new StaticFilesInstaller(fs, testTimeProvider, name, versionHash,
-            new Dictionary<string, string> { [name] = "Contents" }, []);
 
     #endregion
 }

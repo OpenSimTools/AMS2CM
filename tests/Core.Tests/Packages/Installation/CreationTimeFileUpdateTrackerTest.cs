@@ -28,26 +28,17 @@ public class CreationTimeFileUpdateTrackerTest
     }
 
     [Theory]
-    [InlineData(-1)]
-    [InlineData(0)]
-    public void TrackUpdates_PreservesCreationTimeAtOrBeforeBaseline(int secondsFromBaseline)
+    [InlineData(-1, -1)]
+    [InlineData(0, 0)]
+    [InlineData(1, 0)]
+    public void TrackUpdates_ClampsCreationTimeToBaseline(int secondsFromBaseline, int expectedSecondsFromBaseline)
     {
         var creationTime = BaselineTime.UtcDateTime.AddSeconds(secondsFromBaseline);
         var file = CreateFile(creationTime);
 
         tracker.TrackUpdates(file, BaselineTime);
 
-        file.CreationTimeUtc.Should().Be(creationTime);
-    }
-
-    [Fact]
-    public void TrackUpdates_SetsLaterCreationTimeToBaseline()
-    {
-        var file = CreateFile(BaselineTime.UtcDateTime.AddSeconds(1));
-
-        tracker.TrackUpdates(file, BaselineTime);
-
-        file.CreationTimeUtc.Should().Be(BaselineTime.UtcDateTime);
+        file.CreationTimeUtc.Should().Be(BaselineTime.UtcDateTime.AddSeconds(expectedSecondsFromBaseline));
     }
 
     [Fact]

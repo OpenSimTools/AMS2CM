@@ -3,8 +3,6 @@ using System.IO.Abstractions.TestingHelpers;
 using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
-using Core.State;
-using Core.State.JsonFile;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using FluentAssertions;
@@ -17,8 +15,12 @@ public class PackageReconciliationBackupTest
 {
     #region Setup
 
+    private static readonly DateTimeOffset OriginalFileTime = DateTimeOffset.UnixEpoch;
+    private static readonly DateTimeOffset PreviousInstallationTime = OriginalFileTime.AddDays(1);
+    private static readonly DateTimeOffset InstallationTime = PreviousInstallationTime.AddDays(1);
+
     private readonly MockFileSystem fs = new();
-    private readonly FakeTimeProvider time = new(DateTimeOffset.UtcNow.AddDays(10));
+    private readonly FakeTimeProvider time = new(InstallationTime);
     private readonly IDirectoryInfo destination;
     private readonly ReconciliationService<ReconciliationService.IEventHandler> service;
     private IReadOnlyDictionary<string, PackageInstallationState> state = new Dictionary<string, PackageInstallationState>();
@@ -36,37 +38,77 @@ public class PackageReconciliationBackupTest
     #endregion
 
     [Fact]
-    public void LaterUpdatePreservesEarlierClaim()
+    public void Reconcile_LaterUpdatePreservesEarlierClaim()
     {
-        fs.AddFile(PathOf("Shared"), "Original");
-        Reconcile(Package("A", 1, "AF"), Package("B", 1, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF", "Shared"], [])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "B:1", PreviousInstallationTime);
+        AddFile("Shared.orig", "Original", OriginalFileTime);
 
         Reconcile(Package("A", 2, "AF", "Shared"), Package("B", 2, "BF", "Shared"));
 
         fs.File.ReadAllText(PathOf("Shared")).Should().Be("A:2");
+        fs.File.ReadAllText(PathOf("Shared.orig")).Should().Be("Original");
         state["A"].Files.Should().Contain("Shared");
         state["B"].Files.Should().NotContain("Shared");
         state["B"].ShadowedBy.Should().Equal("A");
     }
 
     [Fact]
-    public void KeptPackageYieldsToEarlierUpdate()
+    public void Reconcile_UpdateDoesNotBackUpInstalledFile()
     {
-        Reconcile(Package("A", 1, "AF"), Package("B", 1, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF", "Shared"], [])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "B:1", PreviousInstallationTime);
+
+        Reconcile(Package("A", 2, "AF", "Shared"), Package("B", 2, "BF", "Shared"));
+
+        fs.File.ReadAllText(PathOf("Shared")).Should().Be("A:2");
+        fs.File.Exists(PathOf("Shared.orig")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Reconcile_KeptPackageYieldsToEarlierUpdate()
+    {
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF", "Shared"], [])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "B:1", PreviousInstallationTime);
 
         Reconcile(Package("A", 2, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
 
         fs.File.ReadAllText(PathOf("Shared")).Should().Be("A:2");
+        fs.File.Exists(PathOf("Shared.orig")).Should().BeFalse();
         state["B"].Files.Should().Equal("BF");
         state["B"].ShadowedBy.Should().Equal("A");
     }
 
     [Fact]
-    public void RemovingUpdatedPackagesRestoresOriginal()
+    public void Reconcile_RemovalRestoresOriginal()
     {
-        fs.AddFile(PathOf("Shared"), "Original");
-        Reconcile(Package("A", 1, "AF"), Package("B", 1, "BF", "Shared"));
-        Reconcile(Package("A", 2, "AF", "Shared"), Package("B", 2, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(InstallationTime, 2, false, [], ["AF", "Shared"], []),
+            ["B"] = new(InstallationTime, 2, false, [], ["BF"], ["A"])
+        };
+        AddFile("AF", "A:2", InstallationTime);
+        AddFile("BF", "B:2", InstallationTime);
+        AddFile("Shared", "A:2", InstallationTime);
+        AddFile("Shared.orig", "Original", OriginalFileTime);
 
         Reconcile();
 
@@ -75,10 +117,16 @@ public class PackageReconciliationBackupTest
     }
 
     [Fact]
-    public void RemovingUpdatedPackagesRemovesModAddedFile()
+    public void Reconcile_RemovalDeletesFileWithoutBackup()
     {
-        Reconcile(Package("A", 1, "AF"), Package("B", 1, "BF", "Shared"));
-        Reconcile(Package("A", 2, "AF", "Shared"), Package("B", 2, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(InstallationTime, 2, false, [], ["AF", "Shared"], []),
+            ["B"] = new(InstallationTime, 2, false, [], ["BF"], ["A"])
+        };
+        AddFile("AF", "A:2", InstallationTime);
+        AddFile("BF", "B:2", InstallationTime);
+        AddFile("Shared", "A:2", InstallationTime);
 
         Reconcile();
 
@@ -87,10 +135,17 @@ public class PackageReconciliationBackupTest
     }
 
     [Fact]
-    public void LaterUpdateRespectsEarlierDeletion()
+    public void Reconcile_LaterUpdateRespectsEarlierDeletion()
     {
-        fs.AddFile(PathOf("Shared"), "Original");
-        Reconcile(Package("A", 1, "AF"), Package("B", 1, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF", "Shared"], [])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "B:1", PreviousInstallationTime);
+        AddFile("Shared.orig", "Original", OriginalFileTime);
 
         Reconcile(Package("A", 2, "AF", "Shared-remove"), Package("B", 2, "BF", "Shared"));
 
@@ -101,64 +156,118 @@ public class PackageReconciliationBackupTest
     }
 
     [Fact]
-    public void DroppedFileIsSuppliedByShadowedPackage()
+    public void Reconcile_DroppedFileIsSuppliedByShadowedPackage()
     {
-        fs.AddFile(PathOf("Shared"), "Original");
-        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF", "Shared"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF"], ["A"])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "A:1", PreviousInstallationTime);
+        AddFile("Shared.orig", "Original", OriginalFileTime);
 
         Reconcile(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
 
         fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
+        fs.File.ReadAllText(PathOf("Shared.orig")).Should().Be("Original");
         state["B"].Files.Should().Contain("Shared");
         state["B"].ShadowedBy.Should().BeEmpty();
     }
 
     [Fact]
-    public void InterruptedUpdateRecoversShadowedFile()
+    public void Reconcile_InterruptedUpdateLeavesRecoverableState()
     {
-        fs.AddFile(PathOf("Shared"), "Original");
-        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF", "Shared"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF"], ["A"])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "A:1", PreviousInstallationTime);
+        AddFile("Shared.orig", "Original", OriginalFileTime);
+
         ReconcileFirstAction(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
-        ReloadState();
 
-        Reconcile(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
-
-        fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
-        state["B"].Files.Should().Contain("Shared");
-        state["B"].Partial.Should().BeFalse();
-        state["B"].ShadowedBy.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void InterruptedRemovalRecoversShadowedFile()
-    {
-        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
-        ReconcileFirstAction(Package("B", 1, "BF", "Shared"));
-        ReloadState();
-
-        Reconcile(Package("B", 1, "BF", "Shared"));
-
-        fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
-        state["B"].Partial.Should().BeFalse();
-        state["B"].ShadowedBy.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void RemovingRecoveredPackagesRestoresOriginal()
-    {
-        fs.AddFile(PathOf("Shared"), "Original");
-        Reconcile(Package("A", 1, "AF", "Shared"), Package("B", 1, "BF", "Shared"));
-        ReconcileFirstAction(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
-        ReloadState();
-        Reconcile(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
-
-        Reconcile();
-
+        state.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(InstallationTime, 2, false, [], ["AF"], []),
+            ["B"] = new(PreviousInstallationTime, 1, true, [], ["BF"], ["A"])
+        });
+        fs.File.ReadAllText(PathOf("AF")).Should().Be("A:2");
+        fs.File.ReadAllText(PathOf("BF")).Should().Be("B:1");
         fs.File.ReadAllText(PathOf("Shared")).Should().Be("Original");
         fs.File.Exists(PathOf("Shared.orig")).Should().BeFalse();
     }
 
+    [Fact]
+    public void Reconcile_RecoversAfterInterruptedUpdate()
+    {
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(InstallationTime, 2, false, [], ["AF"], []),
+            ["B"] = new(PreviousInstallationTime, 1, true, [], ["BF"], ["A"])
+        };
+        AddFile("AF", "A:2", InstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "Original", OriginalFileTime);
+
+        Reconcile(Package("A", 2, "AF"), Package("B", 1, "BF", "Shared"));
+
+        fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
+        fs.File.ReadAllText(PathOf("Shared.orig")).Should().Be("Original");
+        state["B"].Should().BeEquivalentTo(new PackageInstallationState(
+            InstallationTime, 1, false, [], ["BF", "Shared"], []));
+    }
+
+    [Fact]
+    public void Reconcile_InterruptedRemovalLeavesRecoverableState()
+    {
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(PreviousInstallationTime, 1, false, [], ["AF", "Shared"], []),
+            ["B"] = new(PreviousInstallationTime, 1, false, [], ["BF"], ["A"])
+        };
+        AddFile("AF", "A:1", PreviousInstallationTime);
+        AddFile("BF", "B:1", PreviousInstallationTime);
+        AddFile("Shared", "A:1", PreviousInstallationTime);
+
+        ReconcileFirstAction(Package("B", 1, "BF", "Shared"));
+
+        state.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["B"] = new(PreviousInstallationTime, 1, true, [], ["BF"], ["A"])
+        });
+        fs.File.ReadAllText(PathOf("BF")).Should().Be("B:1");
+        fs.File.Exists(PathOf("AF")).Should().BeFalse();
+        fs.File.Exists(PathOf("Shared")).Should().BeFalse();
+        fs.File.Exists(PathOf("Shared.orig")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Reconcile_RecoversAfterInterruptedRemoval()
+    {
+        state = new Dictionary<string, PackageInstallationState>
+        {
+            ["B"] = new(PreviousInstallationTime, 1, true, [], ["BF"], ["A"])
+        };
+        AddFile("BF", "B:1", PreviousInstallationTime);
+
+        Reconcile(Package("B", 1, "BF", "Shared"));
+
+        fs.File.ReadAllText(PathOf("BF")).Should().Be("B:1");
+        fs.File.ReadAllText(PathOf("Shared")).Should().Be("B:1");
+        fs.File.Exists(PathOf("Shared.orig")).Should().BeFalse();
+        state["B"].Should().BeEquivalentTo(new PackageInstallationState(
+            InstallationTime, 1, false, [], ["BF", "Shared"], []));
+    }
+
     #region Utility Methods
+
+    private void AddFile(string file, string contents, DateTimeOffset creationTime) =>
+        fs.AddFile(PathOf(file), new MockFileData(contents) { CreationTime = creationTime });
 
     private string PathOf(string file) => Path.Combine(destination.FullName, file);
 
@@ -181,13 +290,6 @@ public class PackageReconciliationBackupTest
         events.Setup(e => e.ProgressUpdate(It.IsAny<IPercent?>())).Callback(cancellation.Cancel);
         service.Reconcile(state, packages, destination, updated => state = updated,
             events.Object, cancellation.Token);
-    }
-
-    private void ReloadState()
-    {
-        var persistence = new JsonFileStatePersistence(fs.Directory.CreateTempSubdirectory());
-        persistence.WriteState(new SavedState(state));
-        state = persistence.ReadState().Installation;
     }
 
     #endregion

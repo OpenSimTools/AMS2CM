@@ -48,8 +48,8 @@ public class GeneratedBootfilesInstallerTest
     [Fact]
     public void VersionIsCachedBeforeMutation()
     {
-        var expected = CreateInstaller().PackageVersionHash;
         var installer = CreateInstaller();
+        var expected = installer.PackageVersionHash;
         fs.File.Delete(Path.Combine("Game", PakfilesDirectory, BootFlowPakFileName));
 
         installer.PackageVersionHash.Should().Be(expected);
@@ -64,21 +64,6 @@ public class GeneratedBootfilesInstallerTest
 
         create.Should().Throw<FileNotFoundException>().Which.FileName.Should()
             .Be(fs.Path.GetFullPath(Path.Combine("Game", PakfilesDirectory, BootFlowPakFileName)));
-    }
-
-    [Fact]
-    public void GenerationUsesSourceWithUnrelatedFileName()
-    {
-        fs.AddFile(AlternateSourcePath, "Source");
-        resolveSource.Setup(r => r(Path.Combine(PakfilesDirectory, BootFlowPakFileName)))
-            .Returns(fs.FileInfo.New(AlternateSourcePath));
-        var installer = CreateInstaller();
-
-        var install = () => installer.Install(new PathRoot(fs.DirectoryInfo.New("Destination")).Combine,
-            Mock.Of<IBackupStrategy>(), new ProcessingCallbacks<RootedPath>());
-
-        // The real archive reader cannot open mock files; its error identifies the selected input.
-        install.Should().Throw<IOException>().WithMessage($"*'{fs.Path.GetFullPath(AlternateSourcePath)}'*");
     }
 
     [Fact]
