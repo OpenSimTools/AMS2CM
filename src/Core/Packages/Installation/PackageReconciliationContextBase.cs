@@ -88,14 +88,14 @@ public abstract class PackageReconciliationContextBase<TEventHandler>(
     }
 
     private static bool ShouldUninstall(PackageInstallationState state, IPackageInstaller? installer,
-        IReadOnlySet<string> toUninstall, IReadOnlySet<string> processed) =>
+        IReadOnlySet<string> toUninstall, HashSet<string> processed) =>
         state.Partial ||
         installer is null ||
         state.VersionHash is null ||
         installer.PackageVersionHash is null ||
         state.VersionHash != installer.PackageVersionHash ||
         state.ShadowedBy.Intersect(toUninstall).Any() ||
-        (state.ShadowedBy.Count > 0 && !state.ShadowedBy.Any(processed.Contains));
+        state.ShadowedBy.Any(packageName => !processed.Contains(packageName));
 
     private void ProcessPackage(string packageName, PackageInstallationState? state,
         IPackageInstaller? installer, bool uninstall, ReconciliationAction<TEventHandler>.Factory actionFactory)

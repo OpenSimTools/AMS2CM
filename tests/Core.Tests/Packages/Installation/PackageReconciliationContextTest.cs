@@ -457,6 +457,48 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
+    public void Reconcile_HandlesPartialPriorityInversion()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["X"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["Y", "BF"], ShadowedBy: []),
+            ["C"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["Z"], ShadowedBy: ["A", "B"])
+        };
+
+        Reconcile([Package("A", 1, ["X"]), Package("C", 1, ["X", "Y", "Z"]), Package("B", 1, ["Y", "BF"])]);
+
+        InstallationState["C"].Files.Should().BeEquivalentTo("Y", "Z");
+        InstallationState["C"].ShadowedBy.Should().Equal("A");
+        InstallationState["B"].Files.Should().Equal("BF");
+        InstallationState["B"].ShadowedBy.Should().Equal("C");
+    }
+
+    [Fact]
+    public void Reconcile_KeepsCorrectedPriorityOrder()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["X"], ShadowedBy: []),
+            ["C"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["Y", "Z"], ShadowedBy: ["A"]),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
+                Dependencies: [], Files: ["BF"], ShadowedBy: ["C"])
+        };
+
+        Reconcile([Package("A", 1, ["X"]), Package("C", 1, ["X", "Y", "Z"]), Package("B", 1, ["Y", "BF"])]);
+
+        EventHandlerMock.Verify(e => e.SkippingPackage("A"), Times.Once);
+        EventHandlerMock.Verify(e => e.SkippingPackage("C"), Times.Once);
+        EventHandlerMock.Verify(e => e.SkippingPackage("B"), Times.Once);
+        EventHandlerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public void Reconcile_ProcessesEachPackageInPriorityOrder()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
