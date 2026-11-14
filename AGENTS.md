@@ -18,6 +18,7 @@
 - Keep all unit tests for a class in a single test class. Do not create separate test classes for individual methods.
 - Keep test cases to the minimum needed to cover distinct execution paths. Do not add filler or redundant cases.
 - Test one behaviour per test. `And` in a test name usually signals combined behaviours; simplify the test, not just its name. Multiple assertions are fine when they verify the same behaviour.
+- Set up the current state explicitly instead of calling the method under test to create it. Call the method once per test unless repeated calls are themselves the behaviour being tested. Do not clear mock invocations to hide setup calls.
 - Keep test names, scenarios, and data within the class's own domain and responsibilities, without introducing unrelated application concepts.
 - Use simple synthetic values for test constants unless the behaviour under test requires real application values or naming conventions.
 - Verify call order through mock sequences, not recorded strings.
