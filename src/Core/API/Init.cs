@@ -14,13 +14,11 @@ namespace Core.API;
 
 public static class Init
 {
-    private const string ModsDirName = "Mods";
-
     public static IModManager CreateModManager(Config config)
     {
         var fs = new FileSystem();
         var game = new Game(fs, config.Game);
-        var modsDir = fs.DirectoryInfo.New(Path.Combine(game.InstallationDirectory.FullName, ModsDirName));
+        var modsDir = fs.DirectoryInfo.New(Path.Combine(game.InstallationDirectory.FullName, config.ModsDirectory));
         var modRepository = new FileSystemRepository(modsDir);
         var statePersistence = new JsonFileStatePersistence(modsDir);
         var safeFileDelete = new WindowsRecyclingBin();
