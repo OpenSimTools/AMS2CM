@@ -13,6 +13,8 @@ namespace Core.Tests.Mods.Installation.Installers;
 [UnitTest]
 public class ModInstallerTest
 {
+    #region Setup
+
     private const string GameSupportedModDirectory = "ModDirectory";
     private const string GameDirAtRoot = "DirAtRoot";
     private const string BootfilesPackageName = "BootFilesPackage";
@@ -20,7 +22,10 @@ public class ModInstallerTest
     private const string TrackListFile = "tracklist.lst";
     private const string DrivelineFile = "driveline.rg";
 
-    #region Setup
+    private static readonly Dictionary<char, char> InvertedCasing =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            .Zip("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+            .ToDictionary(pair => pair.First, pair => pair.Second);
 
     private readonly MockFileSystem fs = new();
     private readonly FakeTimeProvider fakeTimeProvider = new();
@@ -231,6 +236,23 @@ public class ModInstallerTest
         ]));
     }
 
+    [Fact]
+    public void ConfigurationFailureLeavesModPartiallyInstalled()
+    {
+        var trackFile = Path.Combine(GameDirAtRoot, "Track.trd");
+        var installer = new ModInstaller(InstallerOf("Mod", 1, new[] { trackFile }),
+            fs.Directory.CreateDirectory("Temp"), configMock.Object, destinationRoot.Directory, BootfilesPackageName);
+        var configFile = destinationRoot.Combine(GameSupportedModDirectory, "Mod_1", TrackListFile);
+        callbackMock.Setup(c => c(configFile)).Throws(new IOException("Configuration failed"));
+
+        var install = () => installer.Install(destinationRoot.Combine, backupStrategyMock.Object,
+            new ProcessingCallbacks<RootedPath> { Before = callbackMock.Object });
+
+        install.Should().Throw<IOException>().WithMessage("Configuration failed");
+        installer.Installed.Should().Be(IInstallation.State.PartiallyInstalled);
+        installer.InstalledFiles.Should().BeEquivalentPathTo(ToDestRootedPath(new[] { trackFile }));
+    }
+
     #region Utility Methods
 
     private ModInstaller InstallWithModInstaller(IPackageInstaller inner)
@@ -244,7 +266,7 @@ public class ModInstallerTest
         return modInstaller;
     }
 
-    private IPackageInstaller InstallerOf(string name, int? versionHash, IEnumerable<string> files) =>
+    private StaticFilesInstaller InstallerOf(string name, int? versionHash, IEnumerable<string> files) =>
         InstallerOf(name, versionHash, files.ToDictionary(f => f, _ => Convert.ToString(versionHash) ?? string.Empty));
 
     private StaticFilesInstaller InstallerOf(string name, int? versionHash,
@@ -270,11 +292,8 @@ public class ModInstallerTest
     private static string InvertCasing(string path) =>
         new(path.Select(InvertCasing).ToArray());
 
-    private static char InvertCasing(char c)
-    {
-        return char.IsAsciiLetterUpper(c) ? char.ToLowerInvariant(c) :
-            char.IsAsciiLetterLower(c) ? char.ToUpperInvariant(c) : c;
-    }
+    private static char InvertCasing(char c) =>
+        InvertedCasing.GetValueOrDefault(c, c);
 
     #endregion
 }

@@ -1,124 +1,101 @@
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
+using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
 using Core.Utils;
-using FluentAssertions;
 
 namespace Core.Tests.Packages.Installation.Backup;
 
-[IntegrationTest]
+[UnitTest]
 public class SkipUpdatedBackupStrategyTest
 {
     #region Setup
 
-    private static readonly DateTimeOffset Unused = DateTimeOffset.MinValue;
+    private static readonly DateTimeOffset BackupTime = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    private readonly MockFileSystem fs;
+    private readonly MockFileSystem fs = new();
     private readonly RootedPath originalFile;
-
-    private readonly Mock<IBackupStrategy> innerStrategyMock = new();
-    private readonly Mock<IBackupEventHandler> eventHandlerMock = new();
+    private readonly Mock<IFileUpdateTracker> updateTracker = new(MockBehavior.Strict);
+    private readonly Mock<IBackupStrategy> innerStrategyMock = new(MockBehavior.Strict);
+    private readonly Mock<IBackupEventHandler> eventHandlerMock = new(MockBehavior.Strict);
 
     public SkipUpdatedBackupStrategyTest()
     {
-        fs = new MockFileSystem(new Dictionary<string, MockFileData>());
         originalFile = new PathRoot(fs.DirectoryInfo.New("root")).Combine("original");
     }
 
     #endregion
 
     [Fact]
-    public void PerformBackup_ProxiesCallToInnerStategy()
+    public void PerformBackup_ProxiesCallToInnerStrategy()
     {
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, Unused, eventHandlerMock.Object);
+        innerStrategyMock.Setup(m => m.PerformBackup(originalFile));
+        var strategy = CreateStrategy();
 
-        subs.PerformBackup(originalFile);
+        strategy.PerformBackup(originalFile);
 
-        innerStrategyMock.Verify(m => m.PerformBackup(originalFile));
-
-        eventHandlerMock.VerifyNoOtherCalls();
+        innerStrategyMock.Verify(m => m.PerformBackup(originalFile), Times.Once);
     }
 
     [Fact]
-    public void DeleteBackup_ProxiesCallToInnerStategy()
+    public void RestoreBackup_DeletesBackupIfUpdated()
     {
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, Unused, eventHandlerMock.Object);
+        updateTracker.Setup(t => t.HasBeenUpdated(It.Is<IFileInfo>(f => f.FullName == originalFile.Full), BackupTime))
+            .Returns(true);
+        innerStrategyMock.Setup(m => m.DeleteBackup(originalFile));
+        eventHandlerMock.Setup(m => m.RestoreSkipped(originalFile));
+        var strategy = CreateStrategy();
 
-        subs.DeleteBackup(originalFile);
+        strategy.RestoreBackup(originalFile);
 
-        innerStrategyMock.Verify(m => m.DeleteBackup(originalFile));
-
-        eventHandlerMock.VerifyNoOtherCalls();
+        innerStrategyMock.Verify(m => m.DeleteBackup(originalFile), Times.Once);
+        eventHandlerMock.Verify(m => m.RestoreSkipped(originalFile), Times.Once);
     }
 
     [Fact]
-    public void RestoreBackup_ProxiesCallToInnerStategyIfNoBackupTime()
+    public void RestoreBackup_ProxiesCallToInnerStrategyIfNotUpdated()
     {
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, Unused, eventHandlerMock.Object);
+        updateTracker.Setup(t => t.HasBeenUpdated(It.Is<IFileInfo>(f => f.FullName == originalFile.Full), BackupTime))
+            .Returns(false);
+        innerStrategyMock.Setup(m => m.RestoreBackup(originalFile));
+        var strategy = CreateStrategy();
 
-        subs.RestoreBackup(originalFile);
+        strategy.RestoreBackup(originalFile);
 
-        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile));
-
-        eventHandlerMock.VerifyNoOtherCalls();
+        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile), Times.Once);
     }
 
     [Fact]
-    public void RestoreBackup_ProxiesCallToInnerStategyIfNoOriginalFile()
+    public void DeleteBackup_ProxiesCallToInnerStrategy()
     {
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, Unused, eventHandlerMock.Object);
+        innerStrategyMock.Setup(m => m.DeleteBackup(originalFile));
+        var strategy = CreateStrategy();
 
-        subs.RestoreBackup(originalFile);
+        strategy.DeleteBackup(originalFile);
 
-        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile));
-
-        eventHandlerMock.VerifyNoOtherCalls();
+        innerStrategyMock.Verify(m => m.DeleteBackup(originalFile), Times.Once);
     }
 
     [Fact]
-    public void RestoreBackup_DeletesBackupIfOverwritten()
+    public void AfterInstall_TracksUpdatesAfterInnerStrategy()
     {
-        var fileCreationTime = DateTimeOffset.UtcNow;
-        var backupTime = fileCreationTime.Subtract(TimeSpan.FromSeconds(1));
-        fs.AddFile(originalFile.Full, new MockFileData("") { CreationTime = fileCreationTime });
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, backupTime,
-            eventHandlerMock.Object);
+        var sequence = new MockSequence();
+        innerStrategyMock.InSequence(sequence).Setup(m => m.AfterInstall(originalFile));
+        updateTracker.InSequence(sequence)
+            .Setup(t => t.TrackUpdates(It.Is<IFileInfo>(f => f.FullName == originalFile.Full), BackupTime));
+        var strategy = CreateStrategy();
 
-        subs.RestoreBackup(originalFile);
+        strategy.AfterInstall(originalFile);
 
-        innerStrategyMock.Verify(m => m.DeleteBackup(originalFile));
-
-        eventHandlerMock.Verify(m => m.RestoreSkipped(originalFile));
-        eventHandlerMock.VerifyNoOtherCalls();
+        innerStrategyMock.Verify(m => m.AfterInstall(originalFile), Times.Once);
+        updateTracker.Verify(t => t.TrackUpdates(It.Is<IFileInfo>(f => f.FullName == originalFile.Full), BackupTime),
+            Times.Once);
     }
 
-    [Fact]
-    public void RestoreBackup_ProxiesCallToInnerStrategyIfNotOverwritten()
-    {
-        var backupTime = DateTimeOffset.UtcNow;
-        fs.AddFile(originalFile.Full, new MockFileData("") { CreationTime = backupTime });
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, backupTime,
-            eventHandlerMock.Object);
+    #region Utility Methods
 
-        subs.RestoreBackup(originalFile);
+    private SkipUpdatedBackupStrategy CreateStrategy() =>
+        new(fs, updateTracker.Object, innerStrategyMock.Object, BackupTime, eventHandlerMock.Object);
 
-        innerStrategyMock.Verify(m => m.RestoreBackup(originalFile));
-
-        eventHandlerMock.VerifyNoOtherCalls();
-    }
-
-    [Fact]
-    public void AfterInstall_EnsuresDateInThePast()
-    {
-        var backupTime = DateTimeOffset.UtcNow;
-        var futureDate = backupTime.AddDays(1);
-        fs.AddFile(originalFile.Full, new MockFileData("") { CreationTime = futureDate });
-        var subs = new SkipUpdatedBackupStrategy(fs, innerStrategyMock.Object, backupTime,
-            eventHandlerMock.Object);
-
-        subs.AfterInstall(originalFile);
-
-        fs.File.GetCreationTimeUtc(originalFile.Full).Should().BeOnOrBefore(backupTime.UtcDateTime);
-
-        eventHandlerMock.VerifyNoOtherCalls();
-    }
+    #endregion
 }

@@ -1,8 +1,8 @@
-﻿using Core.Mods.Installation.Installers;
+using Core.Mods.Installation;
 using Core.Packages.Installation;
 
 namespace Core.API;
 
-public interface IEventHandler : ReconciliationService.IEventHandler, BootfilesInstaller.IEventHandler
+public interface IEventHandler : ReconciliationService.IEventHandler, ModReconciliationContext.IEventHandler
 {
 }

@@ -45,23 +45,24 @@ public class ReconciliationServiceTest
     #endregion
 
     [Fact]
-    public void Reconcile_EmptyPlanNotifiesAndSavesState()
+    public void Reconcile_EmptyPlanDoesNotCallAfterInstall()
     {
         SetUpActions(count: 0);
-        events.InSequence(sequence).Setup(e => e.ReconciliationNoPackages());
-        ExpectStateSaved();
+        events.InSequence(sequence).Setup(e => e.ReconciliationNoActions());
 
         Reconcile();
 
-        context.Verify(c => c.ExecuteAction(It.IsAny<IReconciliationAction>()), Times.Never);
         events.Verify(e => e.ProgressUpdate(It.IsAny<IPercent>()), Times.Never);
-        VerifyStateSaved();
+        events.Verify(e => e.ReconciliationNoActions(), Times.Once);
+        events.Verify(e => e.ReconciliationEnd(It.IsAny<CancellationToken>()), Times.Never);
+        afterInstall.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void Reconcile_ExecutesInOrderAndReportsProgressAfterEachAction()
+    public void Reconcile_ReportsProgressAfterEachAction()
     {
         var actions = SetUpActions(count: 3);
+        using var cancellation = new CancellationTokenSource();
         events.InSequence(sequence).Setup(e => e.ReconciliationStart());
         ExpectActionExecuted(actions[0]);
         ExpectProgress(0.33);
@@ -69,28 +70,33 @@ public class ReconciliationServiceTest
         ExpectProgress(0.66);
         ExpectActionExecuted(actions[2]);
         ExpectProgress(1.00);
-        events.InSequence(sequence).Setup(e => e.ReconciliationEnd());
+        events.InSequence(sequence).Setup(e => e.ReconciliationEnd(cancellation.Token));
         ExpectStateSaved();
 
-        Reconcile();
+        Reconcile(cancellation.Token);
 
+        actions[0].Verify(a => a(), Times.Once);
+        actions[1].Verify(a => a(), Times.Once);
+        actions[2].Verify(a => a(), Times.Once);
+        events.Verify();
+        events.Verify(e => e.ReconciliationEnd(cancellation.Token), Times.Once);
         VerifyStateSaved();
     }
-
-    private ISetup<IReconciliationContext<ReconciliationService.IEventHandler>> ExpectActionExecuted(
-        IReconciliationAction action) => context.InSequence(sequence).Setup(c => c.ExecuteAction(action));
 
     [Fact]
     public void Reconcile_AlreadyCancelledDoesNotExecuteActions()
     {
-        SetUpActions(count: 2);
+        var actions = SetUpActions(count: 1);
+        var cancellationToken = new CancellationToken(canceled: true);
         events.InSequence(sequence).Setup(e => e.ReconciliationStart());
-        events.InSequence(sequence).Setup(e => e.ReconciliationEnd());
+        events.InSequence(sequence).Setup(e => e.ReconciliationEnd(cancellationToken));
         ExpectStateSaved();
 
-        Reconcile(new CancellationToken(canceled: true));
+        Reconcile(cancellationToken);
 
-        context.Verify(c => c.ExecuteAction(It.IsAny<IReconciliationAction>()), Times.Never);
+        actions[0].Verify(a => a(), Times.Never);
+        events.Verify(e => e.ReconciliationEnd(cancellationToken), Times.Once);
+        events.Verify(e => e.ProgressUpdate(It.IsAny<IPercent>()), Times.Never);
         VerifyStateSaved();
     }
 
@@ -102,12 +108,15 @@ public class ReconciliationServiceTest
         events.InSequence(sequence).Setup(e => e.ReconciliationStart());
         ExpectActionExecuted(actions[0]).Callback(cancellation.Cancel);
         ExpectProgress(0.2);
-        events.InSequence(sequence).Setup(e => e.ReconciliationEnd());
+        events.InSequence(sequence).Setup(e => e.ReconciliationEnd(cancellation.Token));
         ExpectStateSaved();
 
         Reconcile(cancellation.Token);
 
-        context.Verify(c => c.ExecuteAction(actions[1]), Times.Never);
+        actions[0].Verify(a => a(), Times.Once);
+        actions[1].Verify(a => a(), Times.Never);
+        events.Verify();
+        events.Verify(e => e.ReconciliationEnd(cancellation.Token), Times.Once);
         VerifyStateSaved();
     }
 
@@ -134,17 +143,16 @@ public class ReconciliationServiceTest
 
         reconcile.Should().Throw<TestException>().Which.Should().BeSameAs(failure);
         events.VerifyNoOtherCalls();
-        context.Verify(c => c.ExecuteAction(It.IsAny<IReconciliationAction>()), Times.Never);
         afterInstall.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void Reconcile_ActionFailureSavesUpdatedStateAndStopsExecution()
+    public void Reconcile_ActionFailureSavesUpdatedState()
     {
         var actions = SetUpActions(count: 2);
         var failure = new TestException();
         events.InSequence(sequence).Setup(e => e.ReconciliationStart());
-        context.InSequence(sequence).Setup(c => c.ExecuteAction(actions[0])).Callback(() =>
+        ExpectActionExecuted(actions[0]).Callback(() =>
         {
             currentState["Partial"] = new PackageInstallationState(DateTimeOffset.UnixEpoch, 1, true, [], ["File"], []);
             throw failure;
@@ -154,16 +162,21 @@ public class ReconciliationServiceTest
         var reconcile = () => Reconcile();
 
         reconcile.Should().Throw<TestException>().Which.Should().BeSameAs(failure);
-        context.Verify(c => c.ExecuteAction(actions[1]), Times.Never);
+        actions[1].Verify(a => a(), Times.Never);
+        events.Verify(e => e.ReconciliationEnd(It.IsAny<CancellationToken>()), Times.Never);
         VerifyStateSaved();
     }
 
     #region Utility Methods
 
-    private IReconciliationAction[] SetUpActions(int count)
+    private ISetup<Action> ExpectActionExecuted(Mock<Action> action) =>
+        action.InSequence(sequence).Setup(a => a());
+
+    private Mock<Action>[] SetUpActions(int count)
     {
-        var actions = Enumerable.Range(0, count).Select(_ => Mock.Of<IReconciliationAction>()).ToArray();
-        context.Setup(c => c.ReconciliationActions(packages, installDir, backups, events.Object)).Returns(actions);
+        var actions = Enumerable.Range(0, count).Select(_ => new Mock<Action>(MockBehavior.Strict)).ToArray();
+        context.Setup(c => c.ReconciliationActions(packages, installDir, backups, events.Object))
+            .Returns(actions.Select(action => action.Object).ToArray());
         return actions;
     }
 
@@ -178,7 +191,7 @@ public class ReconciliationServiceTest
     private void ExpectProgress(double fraction) =>
         events.InSequence(sequence).Setup(e =>
             e.ProgressUpdate(It.Is<IPercent>(
-                p => Math.Abs(p.Percent - fraction) <= ProgressTolerance)));
+                p => Math.Abs(p.Percent - fraction) <= ProgressTolerance))).Verifiable(Times.Once);
 
     private void ExpectStateSaved()
     {

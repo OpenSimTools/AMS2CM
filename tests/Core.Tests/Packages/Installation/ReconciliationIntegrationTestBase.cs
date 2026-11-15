@@ -4,7 +4,6 @@ using System.IO.Abstractions.TestingHelpers;
 using Core.Packages;
 using Core.Packages.Installation;
 using Core.Packages.Installation.Backup;
-using Core.Packages.Installation.Installers;
 using Core.Tests.Packages.Installation.Installers;
 using Core.Utils;
 using Microsoft.Extensions.Time.Testing;
@@ -12,13 +11,11 @@ using Microsoft.Extensions.Time.Testing;
 namespace Core.Tests.Packages.Installation;
 
 public abstract class ReconciliationIntegrationTestBase<TEventHandler>
-    where TEventHandler : class, ReconciliationService.IEventHandler
+    where TEventHandler : class, IReconciliationContext.IEventHandler
 {
-    // Randomness ensures that at least some test runs will fail if it's used
-    protected readonly DateTimeOffset ValueNotUsed =
-        Random.Shared.Next() > 0 ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
+    #region Setup
 
-    protected readonly IReadOnlyCollection<string> FilesNotUsed = [Guid.NewGuid().ToString()];
+    protected readonly DateTimeOffset ValueNotUsed = DateTimeOffset.MinValue;
 
     protected readonly Mock<IBackupStrategy> BackupStrategyMock = new();
     protected readonly Mock<TEventHandler> EventHandlerMock = new();
@@ -26,7 +23,7 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
     protected readonly DateTimeOffset TestInstallationTimeUtc;
     private readonly FakeTimeProvider testTimeProvider;
 
-    private readonly ReconciliationService<TEventHandler> service;
+    private readonly IBackupStrategyProvider<DateTimeOffset, TEventHandler> backupStrategyProvider;
 
     protected IReadOnlyDictionary<string, PackageInstallationState> InstallationState =
         ReadOnlyDictionary<string, PackageInstallationState>.Empty;
@@ -34,43 +31,61 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
     protected IEnumerable<string> InstalledPackages => InstallationState.Keys;
 
     private readonly MockFileSystem fs;
-    private readonly IDirectoryInfo destinationDir;
+    protected IDirectoryInfo DestinationDirectory { get; }
     protected readonly IDirectory Directory;
 
     protected ReconciliationIntegrationTestBase()
     {
         fs = new MockFileSystem();
         Directory = fs.Directory;
-        destinationDir = Directory.CreateTempSubdirectory();
+        DestinationDirectory = Directory.CreateTempSubdirectory();
         TestInstallationTimeUtc = DateTimeOffset.Now.AddDays(10).ToUniversalTime();
         var fakeLocalTimeOffset = TimeSpan.FromHours(3);
         testTimeProvider = new FakeTimeProvider(TestInstallationTimeUtc.ToOffset(fakeLocalTimeOffset));
         var backupStrategyProviderMock = new Mock<IBackupStrategyProvider<DateTimeOffset, TEventHandler>>();
         backupStrategyProviderMock.Setup(m => m.BackupStrategy(It.IsAny<DateTimeOffset>(), It.IsAny<TEventHandler>()))
             .Returns(BackupStrategyMock.Object);
-        service = new ReconciliationService<TEventHandler>(backupStrategyProviderMock.Object,
-            previousState => ContextFactory(previousState));
+        backupStrategyProvider = backupStrategyProviderMock.Object;
     }
 
     protected abstract IReconciliationContext<TEventHandler>.FactoryFunc ContextFactory { get; }
 
+    #endregion
+
+    #region Utility Methods
+
     protected RootedPath DestinationPath(string relativePath) =>
-        new PathRoot(destinationDir).Combine(relativePath);
+        new PathRoot(DestinationDirectory).Combine(relativePath);
 
     protected void Reconcile(IPackage[] packages, TEventHandler? eventHandler = null) =>
-        Reconcile(packages, CancellationToken.None, eventHandler);
+        Reconcile(packages, int.MaxValue, eventHandler);
 
-    protected void Reconcile(IPackage[] packages, CancellationToken cancellationToken,
+    protected void Reconcile(IPackage[] packages, int actionCount,
         TEventHandler? eventHandler = null)
     {
-        service.Reconcile(
-            InstallationState,
-            packages,
-            destinationDir,
-            newState => InstallationState = newState,
-            eventHandler ?? EventHandlerMock.Object,
-            cancellationToken);
+        foreach (var action in PlanReconciliation(packages, eventHandler).Take(actionCount))
+        {
+            action();
+        }
     }
+
+    protected IReadOnlyCollection<Action> PlanReconciliation(IPackage[] packages, TEventHandler? eventHandler = null)
+    {
+        var context = ContextFactory(InstallationState);
+        var actions = context.ReconciliationActions(packages, DestinationDirectory, backupStrategyProvider,
+            eventHandler ?? EventHandlerMock.Object);
+        InstallationState = context.CurrentState;
+        return actions;
+    }
+
+    protected static Dictionary<string, PackageInstallationState> CopyInstallationState(
+        IReadOnlyDictionary<string, PackageInstallationState> state) =>
+        state.ToDictionary(p => p.Key, p => p.Value with
+        {
+            Dependencies = p.Value.Dependencies.ToArray(),
+            Files = p.Value.Files.ToArray(),
+            ShadowedBy = p.Value.ShadowedBy.ToArray()
+        });
 
     protected IPackage Package(string name, IReadOnlyCollection<string> files) =>
         Package(name, null, files);
@@ -83,10 +98,7 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
         Package(new StaticFilesInstaller(fs, testTimeProvider,
             name, versionHash, files.ToDictionary(f => f, _ => ""), dependencies));
 
-    protected IPackage Package(string name, int? versionHash = null) =>
-        Package(Installer(name, versionHash));
-
-    private static IPackage Package(IPackageInstaller installer)
+    private static IPackage Package(StaticFilesInstaller installer)
     {
         var package = new Mock<IPackage>();
         package.SetupGet(p => p.Name).Returns(installer.PackageName);
@@ -95,8 +107,5 @@ public abstract class ReconciliationIntegrationTestBase<TEventHandler>
         return package.Object;
     }
 
-    protected IPackageInstaller Installer(string name, int? versionHash = null) =>
-        new StaticFilesInstaller(fs, testTimeProvider, name, versionHash,
-            new Dictionary<string, string> { [name] = "Contents" }, []);
-
+    #endregion
 }

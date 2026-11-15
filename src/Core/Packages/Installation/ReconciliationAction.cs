@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.IO.Abstractions;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -14,12 +14,13 @@ public interface IReconciliationAction
     DateTimeOffset InstallTime { get; }
     IInstallation.State InstallState { get; }
     IReadOnlySet<string> InstalledFiles { get; }
+    IReadOnlySet<string> ShadowedBy { get; }
 
     void Execute(ProcessingCallbacks<RootedPath> callbacks);
 }
 
 internal abstract class ReconciliationAction<TEventHandler>
-    where TEventHandler : ReconciliationService.IEventHandler
+    where TEventHandler : IReconciliationContext.IEventHandler
 {
     public class Factory(
         IDirectoryInfo installDir,
@@ -61,6 +62,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         }
 
         public string PackageName => installer.PackageName;
+        public IReadOnlySet<string> ShadowedBy => ImmutableHashSet<string>.Empty;
         public int? PackageVersionHash => installer.PackageVersionHash;
         public IReadOnlySet<string> PackageDependencies => installer.PackageDependencies;
 
@@ -89,7 +91,10 @@ internal abstract class ReconciliationAction<TEventHandler>
                 .Select(InstallRoot.Combine).ToImmutableList();
             foreach (var gamePath in filesToUninstall)
             {
-                BackupStrategy.RestoreBackup(gamePath);
+                if (callbacks.Accept(gamePath))
+                {
+                    BackupStrategy.RestoreBackup(gamePath);
+                }
                 CurrentInstalledFiles.Remove(gamePath.Relative);
             }
 
@@ -167,6 +172,7 @@ internal abstract class ReconciliationAction<TEventHandler>
         }
 
         public string PackageName { get; }
+        public IReadOnlySet<string> ShadowedBy => originalState.ShadowedBy.ToImmutableHashSet();
         public int? PackageVersionHash => originalState.VersionHash;
         public IReadOnlySet<string> PackageDependencies => originalState.Dependencies.ToImmutableHashSet();
 

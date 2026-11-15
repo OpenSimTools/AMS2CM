@@ -12,46 +12,49 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
         where TEventHandler : IBackupEventHandler
     {
         private readonly IFileSystem fs;
+        private readonly IFileUpdateTracker updateTracker;
         private readonly IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider;
 
-        public Provider(IFileSystem fs, IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
+        public Provider(IFileSystem fs, IFileUpdateTracker updateTracker,
+            IBackupStrategyProvider<DateTimeOffset, TEventHandler> baseProvider)
         {
             this.fs = fs;
+            this.updateTracker = updateTracker;
             this.baseProvider = baseProvider;
         }
 
         public IBackupStrategy BackupStrategy(DateTimeOffset backupTime, TEventHandler? eventHandler)
         {
             var baseStrategy = baseProvider.BackupStrategy(backupTime, eventHandler);
-            return new SkipUpdatedBackupStrategy(fs, baseStrategy, backupTime, eventHandler);
+            return new SkipUpdatedBackupStrategy(fs, updateTracker, baseStrategy, backupTime, eventHandler);
         }
     }
 
     private readonly IFileSystem fs;
+    private readonly IFileUpdateTracker updateTracker;
     private readonly IBackupStrategy inner;
     private readonly DateTimeOffset backupTime;
     private readonly IBackupEventHandler? eventHandler;
 
     internal SkipUpdatedBackupStrategy(IFileSystem fs,
+        IFileUpdateTracker updateTracker,
         IBackupStrategy backupStrategy,
         DateTimeOffset backupTime,
         IBackupEventHandler? eventHandler)
     {
         this.fs = fs;
+        this.updateTracker = updateTracker;
         inner = backupStrategy;
         this.backupTime = backupTime;
         this.eventHandler = eventHandler;
     }
-
-    public void DeleteBackup(RootedPath path) =>
-        inner.DeleteBackup(path);
 
     public void PerformBackup(RootedPath path) =>
         inner.PerformBackup(path);
 
     public void RestoreBackup(RootedPath path)
     {
-        if (CreationAfterBackupTime(path))
+        if (updateTracker.HasBeenUpdated(fs.FileInfo.New(path.Full), backupTime))
         {
             inner.DeleteBackup(path);
             eventHandler?.RestoreSkipped(path);
@@ -61,17 +64,13 @@ internal class SkipUpdatedBackupStrategy : IBackupStrategy
         inner.RestoreBackup(path);
     }
 
+    public void DeleteBackup(RootedPath path) =>
+        inner.DeleteBackup(path);
+
     public void AfterInstall(RootedPath path)
     {
         inner.AfterInstall(path);
 
-        if (CreationAfterBackupTime(path))
-        {
-            fs.File.SetCreationTimeUtc(path.Full, backupTime.UtcDateTime);
-        }
+        updateTracker.TrackUpdates(fs.FileInfo.New(path.Full), backupTime);
     }
-
-    private bool CreationAfterBackupTime(RootedPath path) =>
-        fs.File.Exists(path.Full) &&
-        fs.File.GetCreationTimeUtc(path.Full) > backupTime.UtcDateTime;
 }

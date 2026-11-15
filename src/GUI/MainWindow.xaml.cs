@@ -44,8 +44,6 @@ public sealed partial class MainWindow : WindowEx
         {
             var eventLogger = new SyncDialogEventLogger(dialog);
             modManager.InstallEnabledMods(eventLogger, cancellationToken);
-            var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
-            dialog.LogMessage($"Synchronization {status}.");
         });
         SyncModListView();
     }
@@ -55,10 +53,8 @@ public sealed partial class MainWindow : WindowEx
         await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
         {
             var eventLogger = new SyncDialogEventLogger(dialog);
-            modManager.UninstallAllMods(eventLogger);
+            modManager.UninstallAllMods(eventLogger, cancellationToken);
             dialog.SetProgress(1.0);
-            var status = cancellationToken.IsCancellationRequested ? "aborted" : "completed";
-            dialog.LogMessage($"Uninstall {status}.");
         });
         SyncModListView();
     }

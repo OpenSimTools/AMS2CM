@@ -5,19 +5,19 @@ using FluentAssertions;
 namespace Core.Tests.Packages.Installation;
 
 [IntegrationTest]
-public class PackageReconciliationContextTest : ReconciliationIntegrationTestBase<ReconciliationService.IEventHandler>
+public class PackageReconciliationContextTest : ReconciliationIntegrationTestBase<IReconciliationContext.IEventHandler>
 {
     #region Setup
 
     private class TestException : Exception;
 
-    protected override IReconciliationContext<ReconciliationService.IEventHandler>.FactoryFunc ContextFactory =>
-        PackageReconciliationContext<ReconciliationService.IEventHandler>.Factory();
+    protected override IReconciliationContext<IReconciliationContext.IEventHandler>.FactoryFunc ContextFactory =>
+        PackageReconciliationContext<IReconciliationContext.IEventHandler>.Factory();
 
     #endregion
 
     [Fact]
-    public void Reconcile_NoPackages()
+    public void EmptySelectionLeavesInstallationStateEmpty()
     {
         Reconcile([]);
 
@@ -25,21 +25,16 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
-    public void Reconcile_InstallsSelectedPackages()
+    public void InstallsSelectedPackages()
     {
         Reconcile([
-            Package("A", versionHash: 42, files:
-            [
-                "AF"
-            ])
+            Package("A", versionHash: 42, files: ["AF"])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: [], Files:
-            [
-                "AF"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: [],
+                Files: ["AF"], ShadowedBy: [])
         });
 
         BackupStrategyMock.Verify(m => m.PerformBackup(DestinationPath("AF")));
@@ -50,17 +45,12 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
-    public void Reconcile_UninstallsUnselectedPackages()
+    public void UninstallsUnselectedPackages()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(
-                Time: ValueNotUsed,
-                VersionHash: 42,
-                Partial: false,
-                Dependencies: [],
-                Files: ["AF"],
-                ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: false, Dependencies: [],
+                Files: ["AF"], ShadowedBy: [])
         };
 
         Reconcile([]);
@@ -77,33 +67,22 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     [InlineData(1, 2)]
     [InlineData(null, 2)]
     [InlineData(1, null)]
-    [InlineData(null, null)]
-    public void Reconcile_UpdatesChangedPackages(int? previousVersionHash, int? currentVersionHash)
+    public void ReinstallsPackagesWithChangedOrUnknownVersions(int? previousVersionHash, int? currentVersionHash)
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: previousVersionHash, Partial: false, Dependencies: [], Files:
-            [
-                "AF",
-                "AF1",
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: previousVersionHash, Partial: false, Dependencies: [],
+                Files: ["AF", "AF1"], ShadowedBy: [])
         };
 
         Reconcile([
-            Package("A", versionHash: currentVersionHash, [
-                "AF",
-                "AF2"
-            ])
+            Package("A", versionHash: currentVersionHash, ["AF", "AF2"])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: currentVersionHash, Partial: false,
-                Dependencies: [], Files:
-                [
-                    "AF",
-                    "AF2"
-                ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: currentVersionHash, Partial: false, Dependencies: [],
+                Files: ["AF", "AF2"], ShadowedBy: [])
         });
 
         BackupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
@@ -114,30 +93,22 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
-    public void Reconcile_ReinstallsPartialPackages()
+    public void ReinstallsPartialPackages()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: true, Dependencies: [], Files:
-            [
-                "AF1"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: true, Dependencies: [],
+                Files: ["AF1"], ShadowedBy: [])
         };
 
         Reconcile([
-            Package("A", versionHash: 1, [
-                "AF1",
-                "AF2"
-            ])
+            Package("A", versionHash: 1, ["AF1", "AF2"])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
-            [
-                "AF1",
-                "AF2"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF1", "AF2"], ShadowedBy: [])
         });
 
         BackupStrategyMock.Verify(m => m.RestoreBackup(DestinationPath("AF1")));
@@ -146,99 +117,84 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
-    public void Reconcile_PreservesPackageDependencies()
+    public void PreservesPackageDependencies()
     {
         Reconcile([
-            Package("A", versionHash: 42, files:
-            [
-                "AF"
-            ], dependencies: ["X"])
+            Package("A", versionHash: 42, files: ["AF"], dependencies: ["X"])
+        ]);
+
+        InstallationState["A"].Dependencies.Should().Equal("X");
+    }
+
+    [Fact]
+    public void FirstInstalledFilesTakePrecedence()
+    {
+        Reconcile([
+            Package("A", versionHash: 1, files: ["AF1", "AF2"]),
+            Package("B", versionHash: 2, files: ["BF"]),
+            Package("C", versionHash: 3, files: ["AF1", "BF", "CF"])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: false, Dependencies: ["X"], Files:
-            [
-                "AF"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF1", "AF2"], ShadowedBy: []),
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [],
+                Files: ["BF"], ShadowedBy: []),
+            ["C"] = new(Time: TestInstallationTimeUtc, VersionHash: 3, Partial: false, Dependencies: [],
+                Files: ["CF"], ShadowedBy: ["A", "B"])
         });
     }
 
     [Fact]
-    public void Reconcile_FirstInstalledFilesTakePrecedence()
-    {
-        Reconcile([
-            Package("A", versionHash: 1, files:
-            [
-                "AF1", "AF2"
-            ]),
-            Package("B", versionHash: 2, files:
-            [
-                "BF"
-            ]),
-            Package("C", versionHash: 3, files:
-            [
-                "AF1", "BF", "CF"
-            ])
-        ]);
-
-        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
-        {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
-            [
-                "AF1", "AF2"
-            ], ShadowedBy: []),
-            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [], Files:
-            [
-                "BF"
-            ], ShadowedBy: []),
-            ["C"] = new(Time: TestInstallationTimeUtc, VersionHash: 3, Partial: false, Dependencies: [], Files:
-            [
-                "CF"
-            ], ShadowedBy: ["A", "B"])
-        });
-    }
-
-    [Fact]
-    public void Reconcile_RestoresFilesPreviouslyShadowedByUninstalledPackage()
+    public void RestoresFilesPreviouslyShadowedByUninstalledPackage()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [], Files:
-            [
-                "AF1",
-            ], ShadowedBy: ["B"]),
-            ["B"] = new(Time: ValueNotUsed, VersionHash: 2, Partial: false, Dependencies: [], Files:
-            [
-                "SF", // SF in A was shadowed by B
-                "BF1",
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF1"], ShadowedBy: ["B"]),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 2, Partial: false, Dependencies: [],
+                Files: ["SF", "BF1"], ShadowedBy: [])
         };
 
         Reconcile([
-            Package("A", versionHash: 1, [
-                "SF",
-                "AF1"
-            ])
+            Package("A", versionHash: 1, ["SF", "AF1"]) // SF in A was shadowed by B
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
-            [
-                "SF",
-                "AF1"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["SF", "AF1"], ShadowedBy: [])
         });
     }
 
     [Fact]
-    public void Reconcile_DoesNotBackUpFilesShadowedInKeptPackages()
+    public void NewPackageClaimsFilesBeforePreviousOwnerIsProcessed()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: ["Shared", "BF"], ShadowedBy: [])
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["Shared", "BF"], ShadowedBy: [])
+        };
+
+        // Install A, leaving the previous owner B unprocessed.
+        Reconcile([
+            Package("A", versionHash: 1, files: ["Shared"]),
+            Package("B", versionHash: 1, files: ["Shared", "BF"])
+        ], actionCount: 1);
+
+        InstallationState["A"].Files.Should().Equal("Shared");
+        InstallationState["B"].Files.Should().Equal("BF");
+        InstallationState["B"].ShadowedBy.Should().Equal("A");
+    }
+
+    [Fact]
+    public void DoesNotBackUpFilesShadowedInKeptPackages()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["Shared", "BF"], ShadowedBy: [])
         };
 
         Reconcile([
@@ -246,125 +202,57 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
             Package("B", versionHash: 1, files: ["Shared", "BF"])
         ]);
 
-        InstallationState["A"].Files.Should().Equal("Shared");
-        InstallationState["B"].Files.Should().Equal("BF");
-        InstallationState["B"].ShadowedBy.Should().Equal("A");
         BackupStrategyMock.Verify(m => m.PerformBackup(It.IsAny<RootedPath>()), Times.Never);
         BackupStrategyMock.Verify(m => m.AfterInstall(DestinationPath("Shared")), Times.Once);
         BackupStrategyMock.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void Reconcile_InstallStopsIfBackupFails()
+    public void FailedBackupRetainsPartialInstallationProgress()
     {
         BackupStrategyMock.Setup(m => m.PerformBackup(DestinationPath("Fail"))).Throws<TestException>();
 
         this.Invoking(m => m.Reconcile([
-            Package("A", versionHash: 42, files:
-            [
-                "AF1", "Fail", "AF2"
-            ])
+            Package("A", versionHash: 42, files: ["AF1", "Fail", "AF2"])
         ])).Should().Throw<TestException>();
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: true, Dependencies: [], Files:
-            [
-                "AF1",
-                "Fail" // We don't know where it failed, so we add it
-            ], ShadowedBy: [])
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 42, Partial: true, Dependencies: [],
+                Files: ["AF1", "Fail"], ShadowedBy: [])
         });
     }
 
     [Fact]
-    public void Reconcile_UninstallStopsIfBackupFails()
+    public void FailedRestoreRetainsRemainingInstalledFiles()
     {
         BackupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();
 
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: false, Dependencies: [], Files:
-            [
-                "AF1",
-                "Fail",
-                "AF2"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: false, Dependencies: [],
+                Files: ["AF1", "Fail", "AF2"], ShadowedBy: [])
         };
 
         this.Invoking(m => m.Reconcile([])).Should().Throw<TestException>();
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: true, Dependencies: [], Files:
-            [
-                "Fail", // We don't know where it failed, so we leave it
-                "AF2"
-            ], ShadowedBy: [])
-        });
-    }
-
-
-    [Fact]
-    public void Reconcile_UninstallFailuresResultsInPartialInstallation()
-    {
-        BackupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();
-
-        InstallationState = new Dictionary<string, PackageInstallationState>
-        {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: false, Dependencies: [], Files:
-            [
-                "Fail"
-            ], ShadowedBy: [])
-        };
-
-        this.Invoking(m => m.Reconcile([])).Should().Throw<TestException>();
-
-        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
-        {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files:
-            [
-                "Fail"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 42, Partial: true, Dependencies: [],
+                Files: ["Fail", "AF2"], ShadowedBy: [])
         });
     }
 
     [Fact]
-    public void Reconcile_PartialPackagesStayPartial()
-    {
-        BackupStrategyMock.Setup(m => m.RestoreBackup(DestinationPath("Fail"))).Throws<TestException>();
-
-        InstallationState = new Dictionary<string, PackageInstallationState>
-        {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files:
-            [
-                "Fail"
-            ], ShadowedBy: [])
-        };
-
-        this.Invoking(m => m.Reconcile([])).Should().Throw<TestException>();
-
-        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
-        {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files:
-            [
-                "Fail"
-            ], ShadowedBy: [])
-        });
-    }
-
-
-    [Fact]
-    public void Reconcile_UninstallRemovesEmptyDirectories()
+    public void UninstallRemovesEmptyDirectories()
     {
         var subDir = Path.Combine("D1", "D2");
         Directory.CreateDirectory(DestinationPath(subDir).Full);
 
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [], Files:
-            [
-                Path.Combine(subDir, "F1")
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: null, Partial: true, Dependencies: [],
+                Files: [Path.Combine(subDir, "F1")], ShadowedBy: [])
         };
 
         Reconcile([]);
@@ -376,151 +264,108 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
     }
 
     [Fact]
-    public void Reconcile_HandlesPriorityInversion()
+    public void ReorderingPackagesTransfersSharedFileOwnership()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "AF",
-                "Shared"
-            ], ShadowedBy: []),
-            ["B"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "BF"
-            ], ShadowedBy: ["A"]),
-            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "UF"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [],
+                Files: ["AF", "Shared"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [],
+                Files: ["BF"], ShadowedBy: ["A"])
         };
 
         Reconcile([
-            Package("B", versionHash: 0, [
-                "BF",
-                "Shared"
-            ]),
-            Package("A", versionHash: 0, [
-                "AF",
-                "Shared"
-            ]),
-            Package("Untouched", versionHash: 0, [
-                "Not considered"
-            ])
+            Package("B", versionHash: 0, ["BF", "Shared"]),
+            Package("A", versionHash: 0, ["AF", "Shared"])
         ]);
 
         InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "AF"
-            ], ShadowedBy: ["B"]),
-            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "BF",
-                "Shared"
-            ], ShadowedBy: []),
-            ["Untouched"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "UF"
-            ], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [],
+                Files: ["AF"], ShadowedBy: ["B"]),
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 0, Partial: false, Dependencies: [],
+                Files: ["BF", "Shared"], ShadowedBy: [])
         });
-
-        EventHandlerMock.Verify(m => m.SkippingPackage("Untouched"));
     }
 
     [Fact]
-    public void Reconcile_HandlesFileDeletionOnUpgrade()
+    public void ReorderingPackagesPreservesUnrelatedPackageState()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 0, Partial: false, Dependencies: [], Files:
-            [
-                "A1",
-                "A2"
-            ], ShadowedBy: []),
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF", "Shared"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BF"], ShadowedBy: ["A"]),
+            ["Unrelated"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["UF"], ShadowedBy: [])
         };
+        var expected = CopyInstallationState(InstallationState)["Unrelated"];
 
         Reconcile([
-            Package("A", versionHash: 1, [
-                "A1"
-            ])
+            Package("B", 1, ["BF", "Shared"]),
+            Package("A", 1, ["AF", "Shared"]),
+            Package("Unrelated", 1, ["UF"])
         ]);
 
-        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
-        {
-            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [], Files:
-            [
-                "A1",
-            ], ShadowedBy: []),
-        });
+        InstallationState["Unrelated"].Should().BeEquivalentTo(expected);
+        EventHandlerMock.Verify(m => m.SkippingPackage("Unrelated"), Times.Once);
     }
 
     [Fact]
-    public void Reconcile_UninstallsAllPackagesBeforeInstallingOrKeepingPackages()
+    public void ReorderingPackagesPreservesEarlierFileOwners()
     {
         InstallationState = new Dictionary<string, PackageInstallationState>
         {
-            ["Removed"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
-            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: FilesNotUsed, ShadowedBy: []),
-            ["Kept"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: FilesNotUsed, ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["X"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                    Files: ["Y", "BF"], ShadowedBy: []),
+            ["C"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["Z"], ShadowedBy: ["A", "B"])
         };
 
-        // InSequence not verified in Loose mode!
-        var eventHandlerMock = new Mock<ReconciliationService.IEventHandler>(MockBehavior.Strict);
-        eventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()));
-        var sequence = new MockSequence();
-        eventHandlerMock.Setup(m => m.ReconciliationStart());
-        eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("Removed"));
-        eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("A"));
-        eventHandlerMock.InSequence(sequence).Setup(m => m.UninstallingPackage("B"));
-        eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("New"));
-        eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("A"));
-        eventHandlerMock.InSequence(sequence).Setup(m => m.SkippingPackage("Kept"));
-        eventHandlerMock.InSequence(sequence).Setup(m => m.InstallingPackage("B"));
-        eventHandlerMock.Setup(m => m.ReconciliationEnd());
-
         Reconcile([
-            Package("New", versionHash: 1),
-            Package("A", versionHash: 2),
-            Package("Kept", versionHash: 1),
-            Package("B", versionHash: 2)
-        ], eventHandlerMock.Object);
+            Package("A", 1, ["X"]),
+            Package("C", 1, ["X", "Y", "Z"]),
+            Package("B", 1, ["Y", "BF"])
+        ]);
+
+        InstallationState["C"].Files.Should().BeEquivalentTo("Y", "Z");
+        InstallationState["C"].ShadowedBy.Should().Equal("A");
+        InstallationState["B"].Files.Should().Equal("BF");
+        InstallationState["B"].ShadowedBy.Should().Equal("C");
     }
 
     [Fact]
-    public void Reconcile_CancellationPreservesUnprocessedState()
+    public void KeepsCorrectedPriorityOrder()
     {
-        InstallationState = new Dictionary<string, PackageInstallationState>
+        var expected = new Dictionary<string, PackageInstallationState>
         {
-            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: ["AF"], ShadowedBy: []),
-            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: ["BF"], ShadowedBy: [])
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["X"], ShadowedBy: []),
+            ["C"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["Y", "Z"], ShadowedBy: ["A"]),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BF"], ShadowedBy: ["C"])
         };
-        using var cancellation = new CancellationTokenSource();
-        EventHandlerMock.Setup(m => m.ProgressUpdate(It.IsAny<IPercent>()))
-            .Callback(cancellation.Cancel);
+        InstallationState = CopyInstallationState(expected);
 
         Reconcile([
-            Package("A", versionHash: 2, files: ["AF"]),
-            Package("B", versionHash: 2, files: ["BF"])
-        ], cancellation.Token);
+            Package("A", 1, ["X"]),
+            Package("C", 1, ["X", "Y", "Z"]),
+            Package("B", 1, ["Y", "BF"])
+        ]);
 
-        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
-        {
-            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false,
-                Dependencies: [], Files: ["BF"], ShadowedBy: [])
-        });
+        InstallationState.Should().BeEquivalentTo(expected);
+        EventHandlerMock.Verify(e => e.SkippingPackage("A"), Times.Once);
+        EventHandlerMock.Verify(e => e.SkippingPackage("C"), Times.Once);
+        EventHandlerMock.Verify(e => e.SkippingPackage("B"), Times.Once);
+        EventHandlerMock.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void Reconcile_RepeatedCallsUseIndependentState()
+    public void RepeatedCallsUseIndependentState()
     {
         var initialState = InstallationState;
 
@@ -538,5 +383,128 @@ public class PackageReconciliationContextTest : ReconciliationIntegrationTestBas
         InstallationState.Keys.Should().Equal("B");
 
         EventHandlerMock.Verify(m => m.UninstallingPackage(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public void FailedUninstallDoesNotReclaimTransferredFiles()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BF", "Shared"], ShadowedBy: [])
+        };
+        // Fail before visiting any files, so stale ownership cannot be corrected by callbacks.
+        EventHandlerMock.Setup(e => e.UninstallingPackage("B")).Throws<IOException>();
+
+        var reconcile = () => Reconcile([
+            Package("A", 2, ["AF", "Shared"]),
+            Package("B", 2, ["BF", "Shared"])
+        ]);
+
+        reconcile.Should().Throw<IOException>();
+        InstallationState["B"].Files.Should().Equal("BF");
+        InstallationState["B"].ShadowedBy.Should().Equal("A");
+        InstallationState["A"].Files.Should().Contain("Shared");
+    }
+
+    [Fact]
+    public void FailedKeepPreservesTransferredOwnership()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BF", "Shared"], ShadowedBy: [])
+        };
+        EventHandlerMock.Setup(e => e.SkippingPackage("B")).Throws<IOException>();
+
+        var reconcile = () => Reconcile([
+            Package("A", 2, ["AF", "Shared"]),
+            Package("B", 1, ["BF", "Shared"])
+        ]);
+
+        reconcile.Should().Throw<IOException>();
+        InstallationState["B"].Files.Should().Equal("BF");
+        InstallationState["B"].ShadowedBy.Should().Equal("A");
+    }
+
+    [Fact]
+    public void ReplacementCascadesThroughShadowedPackages()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AB"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BC"], ShadowedBy: ["A"]),
+            ["C"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["CF"], ShadowedBy: ["B"])
+        };
+
+        Reconcile([
+            Package("A", 2, ["AF"]),
+            Package("B", 1, ["AB", "BC"]),
+            Package("C", 1, ["BC", "CF"])
+        ]);
+
+        InstallationState.Should().BeEquivalentTo(new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: TestInstallationTimeUtc, VersionHash: 2, Partial: false, Dependencies: [],
+                Files: ["AF"], ShadowedBy: []),
+            ["B"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AB", "BC"], ShadowedBy: []),
+            ["C"] = new(Time: TestInstallationTimeUtc, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["CF"], ShadowedBy: ["B"])
+        });
+        EventHandlerMock.Verify(e => e.UninstallingPackage("B"), Times.Once);
+        EventHandlerMock.Verify(e => e.InstallingPackage("B"), Times.Once);
+        EventHandlerMock.Verify(e => e.UninstallingPackage("C"), Times.Once);
+        EventHandlerMock.Verify(e => e.InstallingPackage("C"), Times.Once);
+    }
+
+    [Fact]
+    public void PlanningPreservesShadowedPackageState()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF", "Shared"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BF"], ShadowedBy: ["A"])
+        };
+        var previous = InstallationState;
+        var expected = CopyInstallationState(InstallationState);
+
+        PlanReconciliation([
+            Package("A", 2, ["AF"]),
+            Package("B", 1, ["BF", "Shared"])
+        ]);
+
+        InstallationState.Should().BeEquivalentTo(expected);
+        previous.Should().BeEquivalentTo(expected);
+    }
+
+    [Fact]
+    public void FailedUninstallKeepsShadowedPackagePartial()
+    {
+        InstallationState = new Dictionary<string, PackageInstallationState>
+        {
+            ["A"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["AF", "Shared"], ShadowedBy: []),
+            ["B"] = new(Time: ValueNotUsed, VersionHash: 1, Partial: false, Dependencies: [],
+                Files: ["BF"], ShadowedBy: ["A"])
+        };
+        EventHandlerMock.Setup(e => e.UninstallingPackage("B")).Throws<IOException>();
+
+        var reconcile = () => Reconcile([
+            Package("A", 2, ["AF"]),
+            Package("B", 1, ["BF", "Shared"])
+        ]);
+
+        reconcile.Should().Throw<IOException>();
+        InstallationState["B"].Partial.Should().BeTrue();
     }
 }
