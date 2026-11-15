@@ -8,9 +8,12 @@ namespace Core.API;
 
 public class Config
 {
+    internal const string DefaultModsDirectory = "Mods";
+
     public GitHubUpdateChecker.IConfig Updates { get; set; } = new UpdateConfig();
     public Game.IConfig Game { get; set; } = new GameConfig();
     public ModInstallConfig ModInstall { get; set; } = new();
+    public string ModsDirectory { get; set; } = DefaultModsDirectory;
 
     public static Config Load(string[] args)
     {
@@ -45,6 +48,7 @@ public class ModInstallConfig : ModInstaller.IConfig, BootfilesInstaller.IConfig
     };
     public IEnumerable<string> ExcludedFromInstall { get; set; } = new[]
     {
+        @$"{Config.DefaultModsDirectory}\**",
         @"**\*.orig",
         @"**\*.dll",
         @"**\*.exe"
