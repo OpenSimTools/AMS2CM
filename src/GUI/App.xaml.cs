@@ -9,6 +9,7 @@ public partial class App : Application
 {
     private MainWindow? window;
     private ServiceProvider? serviceProvider;
+    private WindowsAccentTheme? accentTheme;
 
     public App()
     {
@@ -37,6 +38,7 @@ public partial class App : Application
         });
         try
         {
+            accentTheme = new WindowsAccentTheme(Resources);
             window = new MainWindow(
                 ResolveModManager(serviceProvider),
                 serviceProvider.GetRequiredService<IUpdateChecker>());
@@ -45,7 +47,7 @@ public partial class App : Application
         }
         catch
         {
-            DisposeServiceProvider();
+            DisposeServices();
             throw;
         }
     }
@@ -62,9 +64,13 @@ public partial class App : Application
         }
     }
 
-    private void HandleWindowClosed(object sender, WindowEventArgs args) => DisposeServiceProvider();
+    private void HandleWindowClosed(object sender, WindowEventArgs args) => DisposeServices();
 
-    private void DisposeServiceProvider() => Interlocked.Exchange(ref serviceProvider, null)?.Dispose();
+    private void DisposeServices()
+    {
+        Interlocked.Exchange(ref accentTheme, null)?.Dispose();
+        Interlocked.Exchange(ref serviceProvider, null)?.Dispose();
+    }
 
     private class ThrowingModManager : IModManager
     {

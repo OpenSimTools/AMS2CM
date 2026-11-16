@@ -23,6 +23,7 @@
     <ProjectReference Include="..\Core\Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="GUI.Tests" />
     <ApplicationDefinition Include="App.xaml" />
     <Content Include="..\Shared\Config.yaml" Link="Config.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\Shared\AMS2CM.ico" Link="AMS2CM.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
