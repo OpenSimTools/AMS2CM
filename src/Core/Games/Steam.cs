@@ -1,33 +1,19 @@
-﻿using Core.Utils;
+﻿using System.IO.Abstractions;
+using Core.Utils;
 using Gameloop.Vdf;
 using Gameloop.Vdf.JsonConverter;
 using Microsoft.Win32;
 
 namespace Core.Games;
 
-public static class Steam
+public class Steam(IFileSystem fs) : ISteamLibraryLocator
 {
     private static readonly string[] RegistryPaths =
     [
         @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Valve\Steam", @"HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam"
     ];
 
-    private static string MainInstallationPath()
-    {
-        try
-        {
-            return RegistryPaths
-                .SelectNotNull(registryPath =>
-                    Registry.GetValue(registryPath, "InstallPath", null) as string
-                ).Distinct().Single(path => Directory.Exists(path));
-        }
-        catch (Exception e)
-        {
-            throw new Exception("Cannot find Steam installation path", e);
-        }
-    }
-
-    public static string AppLibraryPath(string appId)
+    public string AppLibraryPath(string appId)
     {
         var steamDir = MainInstallationPath();
         var libraryFoldersPath = Path.Combine(steamDir, "steamapps", "libraryfolders.vdf");
@@ -41,13 +27,28 @@ public static class Steam
         };
     }
 
-    private static IEnumerable<LibraryFolder> ReadLibraryFolders(string path)
+    private string MainInstallationPath()
     {
-        var libraryFolders = File.ReadAllText(path);
+        try
+        {
+            return RegistryPaths
+                .SelectNotNull(registryPath =>
+                    Registry.GetValue(registryPath, "InstallPath", null) as string
+                ).Distinct().Single(path => fs.Directory.Exists(path));
+        }
+        catch (Exception e)
+        {
+            throw new Exception("Cannot find Steam installation path", e);
+        }
+    }
+
+    private IEnumerable<LibraryFolder> ReadLibraryFolders(string path)
+    {
+        var libraryFolders = fs.File.ReadAllText(path);
         var vdfRoot = VdfConvert.Deserialize(libraryFolders);
         return vdfRoot.ToJson().Value
             .SelectMany(x => x)
-            .Select(o => o.ToObject<LibraryFolder>()!);
+            .Select(o => o.ToObject<LibraryFolder>() ?? throw new Exception("Invalid Steam library folder"));
     }
 
     private record LibraryFolder(

@@ -5,6 +5,7 @@ namespace Core.SoftwareUpdates;
 public class GitHubUpdateChecker : IUpdateChecker
 {
     private readonly IConfig config;
+    private readonly IGitHubClient client;
 
     public interface IConfig
     {
@@ -13,16 +14,16 @@ public class GitHubUpdateChecker : IUpdateChecker
         string GitHubClientApp { get; }
     }
 
-    public GitHubUpdateChecker(IConfig config)
+    public GitHubUpdateChecker(IConfig config, IGitHubClient client)
     {
         this.config = config;
+        this.client = client;
     }
 
     public async Task<bool> CheckUpdateAvailable()
     {
         try
         {
-            var client = new GitHubClient(new ProductHeaderValue(config.GitHubClientApp));
             var release = await client.Repository.Release.GetLatest(config.GitHubOwner, config.GitHubRepo);
 
             // Note: Version.Parse breaks the contract and can return null!
