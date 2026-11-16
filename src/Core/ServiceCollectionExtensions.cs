@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using System.Runtime.Versioning;
 using Core.API;
 using Core.Games;
 using Core.IO;
@@ -21,17 +22,19 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddCoreServices(this IServiceCollection services, Config config)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            AddWindowsServices(services);
+        }
         services.TryAddSingleton(config.Game);
         services.TryAddSingleton(config.Updates);
         services.TryAddSingleton(config.ModInstall);
         services.TryAddSingleton<PrefixBootfilesNaming.IConfig>(p => p.GetRequiredService<ModInstallConfig>());
         services.TryAddSingleton<IFileSystem, FileSystem>();
-        services.TryAddSingleton<ISteamLibraryLocator, Steam>();
         services.TryAddSingleton<IGame, Game>();
         services.TryAddSingleton<IPackageRepository>(p => new FileSystemRepository(ModsDirectory(p, config)));
         services.TryAddSingleton<IStatePersistence>(p => new JsonFileStatePersistence(ModsDirectory(p, config)));
         services.TryAddSingleton<ITempDir>(p => new SubdirectoryTempDir(ModsDirectory(p, config)));
-        services.TryAddSingleton<ISafeFileDelete, WindowsRecyclingBin>();
         services.TryAddSingleton<IBootfilesNaming, PrefixBootfilesNaming>();
         services.TryAddSingleton<IFileUpdateTracker, CreationTimeFileUpdateTracker>();
         services.TryAddSingleton<SuffixBackupStrategy.Provider<DateTimeOffset, IEventHandler>>();
@@ -61,6 +64,13 @@ public static class ServiceCollectionExtensions
             new ProductHeaderValue(p.GetRequiredService<GitHubUpdateChecker.IConfig>().GitHubClientApp)));
         services.TryAddSingleton<IUpdateChecker, GitHubUpdateChecker>();
         return services;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void AddWindowsServices(IServiceCollection services)
+    {
+        services.TryAddSingleton<ISteamLibraryLocator, Steam>();
+        services.TryAddSingleton<ISafeFileDelete, WindowsRecyclingBin>();
     }
 
     private static IDirectoryInfo ModsDirectory(IServiceProvider provider, Config config) =>

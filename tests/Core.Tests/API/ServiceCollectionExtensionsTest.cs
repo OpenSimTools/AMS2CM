@@ -1,6 +1,8 @@
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Core.API;
+using Core.Games;
+using Core.IO;
 using Core.Packages.Repository;
 using Core.SoftwareUpdates;
 using Core.State;
@@ -68,6 +70,30 @@ public class ServiceCollectionExtensionsTest
 
         directory.FullName.Should().Be(Path.Combine(GameDirectory, ModsDirectory, "Temp"));
         directory.FileSystem.Should().BeSameAs(fs);
+    }
+
+    [Fact]
+    public void AddCoreServices_PreservesSteamLibraryLocatorOverride()
+    {
+        var locator = Mock.Of<ISteamLibraryLocator>();
+        var services = new ServiceCollection().AddSingleton(locator);
+
+        services.AddCoreServices(new Config());
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<ISteamLibraryLocator>().Should().BeSameAs(locator);
+    }
+
+    [Fact]
+    public void AddCoreServices_PreservesSafeFileDeleteOverride()
+    {
+        var deletion = Mock.Of<ISafeFileDelete>();
+        var services = new ServiceCollection().AddSingleton(deletion);
+
+        services.AddCoreServices(new Config());
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<ISafeFileDelete>().Should().BeSameAs(deletion);
     }
 
     #region Utility Methods

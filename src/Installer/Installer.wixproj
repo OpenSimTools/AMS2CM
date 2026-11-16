@@ -4,6 +4,8 @@
     <OutputName>AMS2CM</OutputName>
     <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
     <GenerateGitVersionInformation>false</GenerateGitVersionInformation>
+    <GuiPublishDir>$(MSBuildProjectDirectory)\obj\$(Platform)\$(Configuration)\gui-publish\</GuiPublishDir>
+    <DefineConstants>$(DefineConstants);GuiPublishDir=$(GuiPublishDir)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.UI.wixext" Version="7.0.1" />
@@ -23,5 +25,10 @@
     <!-- ItemGroup/Content seems to be ignored -->
     <Copy SourceFiles="Sandbox.wsb" DestinationFolder="$(TargetDir)" />
     <XmlPoke XmlInputPath="$(TargetDir)Sandbox.wsb" Value="$(TargetDir)" Query="/Configuration/MappedFolders/MappedFolder/HostFolder" />
+  </Target>
+  <Target Name="PublishGui" BeforeTargets="CoreCompile" DependsOnTargets="ResolveProjectReferences">
+    <RemoveDir Directories="$(GuiPublishDir)" />
+    <MSBuild Projects="..\GUI\GUI.csproj" Targets="Publish"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=win-x64;PublishDir=$(GuiPublishDir)" />
   </Target>
 </Project>

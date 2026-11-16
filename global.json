@@ -1,0 +1,9 @@
+{
+  "sdk": {
+    "version": "11.0.100",
+    "rollForward": "latestPatch"
+  },
+  "msbuild-sdks": {
+    "Uno.Sdk": "7.0.22"
+  }
+}

@@ -27,7 +27,7 @@ jobs:
     - name: Install .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 11.0.x
+        global-json-file: global.json
     - name: Configure NuGet repository
       run: dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/OpenSimTools/index.json"
 

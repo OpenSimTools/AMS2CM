@@ -2,11 +2,10 @@ using Core;
 using Core.API;
 using Core.SoftwareUpdates;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml;
 
 namespace AMS2CM.GUI;
 
-public partial class App
+public partial class App : Application
 {
     private MainWindow? window;
     private ServiceProvider? serviceProvider;
@@ -23,8 +22,8 @@ public partial class App
         {
             return;
         }
-        window.SignalErrorAsync(args.Exception);
         args.Handled = true;
+        _ = window.SignalErrorAsync(args.Exception);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

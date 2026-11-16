@@ -1,19 +1,27 @@
-using Microsoft.UI.Xaml.Controls;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace AMS2CM.GUI;
 
 public sealed partial class ErrorDialog : ContentDialog
 {
-    private string Details { init; get; }
+    private string Details { get; }
 
-    public ErrorDialog(Microsoft.UI.Xaml.XamlRoot xamlRoot, Exception exception)
+    public ErrorDialog(XamlRoot xamlRoot, Exception exception)
     {
         InitializeComponent();
         XamlRoot = xamlRoot;
         Message.Text = exception.Message;
         Details = FormatDetails(exception);
     }
+
+    private static string FormatDetails(Exception exception) =>
+        $"""
+        **Version**: {GitVersionInformation.InformationalVersion}
+        **OS**: {Environment.OSVersion.VersionString}
+        ```
+        {exception}
+        ```
+        """;
 
     private void ContentDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
@@ -22,11 +30,4 @@ public sealed partial class ErrorDialog : ContentDialog
         Clipboard.SetContent(dataPackage);
         args.Cancel = true;
     }
-
-    private string FormatDetails(Exception exception) =>
-        $@"**Version**: {GitVersionInformation.InformationalVersion}
-**OS**: {Environment.OSVersion.VersionString}
-```
-{exception}
-```";
 }
