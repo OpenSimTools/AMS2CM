@@ -10,11 +10,12 @@ using Core.Packages.Repository;
 using Core.State;
 using Core.Utils;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Tests.API;
 
 [IntegrationTest]
-public class ModManagerTest
+public class ModManagerTest : IDisposable
 {
     #region Setup
 
@@ -48,6 +49,7 @@ public class ModManagerTest
     private readonly InMemoryStatePersistence persistedState;
 
     private readonly IModManager modManager;
+    private readonly ServiceProvider provider;
 
     private readonly MockFileSystem fs;
     private readonly IDirectory Directory;
@@ -77,13 +79,23 @@ public class ModManagerTest
             GameSupportedModDir = GameSupportedModDirectory
         };
 
-        modManager = Init.CreateModManager(fs, gameMock.Object,
-            modRepositoryMock.Object,
-            persistedState,
-            safeFileDeleteMock.Object,
-            tempDir,
-            modInstallConfig);
+        var services = new ServiceCollection();
+        services.AddSingleton<IFileSystem>(fs);
+        services.AddSingleton(gameMock.Object);
+        services.AddSingleton(modRepositoryMock.Object);
+        services.AddSingleton<IStatePersistence>(persistedState);
+        services.AddSingleton(safeFileDeleteMock.Object);
+        services.AddSingleton<ITempDir>(tempDir);
+        services.AddCoreServices(new Config { ModInstall = modInstallConfig });
+        provider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+        modManager = provider.GetRequiredService<IModManager>();
     }
+
+    public void Dispose() => provider.Dispose();
 
     #endregion
 

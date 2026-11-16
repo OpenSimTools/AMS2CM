@@ -1,5 +1,7 @@
+using Core;
 using Core.API;
 using Core.SoftwareUpdates;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 
 namespace AMS2CM.GUI;
@@ -7,6 +9,7 @@ namespace AMS2CM.GUI;
 public partial class App
 {
     private MainWindow? window;
+    private ServiceProvider? serviceProvider;
 
     public App()
     {
@@ -27,23 +30,42 @@ public partial class App
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         var config = Config.Load(Environment.GetCommandLineArgs());
-        var modManager = CreateModManager(config);
-        var updateChecker = new GitHubUpdateChecker(config.Updates);
-        window = new MainWindow(modManager, updateChecker);
-        window.Activate();
+        var services = new ServiceCollection().AddCoreServices(config);
+        serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+        try
+        {
+            window = new MainWindow(
+                ResolveModManager(serviceProvider),
+                serviceProvider.GetRequiredService<IUpdateChecker>());
+            window.Closed += HandleWindowClosed;
+            window.Activate();
+        }
+        catch
+        {
+            DisposeServiceProvider();
+            throw;
+        }
     }
 
-    private static IModManager CreateModManager(Config config)
+    private static IModManager ResolveModManager(IServiceProvider provider)
     {
         try
         {
-            return Init.CreateModManager(config);
+            return provider.GetRequiredService<IModManager>();
         }
         catch (Exception ex)
         {
             return new ThrowingModManager(ex);
         }
     }
+
+    private void HandleWindowClosed(object sender, WindowEventArgs args) => DisposeServiceProvider();
+
+    private void DisposeServiceProvider() => Interlocked.Exchange(ref serviceProvider, null)?.Dispose();
 
     private class ThrowingModManager : IModManager
     {
@@ -54,11 +76,11 @@ public partial class App
             this.ex = ex;
         }
 
+        public List<ModState> FetchState() => throw ex;
         public string DisableMod(string packagePath) => throw ex;
         public string EnableMod(string packagePath) => throw ex;
         public void AddNewMod(string packagePath) => throw ex;
         public void DeleteMod(string packagePath) => throw ex;
-        public List<ModState> FetchState() => throw ex;
         public void InstallEnabledMods(IEventHandler eventHandler, CancellationToken cancellationToken) => throw ex;
         public void UninstallAllMods(IEventHandler eventHandler, CancellationToken cancellationToken) => throw ex;
     }

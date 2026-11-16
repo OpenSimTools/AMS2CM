@@ -1,5 +1,7 @@
 using AMS2CM.CLI;
+using Core;
 using Core.API;
+using Microsoft.Extensions.DependencyInjection;
 
 using var cancellation = new ConsoleCancellation(() =>
     Console.WriteLine("Cancelling installation...")
@@ -8,7 +10,13 @@ using var cancellation = new ConsoleCancellation(() =>
 try
 {
     var config = Config.Load(args);
-    var modManager = Init.CreateModManager(config);
+    var services = new ServiceCollection().AddCoreServices(config);
+    using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+    {
+        ValidateOnBuild = true,
+        ValidateScopes = true
+    });
+    var modManager = provider.GetRequiredService<IModManager>();
     modManager.InstallEnabledMods(new ConsoleEventLogger(), cancellation.Token);
 }
 catch (Exception e)

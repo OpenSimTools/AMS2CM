@@ -16,30 +16,30 @@ public class Game : IGame
 
     private readonly IConfig config;
 
-    public Game(IFileSystem fs, IConfig config)
+    public Game(IFileSystem fs, IConfig config, ISteamLibraryLocator steamLibraryLocator)
     {
-        var insallationDirectory = FindInstallationDirectory(config);
-        if (!Directory.Exists(insallationDirectory))
+        var installationDirectory = FindInstallationDirectory(config, steamLibraryLocator);
+        if (!fs.Directory.Exists(installationDirectory))
         {
             throw new Exception("The game directory does not exist");
         }
 
         this.config = config;
-        InstallationDirectory = fs.DirectoryInfo.New(insallationDirectory);
+        InstallationDirectory = fs.DirectoryInfo.New(installationDirectory);
     }
 
     public IDirectoryInfo InstallationDirectory { get; init; }
 
     public bool IsRunning => Process.GetProcesses().Any(p => p.ProcessName == config.ProcessName);
 
-    private static string FindInstallationDirectory(IConfig config)
+    private static string FindInstallationDirectory(IConfig config, ISteamLibraryLocator steamLibraryLocator)
     {
         if (Path.IsPathFullyQualified(config.Path))
         {
             return config.Path;
         }
 
-        var steamLibraryPath = Steam.AppLibraryPath(config.SteamId);
+        var steamLibraryPath = steamLibraryLocator.AppLibraryPath(config.SteamId);
         return Path.Combine(steamLibraryPath, config.Path);
     }
 }
