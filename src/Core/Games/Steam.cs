@@ -1,4 +1,5 @@
 ﻿using System.IO.Abstractions;
+using System.Runtime.Versioning;
 using Core.Utils;
 using Gameloop.Vdf;
 using Gameloop.Vdf.JsonConverter;
@@ -6,6 +7,7 @@ using Microsoft.Win32;
 
 namespace Core.Games;
 
+[SupportedOSPlatform("windows")]
 public class Steam(IFileSystem fs) : ISteamLibraryLocator
 {
     private static readonly string[] RegistryPaths =

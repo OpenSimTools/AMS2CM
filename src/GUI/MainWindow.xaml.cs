@@ -2,209 +2,275 @@ using System.Collections.ObjectModel;
 using Core.API;
 using Core.SoftwareUpdates;
 using Core.Utils;
-using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage;
 using Windows.Storage.Pickers;
-using WinUIEx;
 
 namespace AMS2CM.GUI;
 
-public sealed partial class MainWindow : WindowEx
+public sealed partial class MainWindow : Window
 {
-    private readonly ObservableCollection<ModVM> modList;
+    private readonly ObservableCollection<ModVm> modList = [];
     private readonly IModManager modManager;
     private readonly IUpdateChecker updateChecker;
+    private TaskCompletionSource? operationCompletion;
+    private bool isShowingError;
+
+    private XamlRoot DialogRoot => Root.XamlRoot ?? throw new InvalidOperationException("The window is not loaded.");
 
     public MainWindow(IModManager modManager, IUpdateChecker updateChecker)
     {
         InitializeComponent();
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(600, 600));
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "AMS2CM.ico"));
+        AppWindow.Closing += (_, args) => args.Cancel = operationCompletion is not null;
         this.modManager = modManager;
         this.updateChecker = updateChecker;
-        modList = new ObservableCollection<ModVM>();
         ModListView.ItemsSource = modList;
     }
 
-    private void Root_Loaded(object sender, RoutedEventArgs e)
-    {
-        SyncModListView();
-    }
-
-    private async void NewVersionBlock_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (await updateChecker.CheckUpdateAvailable())
-        {
-            DispatcherQueue.TryEnqueue(() => NewVersionBlock.Visibility = Visibility.Visible);
-        }
-    }
-
-    private async void ApplyButton_Click(Microsoft.UI.Xaml.Controls.SplitButton sender, Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs args)
-    {
-        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
-        {
-            var eventLogger = new SyncDialogEventLogger(dialog);
-            modManager.InstallEnabledMods(eventLogger, cancellationToken);
-        });
-        SyncModListView();
-    }
-
-    private async void UninstallAllItem_Click(object sender, RoutedEventArgs e)
-    {
-        await SyncDialog.ShowAsync(Content.XamlRoot, (dialog, cancellationToken) =>
-        {
-            var eventLogger = new SyncDialogEventLogger(dialog);
-            modManager.UninstallAllMods(eventLogger, cancellationToken);
-            dialog.SetProgress(1.0);
-        });
-        SyncModListView();
-    }
+    private void Root_Loaded(object sender, RoutedEventArgs e) => SyncModListView();
 
     private void SyncModListView()
     {
         modList.Clear();
-        foreach (var modState in modManager.FetchState().OrderBy(_ => _.PackageName))
+        foreach (var modState in modManager.FetchState().OrderBy(state => state.PackageName, StringComparer.CurrentCulture))
         {
-            modList.Add(new ModVM(modState, modManager));
+            modList.Add(new ModVm(modState, modManager));
+        }
+    }
+
+    private void NewVersionBlock_Loaded(object sender, RoutedEventArgs e) => HandleUiAction(async () =>
+    {
+        if (await updateChecker.CheckUpdateAvailable())
+        {
+            NewVersionBlock.Visibility = Visibility.Visible;
+        }
+    });
+
+    private void ApplyButton_Click(SplitButton sender, SplitButtonClickEventArgs args) =>
+        HandleUiAction(() => RunOperationAsync(() => SyncDialog.ShowAsync(DialogRoot, (dialog, cancellationToken) =>
+        {
+            var eventLogger = new SyncDialogEventLogger(dialog);
+            modManager.InstallEnabledMods(eventLogger, cancellationToken);
+        })));
+
+    private void UninstallAllItem_Click(object sender, RoutedEventArgs e) =>
+        HandleUiAction(() => RunOperationAsync(() => SyncDialog.ShowAsync(DialogRoot, (dialog, cancellationToken) =>
+        {
+            var eventLogger = new SyncDialogEventLogger(dialog);
+            modManager.UninstallAllMods(eventLogger, cancellationToken);
+            dialog.SetProgress(1.0);
+        })));
+
+    private async void HandleUiAction(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception exception)
+        {
+            await SignalErrorAsync(exception);
+        }
+    }
+
+    private async Task RunOperationAsync(Func<Task> action)
+    {
+        if (operationCompletion is not null || isShowingError)
+        {
+            return;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        operationCompletion = completion;
+        Root.IsEnabled = false;
+        try
+        {
+            await action();
+            SyncModListView();
+        }
+        finally
+        {
+            operationCompletion = null;
+            Root.IsEnabled = !isShowingError;
+            completion.SetResult();
         }
     }
 
     private void ModListView_DragOver(object sender, DragEventArgs e)
     {
-        e.AcceptedOperation = DataPackageOperation.Copy;
+        e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.StorageItems)
+            ? DataPackageOperation.Copy
+            : DataPackageOperation.None;
     }
 
-    private async void ModListView_Drop(object sender, DragEventArgs e)
+    private void ModListView_Drop(object sender, DragEventArgs e) => HandleUiAction(async () =>
     {
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            return;
+        }
+
+        var deferral = e.GetDeferral();
+        try
         {
             var storageItems = await e.DataView.GetStorageItemsAsync();
-            AddNewMods(storageItems.Select(_ => _.Path));
+            await RunOperationAsync(() => AddNewModsAsync(storageItems.Select(item => item.Path)));
         }
-    }
-
-    private async void ModListView_DragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
-    {
-        var storageItems = new List<StorageFile>();
-        var filePaths = e.Items.OfType<ModVM>().SelectNotNull(_ => _.PackageLocation);
-        foreach (var filePath in filePaths)
+        finally
         {
-            if (Directory.Exists(filePath))
-            {
-                continue;
-            }
-            var si = await StorageFile.GetFileFromPathAsync(filePath);
-            storageItems.Add(si);
+            deferral.Complete();
         }
+    });
 
-        if (!storageItems.Any())
+    private void ModListView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        var filePaths = e.Items.OfType<ModVm>().SelectNotNull(mod => mod.PackageLocation)
+            .Where(path => !Directory.Exists(path)).ToArray();
+        if (filePaths.Length == 0)
         {
             e.Cancel = true;
             return;
         }
 
-        e.Data.SetStorageItems(storageItems);
+        e.Data.SetDataProvider(StandardDataFormats.StorageItems, request => ProvideStorageItems(request, filePaths));
         e.Data.RequestedOperation = DataPackageOperation.Move;
     }
 
-    private void ModListView_DragItemsCompleted(Microsoft.UI.Xaml.Controls.ListViewBase sender, Microsoft.UI.Xaml.Controls.DragItemsCompletedEventArgs args)
+    private void ProvideStorageItems(DataProviderRequest request, IEnumerable<string> filePaths) => HandleUiAction(async () =>
     {
-        // Refresh list after removing mods with drag and drop
+        var deferral = request.GetDeferral();
+        try
+        {
+            var storageItems = new List<StorageFile>();
+            foreach (var filePath in filePaths)
+            {
+                storageItems.Add(await StorageFile.GetFileFromPathAsync(filePath));
+            }
+            request.SetData(storageItems);
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    });
+
+    private void ModListView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args) =>
         SyncModListView();
-    }
 
     private void ModListMenuEnable_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var o in ModListView.SelectedItems)
+        foreach (var mod in ModListView.SelectedItems.OfType<ModVm>())
         {
-            var mvm = (ModVM)o;
-            mvm.IsEnabled = true;
+            mod.IsEnabled = true;
         }
     }
 
     private void ModListMenuDisable_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var o in ModListView.SelectedItems)
+        foreach (var mod in ModListView.SelectedItems.OfType<ModVm>())
         {
-            var mvm = (ModVM)o;
-            mvm.IsEnabled = false;
+            mod.IsEnabled = false;
         }
     }
 
-    private async void ModListMenuAdd_Click(object sender, RoutedEventArgs e)
-    {
-        var filePicker = this.CreateOpenFilePicker();
-        filePicker.ViewMode = PickerViewMode.List;
-        filePicker.FileTypeFilter.Add("*");
-
-        var storageFiles = await filePicker.PickMultipleFilesAsync();
-        var filePaths = storageFiles.Select(_ => _.Path);
-        AddNewMods(filePaths);
-    }
-
-    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e)
-    {
-        var filePaths = ModListView.SelectedItems.OfType<ModVM>().SelectNotNull(_ => _.PackageLocation);
-        DeleteMods(filePaths);
-    }
-
-    private void ModListView_RightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
-    {
-        // Select the mod if right click outside of selection
-        var mvm = (e.OriginalSource as FrameworkElement)?.DataContext as ModVM;
-        if (!ModListView.SelectedItems.Contains(mvm))
+    private void ModListMenuAdd_Click(object sender, RoutedEventArgs e) =>
+        HandleUiAction(() => RunOperationAsync(async () =>
         {
-            ModListView.SelectedItem = mvm;
-        }
-    }
-
-    public async void SignalErrorAsync(Exception exception)
-    {
-        var dialog = new ErrorDialog(Content.XamlRoot, exception);
-        await dialog.ShowAsync();
-        Close();
-    }
-
-    private async void AddNewMods(IEnumerable<string> filePaths)
-    {
-        if (!filePaths.Any())
-        {
-            return;
-        }
-
-        await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
+            var filePicker = new FileOpenPicker
             {
-                modManager.AddNewMod(filePath);
-                dialog.LogMessage(Path.GetFileName(filePath));
-            });
+                ViewMode = PickerViewMode.List,
+                SuggestedStartLocation = PickerLocationId.ComputerFolder
+            };
+            filePicker.FileTypeFilter.Add("*");
+            var storageFiles = await filePicker.PickMultipleFilesAsync();
+            await AddNewModsAsync(storageFiles.Select(file => file.Path));
+        }));
 
-        SyncModListView();
-    }
-
-    private async void DeleteMods(IEnumerable<string> filePaths)
-    {
-        if (!filePaths.Any())
+    private Task AddNewModsAsync(IEnumerable<string> filePaths) =>
+        SyncDialog.ShowAsync(DialogRoot, filePaths, (dialog, filePath) =>
         {
-            return;
-        }
-
-        await SyncDialog.ShowAsync(Content.XamlRoot, filePaths, (dialog, filePath) =>
-        {
-            modManager.DeleteMod(filePath);
+            modManager.AddNewMod(filePath);
             dialog.LogMessage(Path.GetFileName(filePath));
         });
 
-        SyncModListView();
+    private void ModListMenuDelete_Click(object sender, RoutedEventArgs e) => HandleUiAction(async () =>
+    {
+        var filePaths = ModListView.SelectedItems.OfType<ModVm>()
+            .SelectNotNull(mod => mod.PackageLocation).ToArray();
+        await RunOperationAsync(() => SyncDialog.ShowAsync(DialogRoot, filePaths, (dialog, filePath) =>
+        {
+            modManager.DeleteMod(filePath);
+            dialog.LogMessage(Path.GetFileName(filePath));
+        }));
+    });
+
+    private void ModListView_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        var mod = (e.OriginalSource as FrameworkElement)?.DataContext as ModVm;
+        if (!ModListView.SelectedItems.Contains(mod))
+        {
+            ModListView.SelectedItem = mod;
+        }
     }
 
-    internal class SyncDialogEventLogger : BaseEventLogger
+    public Task SignalErrorAsync(Exception exception)
     {
-        private readonly SyncDialog dialog;
-
-        internal SyncDialogEventLogger(SyncDialog dialog)
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!DispatcherQueue.TryEnqueue(() => ShowError(exception, completion)))
         {
-            this.dialog = dialog;
+            completion.SetResult();
+        }
+        return completion.Task;
+    }
+
+    private async void ShowError(Exception exception, TaskCompletionSource completion)
+    {
+        try
+        {
+            await ShowErrorAsync(exception);
+        }
+        catch (Exception dialogException)
+        {
+            System.Diagnostics.Trace.TraceError("Unable to handle error: {0}. Original error: {1}", dialogException, exception);
+        }
+        finally
+        {
+            completion.SetResult();
+        }
+    }
+
+    private async Task ShowErrorAsync(Exception exception)
+    {
+        if (isShowingError)
+        {
+            return;
         }
 
+        isShowingError = true;
+        Root.IsEnabled = false;
+        try
+        {
+            if (operationCompletion is not null)
+            {
+                await operationCompletion.Task;
+            }
+            var dialog = new ErrorDialog(DialogRoot, exception);
+            await dialog.ShowAsync();
+        }
+        catch (Exception dialogException)
+        {
+            System.Diagnostics.Trace.TraceError("Unable to show error: {0}. Original error: {1}", dialogException, exception);
+        }
+        finally
+        {
+            Close();
+        }
+    }
+
+    private sealed class SyncDialogEventLogger(SyncDialog dialog) : BaseEventLogger
+    {
         public override void ProgressUpdate(IPercent? value) => dialog.SetProgress(value?.Percent);
         protected override void LogMessage(string message) => dialog.LogMessage(message);
     }
