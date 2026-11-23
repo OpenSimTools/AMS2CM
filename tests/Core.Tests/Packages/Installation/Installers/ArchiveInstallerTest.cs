@@ -1,4 +1,5 @@
 ﻿using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using System.IO.Compression;
 using Core.Packages.Installation.Backup;
 using Core.Packages.Installation.Installers;
@@ -8,12 +9,11 @@ using FluentAssertions;
 namespace Core.Tests.Packages.Installation.Installers;
 
 [IntegrationTest]
-public class ArchiveInstallerTest : IDisposable
+public class ArchiveInstallerTest
 {
     #region Setup
 
-    private readonly FileSystem fs = new();
-    private readonly IDirectoryInfo testDirectory;
+    private readonly MockFileSystem fs = new();
     private readonly string destinationPath;
     private readonly PathRoot destinationRoot;
     private readonly Mock<IBackupStrategy> backupStrategy = new();
@@ -21,17 +21,9 @@ public class ArchiveInstallerTest : IDisposable
 
     public ArchiveInstallerTest()
     {
-        testDirectory = fs.Directory.CreateDirectory(
-            Path.Combine(Path.GetTempPath(), $"{nameof(ArchiveInstallerTest)}-{Guid.NewGuid():N}"));
-        var destDir = testDirectory.CreateSubdirectory("Destination");
+        var destDir = fs.Directory.CreateDirectory("Destination");
         destinationPath = destDir.FullName;
         destinationRoot = new PathRoot(destDir);
-    }
-
-    public void Dispose()
-    {
-        testDirectory.Delete(recursive: true);
-        GC.SuppressFinalize(this);
     }
 
     #endregion
@@ -80,7 +72,7 @@ public class ArchiveInstallerTest : IDisposable
     public void Install_ReplacesExistingDestination()
     {
         var destinationFile = Path.Combine(destinationPath, "existing");
-        fs.File.WriteAllText(destinationFile, "Old");
+        fs.AddFile(destinationFile, new MockFileData("Old"));
         var archive = CreateArchive(
             ("existing", "New"));
 
@@ -111,7 +103,7 @@ public class ArchiveInstallerTest : IDisposable
         var archive = CreateArchive(
             ("to-remove" + BaseInstaller.RemoveFileSuffix, "Unused"));
         var destinationFile = Path.Combine(destinationPath, "to-remove");
-        fs.File.WriteAllText(destinationFile, "Old");
+        fs.AddFile(destinationFile, new MockFileData("Old"));
         var installer = new ArchiveInstaller("Package", 1, archive);
 
         installer.Install(destinationRoot.Combine, backupStrategy.Object, NoCallbacks);
@@ -124,7 +116,7 @@ public class ArchiveInstallerTest : IDisposable
 
     private IFileInfo CreateArchive(params (string Name, string Content)[] entries)
     {
-        var archiveFile = fs.FileInfo.New(Path.Combine(testDirectory.FullName, "Package.zip"));
+        var archiveFile = fs.FileInfo.New("Package.zip");
         using var archiveStream = archiveFile.Create();
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create);
         foreach (var (name, content) in entries)
